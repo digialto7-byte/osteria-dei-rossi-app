@@ -91,7 +91,10 @@ describe("the end-of-day page", () => {
 
   it("shows the app's total, tables and covers, and the totals by document and payment", async () => {
     await open();
-    expect(byText(nb("Totale app 1.234,50 € · 3 tavoli · 6 coperti"))).toBeTruthy();
+    const total = byText(nb("Totale app 1.234,50 € · 3 tavoli · 6 coperti"));
+    expect(total.tagName).toBe("STRONG");
+    expect(total.parentElement?.tagName).toBe("P");
+    expect(total.parentElement?.className).not.toContain("font-bold");
     expect(byText(nb("Scontrino 1.134,50 € · 2 tavoli"))).toBeTruthy();
     expect(byText(nb("Fattura 100,00 € · 1 tavolo"))).toBeTruthy();
     expect(byText(nb("Contanti 134,50 € · 1 tavolo"))).toBeTruthy();

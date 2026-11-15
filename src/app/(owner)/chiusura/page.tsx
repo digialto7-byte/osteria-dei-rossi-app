@@ -156,12 +156,14 @@ function DayCloseScreen({ date }: { date: string | null }) {
           <ErrorAlert message={loadError} />
           <Card className="flex flex-col gap-3">
             <SubHeading>{t("dayClose.app.heading")}</SubHeading>
-            <p className="text-xl font-bold tabular-nums">
-              {t("dayClose.app.total", {
-                amount: formatEuro(report.app.total),
-                tables: tn("dayClose.tables", report.app.tables),
-                covers: tn("dayClose.covers", report.app.covers),
-              })}
+            <p className="text-xl tabular-nums">
+              <strong>
+                {t("dayClose.app.total", {
+                  amount: formatEuro(report.app.total),
+                  tables: tn("dayClose.tables", report.app.tables),
+                  covers: tn("dayClose.covers", report.app.covers),
+                })}
+              </strong>
             </p>
             <Buckets
               title={t("bill.close.document")}
