@@ -5,12 +5,24 @@
 --  * public.app_user, before insert or update of auth_id, role: when the auth user has a platform.staff row, the app_user row is refused unless that staff row is an
 --    active platform_admin and the new role is admin. This is the one new trigger in public (pgTAP 365 counts it: 128 to 129).
 -- The functions are definers with an empty search_path and closed to every API role.
+-- Race (lead's review): each guard reads the other table with a plain `exists`, and under READ COMMITTED an uncommitted row of the other session is invisible, so a staff
+-- row and a member row for one auth user could both commit. Both guards therefore take a transaction advisory lock on the auth user before they check:
+-- pg_advisory_xact_lock(7301, hashtext(auth_id::text)), the same key in both functions, so the second writer waits for the first to commit and then sees its row. An update
+-- that changes auth_id locks the old and the new auth user, lower hash first, so two such updates cannot deadlock. An advisory lock was chosen over `select ... for update`
+-- on auth.users because it takes no row lock on a table owned by Supabase Auth (which its own sign-in writes contend for) and needs no privilege on it.
 
 create function platform.staff_member_guard() returns trigger
   language plpgsql security definer
   set search_path = ''
 as $$
+declare
+  v_a integer := hashtext(new.auth_id::text);
+  v_b integer := case when tg_op = 'UPDATE' then hashtext(old.auth_id::text) else hashtext(new.auth_id::text) end;
 begin
+  perform pg_advisory_xact_lock(7301, least(v_a, v_b));
+  if v_a <> v_b then
+    perform pg_advisory_xact_lock(7301, greatest(v_a, v_b));
+  end if;
   if new.role = 'platform_support' and exists (select 1 from public.app_user u where u.auth_id = new.auth_id) then
     raise exception 'platform_support_has_member_row' using errcode = 'P0001';
   end if;
@@ -29,7 +41,14 @@ create function app.app_user_platform_staff_guard() returns trigger
   language plpgsql security definer
   set search_path = ''
 as $$
+declare
+  v_a integer := hashtext(new.auth_id::text);
+  v_b integer := case when tg_op = 'UPDATE' then hashtext(old.auth_id::text) else hashtext(new.auth_id::text) end;
 begin
+  perform pg_advisory_xact_lock(7301, least(v_a, v_b));
+  if v_a <> v_b then
+    perform pg_advisory_xact_lock(7301, greatest(v_a, v_b));
+  end if;
   if exists (select 1 from platform.staff s where s.auth_id = new.auth_id)
      and not exists (select 1 from platform.staff s
                       where s.auth_id = new.auth_id and s.role = 'platform_admin' and s.is_active and new.role = 'admin') then
