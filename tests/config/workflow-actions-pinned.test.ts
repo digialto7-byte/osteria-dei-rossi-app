@@ -1,4 +1,5 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -142,10 +143,10 @@ function secretJobIds({ text }: WorkflowFile): string[] {
     .map((job) => job.id);
 }
 
-// Packages npx may resolve locally: package.json's dependencies and devDependencies, and the bins those packages provide
-// (npx playwright is the bin of @playwright/test, npx tsc of typescript).
-function localTools(): Set<string> {
-  const root = new URL("../../", import.meta.url).pathname;
+// What npx may resolve locally. `packages` are package.json's dependencies and devDependencies: the only values -p/--package may take.
+// `tools` add the bins those packages provide, which a bare command may name (npx playwright is the bin of @playwright/test, npx tsc of
+// typescript); as a package spec a bin name such as `tsc` would be an unrelated registry package.
+function localTools(root: string): { packages: Set<string>; tools: Set<string> } {
   const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8")) as {
     dependencies?: Record<string, string>;
     devDependencies?: Record<string, string>;
@@ -153,24 +154,28 @@ function localTools(): Set<string> {
   const names = [...Object.keys(pkg.dependencies ?? {}), ...Object.keys(pkg.devDependencies ?? {})];
   const tools = new Set(names);
   for (const name of names) {
-    const dep = JSON.parse(
-      readFileSync(join(root, "node_modules", name, "package.json"), "utf8"),
-    ) as {
-      bin?: string | Record<string, string>;
-    };
+    const file = join(root, "node_modules", name, "package.json");
+    if (!existsSync(file))
+      throw new Error(
+        `${name} is listed in package.json but missing from node_modules: node_modules is stale: run npm ci`,
+      );
+    const dep = JSON.parse(readFileSync(file, "utf8")) as { bin?: string | Record<string, string> };
     if (typeof dep.bin === "string") tools.add(name.split("/").pop() as string);
     else for (const bin of Object.keys(dep.bin ?? {})) tools.add(bin);
   }
-  return tools;
+  return { packages: new Set(names), tools };
 }
-const TOOLS = localTools();
-const VALUE_FLAGS = new Set(["-p", "--package", "-c", "--call", "-w", "--workspace"]);
+const LOCAL = localTools(new URL("../../", import.meta.url).pathname);
+const VALUE_FLAGS = new Set(["-w", "--workspace"]);
+// `name@x`, `@scope/name@x`: a version or tag makes npx fetch something other than the locked package.
+const VERSIONED = /^(?:@[^/@]+\/)?[^@/\s]+@/;
 
-// The package an npx / npm exec call runs: the one named by -p/--package, else the first word that is not a flag.
-function npxPackages(args: string): string[] {
+// An npx / npm exec call: the packages named by -p/--package and the command word (the first word that is not a flag).
+function npxCall(args: string): { packages: string[]; command?: string; shell: boolean } {
   const tokens = args.trim().split(/\s+/).filter(Boolean);
-  const named: string[] = [];
+  const packages: string[] = [];
   let command: string | undefined;
+  let shell = false;
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i] as string;
     if (t === "--") {
@@ -178,31 +183,78 @@ function npxPackages(args: string): string[] {
       break;
     }
     const inline = /^(?:-p|--package)=(.+)$/.exec(t);
-    if (inline) named.push(inline[1] as string);
-    else if (t === "-p" || t === "--package") named.push(tokens[++i] ?? "");
+    if (inline) packages.push(inline[1] as string);
+    else if (t === "-p" || t === "--package") packages.push(tokens[++i] ?? "");
+    else if (t === "-c" || t === "--call" || t.startsWith("--call=")) shell = true;
     else if (VALUE_FLAGS.has(t)) i++;
     else if (!t.startsWith("-")) {
       command = t;
       break;
     }
   }
-  const found = named.length > 0 ? named : command ? [command] : [];
-  return found.map((n) => n.replace(/^(@[^/@]+\/[^@]+|[^@]+)@.*$/, "$1"));
+  return { packages, command, shell };
 }
 
 function npxViolation(c: string): string | null {
-  for (const call of c.matchAll(NPX_CALL)) {
-    const packages = npxPackages(call[1] ?? "");
-    if (packages.length === 0) return "npx / npm exec must name a package";
-    for (const name of packages)
-      if (!TOOLS.has(name))
-        return `npx / npm exec '${name}' is not a dependency or devDependency (it would be downloaded)`;
+  for (const match of c.matchAll(NPX_CALL)) {
+    const call = npxCall(match[1] ?? "");
+    if (call.shell) return "npx -c / --call runs a shell string that is not checked";
+    if (call.packages.length === 0 && !call.command) return "npx / npm exec must name a package";
+    for (const spec of [...call.packages, ...(call.command ? [call.command] : [])])
+      if (VERSIONED.test(spec))
+        return `npx / npm exec '${spec}' is a versioned or tagged spec (it would be downloaded, not the locked package)`;
+    for (const name of call.packages)
+      if (!LOCAL.packages.has(name))
+        return `npx / npm exec -p '${name}' is not a dependency or devDependency (-p takes package names, not bins)`;
+    if (call.command && !LOCAL.tools.has(call.command))
+      return `npx / npm exec '${call.command}' is not a dependency, devDependency or one of their bins (it would be downloaded)`;
   }
   return null;
 }
 
-function installViolation(line: string): string | null {
-  const c = code(line);
+// The shell commands of a job's run: steps, one per logical line (a trailing backslash joins the next line), with their line numbers.
+function runCommands(
+  lines: { n: number; text: string }[],
+): { n: number; raw: string; command: string }[] {
+  const physical: { n: number; text: string }[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i] as { n: number; text: string };
+    const key = /^(\s*)(-\s+)?run:\s*(.*)$/.exec(line.text);
+    if (!key) continue;
+    const indent = (key[1] ?? "").length + (key[2] ? 2 : 0);
+    const rest = key[3] ?? "";
+    if (!/^[|>][+-]?\d*\s*$/.test(rest)) {
+      physical.push({ n: line.n, text: rest });
+      continue;
+    }
+    for (let j = i + 1; j < lines.length; j++) {
+      const next = lines[j] as { n: number; text: string };
+      if (next.text.trim() !== "" && next.text.length - next.text.trimStart().length <= indent)
+        break;
+      if (!isComment(next.text)) physical.push(next);
+    }
+  }
+  type Cmd = { n: number; raw: string; command: string };
+  const out: Cmd[] = [];
+  let current: Cmd | undefined;
+  for (const { n, text } of physical) {
+    const continued = /\\\s*$/.test(text);
+    const piece = code(text).replace(/\\\s*$/, "");
+    current = current
+      ? { ...current, raw: `${current.raw} ${text}`, command: `${current.command} ${piece}` }
+      : { n, raw: text, command: piece };
+    if (!continued) {
+      out.push(current);
+      current = undefined;
+    }
+  }
+  if (current) out.push(current);
+  return out;
+}
+
+function installViolation(line: string, command: string): string | null {
+  // Shell quoting and punctuation around tokens do not hide a command.
+  const c = command.replace(/[()"'`]/g, " ");
   if (BANNED_INSTALL.test(c))
     return "npm install, add, it, install-ci-test, rebuild and their aliases are not allowed";
   if (AUTO_YES.test(c)) return "npx --yes/-y and npm exec --yes download and run code unasked";
@@ -241,14 +293,31 @@ function secretJobViolations(file: WorkflowFile): string[] {
             `${at}: setup-node needs 'package-manager-cache: false' in a job that holds secrets`,
           );
       }
-      const bad = installViolation(text);
-      if (bad) out.push(`${at}: ${bad}: ${text.trim()}`);
     });
+    for (const { n, raw, command } of runCommands(job.lines)) {
+      const bad = installViolation(raw, command);
+      if (bad) out.push(`${file.name}:${n} (job ${job.id}): ${bad}: ${raw.trim()}`);
+    }
   }
   return out;
 }
 
 const SHA = "0123456789abcdef0123456789abcdef01234567";
+// A secret job whose steps are the given run commands: the first as a block (so it may span lines), the rest one-liners.
+const secretRun = (block: string, ...oneLiners: string[]): WorkflowFile => ({
+  name: "synthetic.yml",
+  text: [
+    "jobs:",
+    "  a:",
+    "    environment: staging",
+    "    steps:",
+    "      - name: block",
+    "        run: |",
+    ...block.split("\n").map((l) => (l.startsWith(" ") ? l : `          ${l}`)),
+    ...oneLiners.map((c) => `      - run: ${c}`),
+    "",
+  ].join("\n"),
+});
 const all = files();
 const byName = (name: string) => {
   const file = all.find((f) => f.name === name);
@@ -649,7 +718,6 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
       "npx supabase start -x studio",
       "npx playwright install --with-deps chromium",
       "npx vitest run",
-      "npx tsx@4.23.15 x.ts",
       "npx -p tsx tsx x.ts",
       "npm exec tsx x.ts",
       "npm x -- tsx x.ts",
@@ -665,6 +733,88 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
       const text =
         "jobs:\n  a:\n    steps:\n      - run: npm ci\n  b: # deploy\n    environment: staging\n    steps:\n      - run: npm ci --ignore-scripts\n";
       expect(secretJobIds({ name: "j.yml", text })).toEqual(["b"]);
+    });
+
+    it.each([
+      "npx supabase@latest db push",
+      "npx tsx@4.0.0 x.ts",
+      "npx tsx@4.23.15 x.ts",
+      "npx -p supabase@latest supabase",
+      "npx --package=supabase@latest supabase",
+      "npx @playwright/test@1.56.1 test",
+      "npx -p @playwright/test@1.56.1 playwright test",
+      "npm exec supabase@latest -- db push",
+      "npm x tsx@4.0.0 x.ts",
+    ])("refuses the versioned or tagged spec '%s' in a secret job", (cmd) => {
+      const bad = secretRun(cmd);
+      expect(secretJobViolations(bad).join("\n"), cmd).toContain("versioned");
+    });
+    it.each(["npx -p tsc tsc", "npx --package=tsc tsc", "npx -p playwright playwright test"])(
+      "refuses '%s': -p takes package names, and tsc / playwright are only bins",
+      (cmd) => {
+        expect(secretJobViolations(secretRun(cmd)), cmd).not.toEqual([]);
+      },
+    );
+    it.each([
+      "npx tsc --noEmit",
+      "npx -p @playwright/test playwright test",
+      "npx -p typescript tsc",
+    ])("accepts '%s': a bare bin, or -p with a package name", (cmd) => {
+      expect(secretJobViolations(secretRun(cmd)), cmd).toEqual([]);
+    });
+    it.each(["npx -c 'tsx x.ts'", "npx --call 'tsx x.ts'"])(
+      "refuses '%s': a shell string is not checked",
+      (cmd) => {
+        expect(secretJobViolations(secretRun(cmd)), cmd).not.toEqual([]);
+      },
+    );
+    it("only checks run: content: a step name that mentions npx or npm install is fine", () => {
+      const text = [
+        "jobs:",
+        "  a:",
+        "    environment: staging",
+        "    steps:",
+        "      - name: Install browsers (npx playwright) after npm install",
+        "        run: echo done",
+        "      - name: npm ci without flags",
+        "        if: contains(github.event.head_commit.message, 'npx foo')",
+        "        run: echo ok",
+        "",
+      ].join("\n");
+      expect(secretJobViolations({ name: "n.yml", text })).toEqual([]);
+    });
+    it("checks every line of a run block, and a one-line run", () => {
+      expect(secretJobViolations(secretRun("echo a\n          npx some-unknown-tool")).length).toBe(
+        1,
+      );
+      expect(secretJobViolations(secretRun("echo a", "npm install")).length).toBe(1);
+    });
+    it("joins a trailing-backslash continuation", () => {
+      expect(
+        secretJobViolations(secretRun("npx supabase \\\n            start -x studio")),
+      ).toEqual([]);
+      expect(secretJobViolations(secretRun("npx \\\n            some-unknown-tool"))).not.toEqual(
+        [],
+      );
+      expect(secretJobViolations(secretRun("npm ci \\\n            --ignore-scripts"))).toEqual([]);
+      expect(secretJobViolations(secretRun("npm ci \\\n            --foo"))).not.toEqual([]);
+    });
+    it.each([
+      "(npx some-unknown-tool)",
+      '"npx some-unknown-tool"',
+      "x=$(npx some-unknown-tool)",
+      "`npx some-unknown-tool`",
+      "npx 'tsxx' x.ts",
+    ])("strips shell quoting and punctuation: '%s' is still refused", (cmd) => {
+      expect(secretJobViolations(secretRun(cmd)), cmd).not.toEqual([]);
+    });
+    it("names the package and says node_modules is stale when a dependency is missing", () => {
+      const root = mkdtempSync(join(tmpdir(), "tools-"));
+      writeFileSync(
+        join(root, "package.json"),
+        JSON.stringify({ devDependencies: { "left-pad-x": "1.0.0" } }),
+      );
+      expect(() => localTools(root)).toThrow(/left-pad-x.*node_modules is stale: run npm ci/);
     });
   });
 });
