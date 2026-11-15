@@ -4,9 +4,11 @@ import { PLATFORM_AUDIT_ACTIONS, PLATFORM_AUDIT_ORIGINS, PLATFORM_NOTICE_KINDS }
 // SP3 step 21a (plan section 3.4, FINAL): the shapes of the console API, shared by the screens and by src/server/platform/output.ts.
 // Client-importable: this module imports only zod and ./codes. Every object is strict: an unknown key is a refusal, never ignored.
 
-const uuid = z
+/** A lowercase uuid. Zod 4's z.uuid() accepts uppercase; the platform audit and the database's own checks are lowercase-only, so every id that reaches them is parsed with this. */
+export const lowercaseUuidSchema = z
   .uuid()
   .refine((value) => value === value.toLowerCase(), { message: "uuid must be lowercase" });
+const uuid = lowercaseUuidSchema;
 const instant = z.iso.datetime();
 const day = z
   .string()

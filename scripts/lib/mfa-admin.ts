@@ -1,5 +1,6 @@
 import { parseArgs } from "node:util";
 import { z } from "zod";
+import { lowercaseUuidSchema } from "../../src/lib/platform/api";
 import { AUDIT_NOT_WRITTEN, AuditNotWrittenError, recordScriptRun } from "./platform-audit";
 
 // P2-1 A13 (docs/plans/2026-11-12-p2-1-totp.md section 3.7; founder decision Q-T1 = V1 of 2026-11-12): the two founder scripts of the second factor.
@@ -9,7 +10,8 @@ import { AUDIT_NOT_WRITTEN, AuditNotWrittenError, recordScriptRun } from "./plat
 // SUPABASE_SECRET_KEY; this module never reads the environment and never prints a key, an id of a factor or an answer it does not understand.
 // Exit codes: 0 done, 1 refused or failed, 2 wrong arguments (nothing was called).
 
-const UUID = z.uuid();
+/** Ids are lowercase uuids: an uppercase one would pass the database call (sessions deleted, factors removed) and then fail the audit write, leaving a reset with no audit row. */
+const UUID = lowercaseUuidSchema;
 const MODES = ["off", "enrolled", "required"] as const;
 
 class UsageError extends Error {}
