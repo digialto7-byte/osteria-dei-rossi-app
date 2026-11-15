@@ -13,8 +13,15 @@ type RpcResult = {
   data: unknown;
   error: { message: string; code?: string; details?: string | null } | null;
 };
-function harness(result: RpcResult = { data: { changed: true, mode: "required" }, error: null }) {
-  const rpc = vi.fn(async (..._args: unknown[]): Promise<RpcResult> => result);
+const AUDIT_OK: RpcResult = { data: 7, error: null };
+function harness(
+  result: RpcResult = { data: { changed: true, mode: "required" }, error: null },
+  audit: RpcResult = AUDIT_OK,
+) {
+  // The platform audit writer (SP3 step 5) answers a row id; set_mfa_enforcement answers `result`.
+  const rpc = vi.fn(async (fn: unknown, ..._args: unknown[]): Promise<RpcResult> =>
+    fn === "platform_record_script_run" ? audit : result,
+  );
   const admin = { rpc, auth: { admin: { mfa: { listFactors: vi.fn(), deleteFactor: vi.fn() } } } };
   const make = vi.fn(() => admin as unknown as MfaAdminClient);
   const out: string[] = [];
@@ -66,7 +73,7 @@ describe("set-mfa-enforcement: the call", () => {
   it("calls the procedure once and prints {changed, mode} only", async () => {
     const h = harness();
     expect(await h.run(ARGS)).toBe(0);
-    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc.mock.calls.filter(([fn]) => fn === "set_mfa_enforcement")).toHaveLength(1);
     expect(h.out).toEqual([JSON.stringify({ changed: true, mode: "required" })]);
     expect(h.err).toEqual([]);
   });
@@ -162,5 +169,53 @@ describe("the scripts and the secret key", () => {
   it("package.json is untouched: no new script entry and no new dependency", () => {
     const pkg = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
     expect(Object.keys(pkg.scripts).filter((name) => /mfa/i.test(name))).toEqual([]);
+  });
+});
+
+describe("set-mfa-enforcement: the platform audit (SP3 step 5)", () => {
+  const auditCalls = (h: ReturnType<typeof harness>) =>
+    h.rpc.mock.calls.filter(([fn]) => fn === "platform_record_script_run");
+
+  it("writes exactly one platform audit row after a successful run, none after a refused one", async () => {
+    const ok = harness();
+    expect(await ok.run(ARGS)).toBe(0);
+    expect(auditCalls(ok)).toEqual([
+      [
+        "platform_record_script_run",
+        {
+          p_action: "script.set_mfa_enforcement",
+          p_tenant: TENANT,
+          p_detail: { tenantId: TENANT, mode: "required", changed: true },
+        },
+      ],
+    ]);
+    expect(ok.rpc.mock.calls.map(([fn]) => fn)).toEqual([
+      "set_mfa_enforcement",
+      "platform_record_script_run",
+    ]);
+    const same = harness({ data: { changed: false, mode: "required" }, error: null });
+    expect(await same.run(ARGS)).toBe(0);
+    expect(auditCalls(same)[0]![1]).toMatchObject({ p_detail: { changed: false } });
+    const refused = harness({ data: null, error: { message: "actor_invalid", code: "P0001" } });
+    expect(await refused.run(ARGS)).toBe(1);
+    expect(auditCalls(refused)).toEqual([]);
+    const odd = harness({ data: { unexpected: true }, error: null });
+    expect(await odd.run(ARGS)).toBe(1);
+    expect(auditCalls(odd)).toEqual([]);
+  });
+
+  it("a failing audit write exits 1 with «audit not written», prints nothing on stdout and no address or id", async () => {
+    const h = harness(undefined, {
+      data: null,
+      error: { message: "boom owner@example.test", code: "23514" },
+    });
+    expect(await h.run(ARGS)).toBe(1);
+    const shown = h.err.join("\n");
+    expect(shown).toContain("audit not written");
+    expect(shown).toContain("23514");
+    expect(shown).not.toContain("@");
+    expect(shown).not.toContain(TENANT);
+    expect(shown).not.toContain(ACTOR);
+    expect(h.out).toEqual([]);
   });
 });

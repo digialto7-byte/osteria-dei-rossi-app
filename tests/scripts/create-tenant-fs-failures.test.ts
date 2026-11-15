@@ -64,7 +64,11 @@ function fakeAdmin() {
         deleteUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       },
     },
-    rpc: vi.fn().mockResolvedValue({ data: TENANT, error: null }),
+    // The audit writer (SP3 step 5) answers a row id; create_tenant_with_owner answers the tenant id.
+    rpc: vi.fn(async (fn: string, ..._rest: unknown[]) => ({
+      data: (fn === "platform_record_script_run" ? 7 : TENANT) as string | number | null,
+      error: null as { message: string; code?: string } | null,
+    })),
   };
 }
 

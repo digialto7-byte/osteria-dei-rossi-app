@@ -149,6 +149,13 @@ const STEPS: Step[] = [
     functions: ["public.platform_bootstrap_admin"],
     triggers: [],
   },
+  {
+    // Step 5: the script audit writer (service role only).
+    file: "20261208100400_platform_script_audit.sql",
+    tables: [],
+    functions: ["public.platform_record_script_run"],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

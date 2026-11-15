@@ -237,6 +237,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100200_platform_staff_guards.sql",
   // SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was the list ending at 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
   "20261208100300_platform_bootstrap.sql",
+  // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was the list ending at 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
+  "20261208100400_platform_script_audit.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
