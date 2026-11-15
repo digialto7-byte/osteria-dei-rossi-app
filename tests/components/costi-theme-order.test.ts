@@ -7,8 +7,6 @@ import { describe, expect, it } from "vitest";
 // `CostiTheme` and its files no longer hand-write a definition list, a tablist or a display-font heading; a later step's roots do not
 // mention `CostiTheme` yet. P2j deletes the marker and this guard.
 const DONE = 5;
-// Transitional, P2f only: the Magazzino step lands the marker (P2f-2), then the type and structure rules (P2f-3), which make it equal DONE and delete it.
-const TYPE_DONE = 4;
 
 const OWNER = "src/app/(owner)";
 const PUBLIC = "src/app/(public)";
@@ -95,7 +93,6 @@ describe("the Costì re-skin order guard", () => {
           "%s has no hand-made type or tabs",
           (file) => {
             const source = read(file);
-            if (Number(step) > TYPE_DONE) return;
             expect(source, 'role="tablist": use SegmentedControl').not.toMatch(/role="tablist"/);
             expect(source, "a <dl>: use FactList").not.toMatch(/<dl[\s>]/);
             if (!FONT_DISPLAY_ALLOWED.includes(file)) {

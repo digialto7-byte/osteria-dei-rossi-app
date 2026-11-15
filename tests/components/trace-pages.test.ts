@@ -319,6 +319,20 @@ describe("search page", () => {
     expect(calls).toContain("/api/trace/capture");
   });
 
+  it("the tabs are the house SegmentedControl: a wrapping tablist, the selected tab filled in ink, 44 px targets", async () => {
+    await renderSearch();
+    await screen.findByText(/18 su 25 consegne con il lotto/);
+    const list = screen.getByRole("tablist", { name: "Tipo di ricerca" });
+    expect(list.className).toContain("flex-wrap");
+    const [lot, plate] = screen.getAllByRole("tab");
+    expect(lot!.className).toContain("bg-ink text-paper");
+    expect(lot!.className).toContain("font-bold");
+    expect(lot!.className).toContain("min-h-tap");
+    expect(plate!.className).toContain("border-rule-strong");
+    expect(plate!.className).not.toContain("bg-ink");
+    expect(plate!.className).toContain("min-h-tap");
+  });
+
   it("lists the capture per supplier, most missing first as the API sends it", async () => {
     const view = await renderSearch();
     await screen.findByText(/18 su 25/);

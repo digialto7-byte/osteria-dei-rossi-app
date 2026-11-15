@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { ErrorAlert, Heading } from "@/components/ui";
+import { SegmentedControl } from "@/components/segmented-control";
 import { useOnline } from "@/components/use-online";
 import { apiJson } from "@/lib/api/client";
 import { t } from "@/lib/i18n";
@@ -51,28 +52,20 @@ export default function TracePage() {
       </>
     );
   }
-  const tabButton = (which: Tab, label: string) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={tab === which}
-      onClick={() => choose(which)}
-      className={`inline-flex min-h-tap flex-1 items-center justify-center rounded-lg border px-3 text-base ${
-        tab === which
-          ? "border-ink bg-ink font-bold text-surface"
-          : "border-rule bg-surface text-ink"
-      }`}
-    >
-      {label}
-    </button>
-  );
   return (
     <>
       <Heading>{t("trace.title")}</Heading>
-      <div role="tablist" aria-label={t("trace.tabs.label")} className="flex gap-2">
-        {tabButton("lotto", t("trace.tab.lot"))}
-        {tabButton("piatto", t("trace.tab.plate"))}
-      </div>
+      {tab !== null && (
+        <SegmentedControl
+          label={t("trace.tabs.label")}
+          segments={[
+            { key: "lotto", label: t("trace.tab.lot") },
+            { key: "piatto", label: t("trace.tab.plate") },
+          ]}
+          selected={tab}
+          onSelect={choose}
+        />
+      )}
       {tab === "lotto" ? <LotSearch online={online} onForbidden={onForbidden} /> : null}
       {tab === "piatto" ? <LineSearch online={online} onForbidden={onForbidden} /> : null}
       {tab === "lotto" && capture ? <CaptureCard capture={capture} /> : null}

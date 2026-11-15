@@ -1,4 +1,5 @@
 import { CsvLink } from "@/components/csv-link";
+import { FactList, FactRow } from "@/components/fact-list";
 import { Card, LedgerList, LedgerRow, Muted } from "@/components/ui";
 import { csvHref } from "@/lib/exports/export-links";
 import { t } from "@/lib/i18n";
@@ -7,7 +8,6 @@ import { formatPortions } from "@/lib/batches/batch-view";
 import { formatStockQty } from "@/lib/stock/stock-view";
 import { reasonLabel } from "@/server/stock/reasons";
 import type { WasteCostBatchLine, WasteCosts } from "@/server/stock/types";
-import { DETAIL_LIST_CLASS } from "../../fatture/detail";
 
 /**
  * What a batch line is worth: null is "non valorizzato" (never 0,00 €); an amount with unvalued operations beside it
@@ -34,23 +34,19 @@ export function WasteCostsView({ data }: { data: WasteCosts }) {
   return (
     <>
       <CsvLink href={csvHref("waste-costs", { from: data.from, to: data.to })} />
-      <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
-          <dt className="pr-4 text-ink-muted">{t("stock.costs.total")}</dt>
-          <dd data-testid="fact-waste-total" className="num font-bold">
-            {formatEuro(data.valueEur)}
-          </dd>
+      <Card className="flex flex-col gap-3">
+        <FactList>
+          <FactRow label={t("stock.costs.total")} testId="fact-waste-total">
+            <span className="font-bold">{formatEuro(data.valueEur)}</span>
+          </FactRow>
           {data.unvaluedCount > 0 && (
-            <>
-              <dt className="pr-4 text-ink-muted">{t("stock.costs.unvalued")}</dt>
-              <dd data-testid="fact-unvalued" className="num">
-                {data.unvaluedCount}
-              </dd>
-            </>
+            <FactRow label={t("stock.costs.unvalued")} testId="fact-unvalued">
+              {data.unvaluedCount}
+            </FactRow>
           )}
-        </dl>
+        </FactList>
         {data.unvaluedCount > 0 && (
-          <p className="pb-3 text-sm text-ink-muted">{t("stock.costs.unvaluedHint")}</p>
+          <p className="text-sm text-ink-muted">{t("stock.costs.unvaluedHint")}</p>
         )}
       </Card>
       {data.reasons.length === 0 ? (

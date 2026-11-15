@@ -56,8 +56,19 @@ describe("WasteCostsView", () => {
   it("shows the total in a fact sheet, in euro the Italian way", () => {
     const html = render();
     expect(html).toMatch(
-      /<dt[^>]*>Valore degli sprechi<\/dt><dd[^>]*class="num[^"]*"[^>]*>15,00 €<\/dd>/,
+      /<dt[^>]*>Valore degli sprechi<\/dt><dd[^>]*class="num[^"]*"[^>]*><span class="font-bold">15,00 €<\/span><\/dd>/,
     );
+  });
+
+  it("the fact sheet is a FactList in a padded card, spaced from the hint", () => {
+    const html = render({ unvaluedCount: 2 });
+    expect(html).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
+    const card = html.match(/<div class="([^"]*rounded-card[^"]*)"/)![1]!;
+    expect(card).toContain("flex flex-col gap-3");
+    expect(card).not.toContain("py-1");
+    expect(html).not.toContain("pr-4 text-ink-muted");
+    expect(html).toContain('data-testid="fact-waste-total"');
+    expect(html).toContain('data-testid="fact-unvalued"');
   });
 
   it("formats thousands and cents as 1.234,50 €", () => {

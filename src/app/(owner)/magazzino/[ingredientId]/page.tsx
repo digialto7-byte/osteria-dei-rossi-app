@@ -1,6 +1,7 @@
 "use client";
 
 import { BackLink } from "@/components/back-link";
+import { FactList, FactRow } from "@/components/fact-list";
 import { FacetLinks } from "@/components/facet-links";
 import { useHashScroll } from "@/components/use-hash-scroll";
 import { useMe } from "@/components/use-me";
@@ -31,7 +32,6 @@ import type {
   StockOperation,
   TransferResult,
 } from "@/server/stock/types";
-import { DETAIL_LIST_CLASS } from "../../fatture/detail";
 import { LotRow } from "./lot-row";
 import { OperationRow } from "./operation-row";
 import { TransferForm, type TransferValues } from "./transfer-form";
@@ -177,27 +177,25 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
       <BackLink href="/magazzino">{t("stock.title")}</BackLink>
       <Heading>{lots.ingredient.name}</Heading>
       <FacetLinks links={ingredientFacets({ id: ingredientId, isStock: true }, role, "stock")} />
-      <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
-          <dt className="pr-4 text-ink-muted">{t("stock.onHand")}</dt>
-          <dd data-testid="fact-on-hand" className="num font-bold">
-            {formatStockQty(item?.onHandQty ?? 0, unit)}
-          </dd>
+      <Card className="flex flex-col gap-3">
+        <FactList>
+          <FactRow label={t("stock.onHand")} testId="fact-on-hand">
+            <span className="font-bold">{formatStockQty(item?.onHandQty ?? 0, unit)}</span>
+          </FactRow>
           {item?.locations.map((location) => (
-            <FactRow
-              key={location.locationId}
-              label={location.name}
-              value={formatStockQty(location.onHandQty, unit)}
-            />
+            <FactRow key={location.locationId} label={location.name}>
+              {formatStockQty(location.onHandQty, unit)}
+            </FactRow>
           ))}
           {unlotted.map((location) => (
             <FactRow
               key={`${location.locationId}-unlotted`}
               label={`${t("stock.noLot")} · ${location.name}`}
-              value={formatStockQty(location.unlottedQty, unit)}
-            />
+            >
+              {formatStockQty(location.unlottedQty, unit)}
+            </FactRow>
           ))}
-        </dl>
+        </FactList>
       </Card>
 
       <SubHeading>{t("stock.lots.title")}</SubHeading>
@@ -262,15 +260,6 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
           </Button>
         </div>
       )}
-    </>
-  );
-}
-
-function FactRow({ label, value }: { label: string; value: string }) {
-  return (
-    <>
-      <dt className="pr-4 text-ink-muted">{label}</dt>
-      <dd className="num">{value}</dd>
     </>
   );
 }
