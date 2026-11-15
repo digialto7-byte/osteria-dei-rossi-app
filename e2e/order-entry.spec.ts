@@ -668,14 +668,35 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(
       await a.page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
     ).toBe(true);
+    // Measure only on a settled page: if it still grows, the last tile moves down, the click scrolls it back into view, and the app saves
+    // that offset, not `before` (CI on #136: 108 px). The page height must hold for two reads in a row.
+    let lastHeight = -1;
+    await expect
+      .poll(
+        async () => {
+          const height = await a.page.evaluate(() => document.documentElement.scrollHeight);
+          const settled = height === lastHeight;
+          lastHeight = height;
+          return settled;
+        },
+        { intervals: [300] },
+      )
+      .toBe(true);
     await a.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     const before = await a.page.evaluate(() => window.scrollY);
     expect(before).toBeGreaterThan(0);
+    // The tile is fully on screen, so the tap does not scroll the page first.
+    await expect(tile).toBeInViewport({ ratio: 1 });
 
     // One tap: the comanda of that session, with its line already showing.
     await tile.click();
     await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
+    // What the app saved is exactly where the waiter was (taken by /tavoli on the way back).
+    // (saveGridScroll rounds; an emulated phone can scroll by fractions of a pixel.)
+    expect(await a.page.evaluate(() => window.sessionStorage.getItem("tavoli.scroll"))).toBe(
+      String(Math.round(before)),
+    );
     await expect(lineRow(a.page, lineId)).toBeVisible();
 
     // Back through the link: the dish is not sent, so the leave sheet asks first (QW12); "Esci comunque" leaves, and the grid returns
