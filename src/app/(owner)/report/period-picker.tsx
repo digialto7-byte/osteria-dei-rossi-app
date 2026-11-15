@@ -20,15 +20,20 @@ export interface PeriodState {
 
 /**
  * "Giorno · Settimana · Mese · Periodo" and the date field(s) that go with the choice. It changes the address, not state: the page reads the
- * address, so the back button and a shared link give the same screen.
+ * address, so the back button and a shared link give the same screen. `lastDay` is the venue's business date from the last report reply:
+ * no field offers a later day (between 00:00 and 02:00 Rome the calendar date is a day that has not started). Until a reply has given it,
+ * it is null and the fields set no limit of their own; the server still refuses a future day (date_in_future).
  */
 export function PeriodPicker({
   state,
+  lastDay,
   onChange,
 }: {
   state: PeriodState;
+  lastDay: string | null;
   onChange: (next: Partial<PeriodState> & { periodo: Periodo }) => void;
 }) {
+  const max = lastDay ?? undefined;
   return (
     <div className="flex flex-col gap-3" role="group" aria-label={t("report.period.label")}>
       <div className="flex flex-wrap gap-2">
@@ -48,6 +53,7 @@ export function PeriodPicker({
           <Field label={t("report.picker.from")}>
             <TextInput
               type="date"
+              max={max}
               value={state.dal ?? ""}
               onChange={(event) =>
                 onChange({ periodo: "periodo", dal: event.target.value || null, al: state.al })
@@ -57,6 +63,7 @@ export function PeriodPicker({
           <Field label={t("report.picker.to")}>
             <TextInput
               type="date"
+              max={max}
               value={state.al ?? ""}
               onChange={(event) =>
                 onChange({ periodo: "periodo", dal: state.dal, al: event.target.value || null })
@@ -68,6 +75,7 @@ export function PeriodPicker({
         <Field label={t("report.picker.date")}>
           <TextInput
             type="date"
+            max={max}
             value={state.data ?? ""}
             onChange={(event) =>
               onChange({ periodo: state.periodo, data: event.target.value || null })
