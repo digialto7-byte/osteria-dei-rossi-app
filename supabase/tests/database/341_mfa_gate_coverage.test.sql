@@ -176,8 +176,9 @@ select is(pg_temp.cnt($$storage.objects where bucket_id = 'invoices'$$), 1, 'adm
 select isnt(pg_temp.out($$select public.create_staff(null, gen_random_uuid(), 'Cameriere Nuovo Demo', 'waiter')$$), '42501', 'admin at aal2: create_staff passes the gate');
 select is(pg_temp.out($$select public.menu_list()$$), 'ok', 'admin at aal2: menu_list answers');
 select is(pg_temp.out($$select public.plate_costs(current_date)$$), 'ok', 'admin at aal2: plate_costs answers');
--- The venue's business date, not current_date: from 00:00 to the 02:00 cutoff (Rome) current_date is already the next calendar day, a business
--- day that has not started, and kpi_items rightly answers date_in_future (#127 run 43656786062 at 01:10 Rome). The cases below pin the clock.
+-- The venue's business date, not current_date: the session's calendar date (UTC in CI and natively) runs ahead of the business date between
+-- 00:00 UTC and the 02:00 Rome cutoff (01:00-02:00 Rome in winter), a business day that has not started, and kpi_items rightly answers
+-- date_in_future (#127 run 43656786062 at 01:10 Rome). The cases below pin the clock, so the cutoff is tested whenever CI runs.
 select is(pg_temp.out(format($$select public.kpi_items('day', %L::date, null, null)$$, app.business_date('11111111-1111-4111-8111-111111111111', now()))), 'ok', 'admin at aal2: the KPI items answer');
 -- The cutoff, independent of when CI runs: the KPI items read for the admin with the clock pinned through kpi_items_json's p_now.
 create function pg_temp.kpi_at(p_date date, p_now timestamptz) returns text language plpgsql as $$
