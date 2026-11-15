@@ -50,7 +50,9 @@ export default function TracePage() {
   }, []);
 
   function choose(next: Tab) {
-    if (tab !== null && next !== tab) left.current[tab] = window.location.search;
+    // Re-selecting the visible tab (a click, or Enter/Space on it) changes nothing: the address already names this screen.
+    if (next === tab) return;
+    if (tab !== null) left.current[tab] = window.location.search;
     setTab(next);
     setShown((was) => ({ ...was, [next]: true }));
     const url = new URL(window.location.href);

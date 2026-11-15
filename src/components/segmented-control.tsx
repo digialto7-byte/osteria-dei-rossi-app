@@ -41,6 +41,8 @@ export function SegmentedControl<K extends string>({
   const stop = segments.some((segment) => segment.key === selected) ? selected : segments[0]?.key;
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    // Alt+Arrow is the browser's back/forward (and Ctrl/Meta+Arrow are the system's): not ours.
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
     const last = segments.length - 1;
     const here = tabs.current.findIndex((tab) => tab !== null && tab === event.target);
     if (here < 0) return;

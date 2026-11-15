@@ -559,6 +559,8 @@ describe("search page: both tabs stay mounted", () => {
     await pick("Da un lotto");
     expect((screen.getByLabelText(/^Codice lotto/) as HTMLInputElement).value).toBe("L-2311");
     expect(screen.getByText("Risultati")).toBeTruthy();
+    // One search in all: the panel survived, it was not remounted and searched again.
+    expect(count("/api/trace/lots")).toBe(1);
   });
 
   it("keeps the plate tab's day, dish and result too", async () => {
@@ -657,5 +659,49 @@ describe("search page: both tabs stay mounted", () => {
     expect(new URLSearchParams(window.location.search).get("da")).toBe("piatto");
     await pick("Da un lotto");
     expect(window.location.search).toBe("?lotto=L-2311");
+  });
+
+  const searchLot = async (code: string) => {
+    fireEvent.change(screen.getByLabelText(/^Codice lotto/), { target: { value: code } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cerca" }));
+    });
+    await screen.findByText("Risultati");
+  };
+
+  it("re-selecting the selected lot tab leaves the address and the result alone", async () => {
+    await renderSearch();
+    await searchLot("L-2311");
+    await pick("Da un lotto");
+    expect(window.location.search).toBe("?lotto=L-2311");
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+
+  it("re-selecting after a round trip does not bring back the older search in the address", async () => {
+    await renderSearch();
+    await searchLot("L-1");
+    await pick("Da un piatto servito");
+    await screen.findByLabelText("Giorno");
+    await pick("Da un lotto");
+    await searchLot("L-2");
+    expect(window.location.search).toBe("?lotto=L-2");
+    await pick("Da un lotto");
+    expect(window.location.search).toBe("?lotto=L-2");
+    expect((screen.getByLabelText(/^Codice lotto/) as HTMLInputElement).value).toBe("L-2");
+    expect(screen.getByText("Risultati")).toBeTruthy();
+  });
+
+  it("re-selecting the selected plate tab keeps ?da, ?giorno and ?piatto", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      `/tracciabilita?da=piatto&giorno=1998-11-13&piatto=${MENU_LASAGNE}`,
+    );
+    await renderSearch();
+    await screen.findByText("Risultati");
+    const before = window.location.search;
+    await pick("Da un piatto servito");
+    expect(window.location.search).toBe(before);
+    expect(screen.getByText("Risultati")).toBeTruthy();
   });
 });

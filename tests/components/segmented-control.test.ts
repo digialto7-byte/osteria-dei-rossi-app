@@ -194,6 +194,18 @@ describe("SegmentedControl keyboard (manual activation)", () => {
     expect(document.activeElement).toBe(tabs[2]);
   });
 
+  it("Alt, Ctrl and Meta with an arrow are left to the browser (no focus move, no preventDefault)", () => {
+    show();
+    const tabs = fiveTabs();
+    act(() => tabs[1].focus());
+    for (const mod of [{ altKey: true }, { ctrlKey: true }, { metaKey: true }]) {
+      for (const name of ["ArrowRight", "ArrowLeft", "Home", "End"]) {
+        expect(fireEvent.keyDown(tabs[1], { key: name, ...mod })).toBe(true);
+      }
+    }
+    expect(document.activeElement).toBe(tabs[1]);
+  });
+
   it("other keys select nothing", () => {
     const onSelect = vi.fn();
     show({ onSelect });
