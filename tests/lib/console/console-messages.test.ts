@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { messages, t, tn } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
@@ -171,5 +172,17 @@ describe("console.* strings", () => {
   it("fills counts through tn", () => {
     expect(tn("console.locali.people", 1)).toBe("1 persona");
     expect(tn("console.locali.people", 4)).toBe("4 persone");
+  });
+
+  it("marks every console key «(da approvare)» in it.ts until the founder approves it", () => {
+    const lines = readFileSync("src/lib/i18n/messages/it.ts", "utf8").split("\n");
+    const unmarked: string[] = [];
+    lines.forEach((line, i) => {
+      if (!line.startsWith('  "console.')) return;
+      // A long entry carries its value on the next line, and the marker ends that line.
+      const last = line.trimEnd().endsWith(":") ? (lines[i + 1] ?? "") : line;
+      if (!last.trimEnd().endsWith("// (da approvare)")) unmarked.push(line.trim());
+    });
+    expect(unmarked).toEqual([]);
   });
 });
