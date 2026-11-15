@@ -39,15 +39,36 @@ describe("generateEnrolmentCode", () => {
       seen.add(code);
       counts.set(code[0]!, (counts.get(code[0]!) ?? 0) + 1);
     }
-    expect(seen.size).toBe(10_000);
+    // 10 000 draws from 32^8 = 2^40 codes: the expected number of colliding pairs is n^2 / 2N, about 4.5e-5, so an exact
+    // "10 000 distinct" fails about once in 22 000 runs (seen on CI). One collision is allowed; two have a probability of
+    // about 1e-9, so a generator that repeats codes still fails here. A real collision is handled by the product: code_hash
+    // is unique and src/server/staff-auth/devices.ts retries once on 23505.
+    expect(seen.size).toBeGreaterThanOrEqual(9_999);
     const expected = 10_000 / 32;
     let chi2 = 0;
     for (const ch of ENROLMENT_CODE_ALPHABET) {
       const observed = counts.get(ch) ?? 0;
       chi2 += (observed - expected) ** 2 / expected;
     }
-    // 31 degrees of freedom: 70 is far beyond the 99.99th percentile (about 61).
-    expect(chi2).toBeLessThan(70);
+    // 31 degrees of freedom. The bound has the same false-failure budget as the distinctness check above:
+    // P(chi2 > 105) is about 6e-10 (the 1e-9 point is about 103.4; 70 failed about once in 13 000 runs). A generator
+    // that never yields even one of the 32 symbols scores about 323, so real bias still fails.
+    expect(chi2).toBeLessThan(105);
+  });
+});
+
+describe("generateEnrolmentCode's randomness", () => {
+  it("draws ENROLMENT_CODE_LENGTH fresh bytes for each code", () => {
+    const sizes: number[] = [];
+    let next = 0;
+    const counter = (size: number) => {
+      sizes.push(size);
+      return Uint8Array.from({ length: size }, () => next++ % 32);
+    };
+    const a = generateEnrolmentCode(counter);
+    const b = generateEnrolmentCode(counter);
+    expect(sizes).toEqual([ENROLMENT_CODE_LENGTH, ENROLMENT_CODE_LENGTH]);
+    expect(a).not.toBe(b);
   });
 });
 
