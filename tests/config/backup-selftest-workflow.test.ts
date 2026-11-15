@@ -59,7 +59,7 @@ describe("backup-selftest workflow", () => {
     const order = [
       at("run: npm ci"),
       at("npx supabase start"),
-      at("npm run demo"),
+      at("npm run -s demo"),
       at("scripts/backup/dump.ts"),
       at("supabase stop --no-backup"),
       at('--workdir "$RUNNER_TEMP/restore"'),
@@ -71,10 +71,18 @@ describe("backup-selftest workflow", () => {
   });
 
   it("creates the demo tenant with fake data before the dump", () => {
-    const step = steps[at("npm run demo")]!;
+    const step = steps[at("npm run -s demo")]!;
     expect(step).toContain("npm run -s create-tenant");
-    expect(step).toContain("--owner-email owner@example.test");
-    expect(step).toContain("Osteria Demo");
+    // The data comes from the environment (the script takes no arguments) and the throwaway stack keeps the full id.
+    expect(step).toContain("OWNER_EMAIL: owner@example.test");
+    expect(step).toContain("TENANT_NAME: Osteria Demo");
+    // The full id comes back through --ids-out and the file is deleted; there is no switch that unmasks the output.
+    expect(step).toContain('--ids-out "$ids"');
+    expect(step).toContain('rm -f "$ids"');
+    expect(step).not.toContain("CREATE_TENANT_" + "FULL_ID");
+    expect(step).not.toContain("--owner-email");
+    // npm would echo the tenant id of `npm run demo -- --tenant <id>`: -s keeps it out of the log.
+    expect(step).toContain('npm run -s demo -- --tenant "$tenant"');
   });
 
   it("dumps the local stack with --local and the fake passphrase", () => {
@@ -154,7 +162,7 @@ describe("backup-selftest workflow", () => {
 
     it("runs the files backup after the dump and before the stack is stopped", () => {
       const order = [
-        at("npm run demo"),
+        at("npm run -s demo"),
         at("scripts/backup/dump.ts"),
         at("scripts/backup/files.ts"),
         at("supabase stop --no-backup"),

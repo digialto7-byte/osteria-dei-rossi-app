@@ -81,9 +81,18 @@ jobs:
             echo "SUPABASE_SECRET_KEY=$(pick '.SECRET_KEY // .SERVICE_ROLE_KEY')"
           } >> "$GITHUB_ENV"
       - name: Demo tenant and demo data (fake)
+        # create-tenant prints only an 8-character id prefix under Actions; the full id comes back through --ids-out (a new file, mode 0600), read and deleted at once.
+        env:
+          TENANT_NAME: Osteria Demo
+          TENANT_VAT_NUMBER: IT00000000000
+          OWNER_EMAIL: owner@example.test
+          OWNER_NAME: Titolare Demo
         run: |
-          tenant=$(npm run -s create-tenant -- --name "Osteria Demo" --vat IT00000000000 --owner-email owner@example.test --owner-name "Titolare Demo")
-          npm run demo -- --tenant "$tenant"
+          ids="$RUNNER_TEMP/tenant-ids.json"
+          npm run -s create-tenant -- --ids-out "$ids"
+          tenant=$(jq -er .tenantId "$ids")
+          rm -f "$ids"
+          npm run -s demo -- --tenant "$tenant"
       - name: Dump and encrypt the local database
         env:
           SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres

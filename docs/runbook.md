@@ -31,9 +31,12 @@ Who signs in how:
   (test: tests/config/owner-guide.test.ts)
 - **The chef and the waiters** use a phone the owner has enabled, their name and a 4-digit PIN. The sign-in lasts to the end of the day.
   (test: e2e/staff-pin.spec.ts)
-- **Production has no demo data.** The one production tenant is made once with `npm run create-tenant` on a trusted machine, with the
-  production settings and the legal name, VAT number and owner e-mail that the founder has confirmed. Those are client facts and never
-  go into the repository.
+- **Production has no demo data.** The one production tenant is made once by the `create-tenant` job of the `platform-ops` workflow (Actions, "Platform ops",
+  "Run workflow", operation `create-tenant`), never from a laptop. Its four values are environment secrets of `platform-ops`, typed only into GitHub's "Add
+  environment secret" form just before the run and deleted right after: `TENANT_NAME`, `TENANT_VAT_NUMBER`, `OWNER_EMAIL` and `OWNER_NAME`, the legal name, VAT
+  number and owner e-mail that the founder has confirmed. Those are client facts and never go into the repository. Under `platform-ops` the job prints only an
+  8-character prefix of the new tenant's id (the run log is public); the full tenant uuid, needed for `set-mfa-enforcement`, is read from the console or the
+  Supabase dashboard.
 
 ## Where every secret lives and how to rotate it
 
@@ -44,7 +47,7 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | Vercel environment (public by design) | browser and server | Changes only with a new project. Set it in Vercel, redeploy |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Vercel environment (public by design; RLS protects the data) | browser and server | Create a new publishable key in the Supabase dashboard (API keys), put it in Vercel and in the GitHub environments below, redeploy, then delete the old key |
-| `SUPABASE_SECRET_KEY` | Vercel environment (server only, never `NEXT_PUBLIC_`); GitHub environments `staging` and `production-backup` | cron routes, the PIN sign-in module, admin scripts, the demo and timing workflows, and the invoice-file backup (the "Back up the invoice files" step of "Daily backup" only) | Create a new secret key in the Supabase dashboard, update Vercel, `staging` and `production-backup`, redeploy, delete the old key. It is used only in `/api/cron/*`, `src/server/staff-auth/privileged.ts` and `scripts/` |
+| `SUPABASE_SECRET_KEY` | Vercel environment (server only, never `NEXT_PUBLIC_`); GitHub environments `staging`, `production-backup` and `platform-ops` | cron routes, the PIN sign-in module, admin scripts, the demo and timing workflows, and the invoice-file backup (the "Back up the invoice files" step of "Daily backup" only) | Create a new secret key in the Supabase dashboard, update Vercel, `staging`, `production-backup` and `platform-ops`, redeploy, delete the old key. It is used only in `/api/cron/*`, `src/server/staff-auth/privileged.ts` and `scripts/` |
 | `ANTHROPIC_API_KEY` | Vercel environment (server only); GitHub environment `extraction-contract` (the manual contract test) | invoice extraction | Create a new key in the Anthropic console (a separate production key is recommended), update both places, redeploy, revoke the old key |
 | `EXTRACTION_MODEL_ID` | Vercel environment; GitHub environment `extraction-contract` | invoice extraction (never a literal in `src/`) | Not a secret. Change it in both places, redeploy, then run the "Extraction contract" workflow by hand |
 | `GOOGLE_SERVICE_ACCOUNT_JSON` | nowhere yet (deferred with M10) | nothing at go-live | Nothing to rotate until the Drive reader is built |
@@ -58,8 +61,12 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | `MAILPIT_URL` | local `.env` and CI | the local mail catcher the `mailpit` transport posts to | Not a secret. Only for development and tests |
 | `APP_PUBLIC_ORIGIN` | Vercel environment | the address cancel links in e-mails are built on (https in production) | Not a secret. Change it with the app's address, redeploy |
 | `PIN_PEPPER` | Vercel environment (server only) | the staff PIN sign-in | Rotating it changes every derived staff password, so **every staff PIN must be reset**: change it in Vercel, redeploy, then in Personale give each person a PIN again. Staff cannot sign in until their PIN is set |
-| `SUPABASE_URL` | GitHub environments `production-backup` and `staging` | the backup guards and the keep-alive ping | The same value as that project's `NEXT_PUBLIC_SUPABASE_URL`. Changes only with a new project |
-| `SUPABASE_PUBLISHABLE_KEY` | GitHub environments `production-backup` and `staging` | the keep-alive ping | The same key as that project's publishable key; rotate it together with the Vercel one |
+| `SUPABASE_URL` | GitHub environments `production-backup`, `staging` and `platform-ops` | the backup guards and the keep-alive ping | The same value as that project's `NEXT_PUBLIC_SUPABASE_URL`. Changes only with a new project |
+| `SUPABASE_PUBLISHABLE_KEY` | GitHub environments `production-backup`, `staging` and `platform-ops` | the keep-alive ping | The same key as that project's publishable key; rotate it together with the Vercel one |
+| `TENANT_NAME` | GitHub environment `platform-ops` | the `create-tenant` job of `platform-ops` (SP3): the new venue's name | Not a standing secret: set it right before a `create-tenant` run and delete it right after. The value is typed only into GitHub's own "Add environment secret" form |
+| `TENANT_VAT_NUMBER` | GitHub environment `platform-ops` | the `create-tenant` job of `platform-ops`: the new venue's VAT number | As `TENANT_NAME`: set before the run, delete after |
+| `OWNER_EMAIL` | GitHub environment `platform-ops` | the `create-tenant` job of `platform-ops`: the owner's sign-in address | As `TENANT_NAME`: set before the run, delete after |
+| `OWNER_NAME` | GitHub environment `platform-ops` | the `create-tenant` job of `platform-ops`: the owner's display name | As `TENANT_NAME`: set before the run, delete after |
 | `SUPABASE_DB_URL` | GitHub environments `production-backup` and `staging` | the daily dump | The session-pooler URL whose user is `postgres.<project ref>`. It holds the database password: after resetting the password in the Supabase dashboard, paste the new URL here and the new password into `SUPABASE_DB_PASSWORD` |
 | `BACKUP_ENCRYPTION_PASSPHRASE` | The founder's password manager, and GitHub environments `production-backup` and `staging` | encrypting the daily dump, the invoice-file packs and manifests; decrypting in the weekly restore check | At least 32 characters (`openssl rand -base64 48`). **old backups need the old passphrase**: keep every old passphrase until the last database copy encrypted with it has been deleted by the 14-copy retention (about two weeks). **Invoice-file packs are never deleted by the code**, so keep every passphrase for as long as a pack made with it exists (years), or after a rotation run "Daily backup" with `full_files`, wait for a green weekly check, then delete the older packs by hand (Q-F6). Without the passphrase no backup can be read |
 | `BACKUP_DRIVE_SA_JSON` | GitHub environments `production-backup` and `staging` | uploading to, listing and deleting in the Shared Drive folder | In Google Cloud, create a new key for the service account, replace the secret, delete the old key |
@@ -84,6 +91,8 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | Sentry account | the owner's password manager, MFA on | humans | As above, once the account exists |
 | GitHub account | the owner's password manager, MFA on | humans | As above; also review who may approve the `production` environment |
 | Domain registrar account | the owner's password manager, MFA on | humans | As above; also review the DNS records |
+
+**Changing `.github/workflows/platform-ops.yml`** (the workflow that holds the secret key and the four tenant secrets above) needs the lead's line-by-line read in the pull request. Its guard test, `tests/config/platform-ops-workflow.test.ts`, is a safety net, not the review: it can only refuse what its author thought of. Never re-run a `platform-ops` job with debug logging, and never set `ACTIONS_STEP_DEBUG` or `ACTIONS_RUNNER_DEBUG` (as a secret or a variable) in this repository: debug output is outside what the file and its guard control.
 
 ### GitHub environment `production-backup`
 
@@ -438,7 +447,7 @@ The go-live gate is 12 January. Before it, with the founder:
    `CRON_SECRET`, `ANTHROPIC_API_KEY`, `EXTRACTION_MODEL_ID`. All new, never staging's. Then redeploy.
 6. The custom domain (Q188) is added and serving production. Then delete `vercel_protection_bypass` from the production Vault and set
    `app_base_url` to the domain.
-7. Make the production tenant (`npm run create-tenant`), then enrol the staff phones with the owner (the two staff sheets above).
+7. Make the production tenant (the `create-tenant` job of `platform-ops`, with its four secrets, see "Where every secret lives"), then enrol the staff phones with the owner (the two staff sheets above).
 8. Run "Daily backup" and "Weekly restore check" on staging, then on production; check the database copy, an `osteria-files-` pack (once
    there is an invoice) and an `osteria-files-manifest-` file are in Drive, and the minutes are noted.
 9. Run the header check against production. Walk `docs/go-live/checklist.md` and keep its evidence.
