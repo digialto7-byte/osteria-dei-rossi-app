@@ -233,6 +233,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100000_organisation_vat_guard.sql",
   // SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was the list ending at 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
   "20261208100100_platform_staff_audit.sql",
+  // SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was the list ending at 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
+  "20261208100200_platform_staff_guards.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

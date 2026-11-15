@@ -92,6 +92,11 @@ insert into p27_objs values
 -- Step S4 (20261207100200_select_tenant.sql): the switch interval, the session's choice and the login's own venues.
 insert into p27_objs values
   ('app_fn', 'tenant_switch_min_interval'), ('public_fn', 'select_tenant'), ('public_fn', 'my_memberships');
+-- SP3 (docs/plans/2026-11-27-sp03-platform-layer.md §4), re-pinned on purpose by SP3: its additions since SP2, in a separate insert placed right after SP2's.
+-- Each SP3 migration adds its objects here. Step 3 (20261208100200_platform_staff_guards.sql; was SP2's list only): the app helper and the trigger on
+-- public.app_user that keep platform staff and venue members apart.
+insert into p27_objs values
+  ('app_fn', 'app_user_platform_staff_guard'), ('trigger', 'app_user.app_user_platform_staff_guard');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

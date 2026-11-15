@@ -37,7 +37,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // SP2 step S5 (20261207100300_session_tenant_purge.sql), re-pinned on purpose by SP2 (step S5; was 20261207100200_select_tenant.sql): the auth-purge job removes old selections.
 // SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
 // SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
-const NEWEST_MIGRATION = "20261208100100_platform_staff_audit.sql";
+// SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
+const NEWEST_MIGRATION = "20261208100200_platform_staff_guards.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {

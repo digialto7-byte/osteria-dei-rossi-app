@@ -135,6 +135,13 @@ const STEPS: Step[] = [
     ],
     triggers: ["audit_event_no_update_delete", "audit_event_no_truncate"],
   },
+  {
+    // Step 3: the staff/member guards.
+    file: "20261208100200_platform_staff_guards.sql",
+    tables: [],
+    functions: ["platform.staff_member_guard", "app.app_user_platform_staff_guard"],
+    triggers: ["staff_member_guard", "app_user_platform_staff_guard"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
