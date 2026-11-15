@@ -30,7 +30,7 @@ test.describe("the services on a phone (360 px)", () => {
 
   // The extra contexts live to the end of the test and are closed newest first (a failed test must not leak them to the worker's end).
   const opened: BrowserContext[] = [];
-  test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
+  test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
 
   test("the owner adds Aperitivo at 18:00 and a reload keeps it (settings)", async ({ page }) => {
     await signInWithMagicLink(page, createOwner(), "/");

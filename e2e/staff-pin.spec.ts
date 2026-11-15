@@ -66,7 +66,7 @@ async function enterPin(page: Page, pin: string, person = NAME) {
 test.describe("staff PIN login on a phone (360 px)", () => {
   // Closed at the end of the test, newest first: a context closed mid-test next to a live one crashed Chromium's headless shell.
   const opened: BrowserContext[] = [];
-  test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
+  test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
 
   test("the owner enrols a device and a waiter logs in with a PIN (AT1 to AT6 on screen)", async ({
     page,

@@ -37,7 +37,7 @@ test.describe("sell by weight on a phone (360 px)", () => {
 
   // Closed at the end of the test, newest first: closing the chef's context while the waiter's lives on crashed Chromium's headless shell.
   const opened: BrowserContext[] = [];
-  test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
+  test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
 
   test("from the owner's switch to the closed table", async ({ page, browser }, testInfo) => {
     // --- The owner switches a dish to "a peso" ------------------------------------------------------------------------------

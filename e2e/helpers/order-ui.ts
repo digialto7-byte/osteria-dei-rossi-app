@@ -39,7 +39,7 @@ export async function newContext(browser: Browser, use: TestInfo["project"]["use
  * Closes browser contexts in reverse order of creation. A spec that opens a context next to the test's own must not close it in the middle
  * of the test: closing one context while another of the same browser is still in use crashed Chromium's headless shell (runs 43682851653
  * and 43696251007). Register the extra contexts as they open and close them from
- * `test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo))`; the list is emptied, so the next test starts clean.
+ * `test.afterEach(({}, testInfo) => closeContexts(opened, testInfo))`; the list is emptied, so the next test starts clean.
  * tests/guards/e2e-context-teardown.test.ts keeps mid-test closes out.
  *
  * Diagnostics: afterEach runs before Playwright's fixture teardown, and Playwright 1.56.1 writes error-context.md (the page snapshot the CI

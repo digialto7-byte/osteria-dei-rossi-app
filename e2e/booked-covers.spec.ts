@@ -55,7 +55,7 @@ test.beforeAll(async ({ browser }, testInfo) => {
 
 // Closed at the end of the test: the owner's context must not go while the chef's page is still in use (Chromium headless shell crash).
 const opened: BrowserContext[] = [];
-test.afterEach((_fixtures, testInfo) => closeContexts(opened, testInfo));
+test.afterEach(({}, testInfo) => closeContexts(opened, testInfo));
 
 const booked = (page: Page) => main(page).getByText("Prenotati (confermati)");
 
