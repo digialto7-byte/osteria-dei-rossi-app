@@ -81,7 +81,7 @@ async function recordQuietly(
 }
 
 /**
- * The three procedures a code check talks to: the lock, the wrong-code record and the enrolment record. The owner's and the admin's are the default; platform staff, who
+ * The three procedures a code check talks to: the lock, the wrong-code record and the enrolment record. Every caller passes its set explicitly: the owner's and the admin's are MEMBER_PROCEDURES; platform staff, who
  * have no membership, use the platform_mfa_* twins (SP3 step 9, src/server/auth/account-mfa.ts).
  */
 export interface MfaProcedures {
@@ -89,7 +89,7 @@ export interface MfaProcedures {
   failure: string;
   enrolled: string;
 }
-const MEMBER_PROCEDURES: MfaProcedures = {
+export const MEMBER_PROCEDURES: MfaProcedures = {
   attempt: "mfa_attempt_allowed",
   failure: "mfa_record_failure",
   enrolled: "mfa_record_enrolled",
@@ -191,7 +191,7 @@ export async function startEnrolment(supabase: SupabaseClient, slot: MfaSlot) {
 /** The answer of Postgres for the lock: 429 before any Auth call. */
 export async function assertAttemptAllowed(
   supabase: SupabaseClient,
-  procedures: MfaProcedures = MEMBER_PROCEDURES,
+  procedures: MfaProcedures,
 ): Promise<void> {
   const attempt = dbAttempt.parse(await rpc(supabase, procedures.attempt));
   if (!attempt.allowed) {
@@ -207,7 +207,7 @@ export async function checkCode(
   factorId: string,
   code: string,
   stage: "login" | "enrol",
-  procedures: MfaProcedures = MEMBER_PROCEDURES,
+  procedures: MfaProcedures,
 ): Promise<void> {
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (!error) return;
@@ -230,7 +230,7 @@ export async function verifyEnrolment(
   supabase: SupabaseClient,
   factorId: string,
   code: string,
-  procedures: MfaProcedures = MEMBER_PROCEDURES,
+  procedures: MfaProcedures,
 ) {
   await assertAttemptAllowed(supabase, procedures);
   await checkCode(supabase, factorId, code, "enrol", procedures);
@@ -256,8 +256,8 @@ export async function challengeSignIn(
   session: { tenantId: string; role: string },
   body: { factorId: string; code: string; next?: string },
 ) {
-  await assertAttemptAllowed(supabase);
-  await checkCode(supabase, body.factorId, body.code, "login");
+  await assertAttemptAllowed(supabase, MEMBER_PROCEDURES);
+  await checkCode(supabase, body.factorId, body.code, "login", MEMBER_PROCEDURES);
   return {
     redirect: redirectAfterSignIn(
       { tenant_id: session.tenantId, app_role: session.role },

@@ -8,7 +8,8 @@ vi.mock("@/lib/observability/report", () => report);
 
 const { getAccountMfa, challengeAccount, verifyAccountEnrolment, startAccountEnrolment } =
   await import("@/server/auth/account-mfa");
-const { verifyEnrolment, assertAttemptAllowed } = await import("@/server/auth/mfa");
+const { verifyEnrolment, assertAttemptAllowed, MEMBER_PROCEDURES } =
+  await import("@/server/auth/mfa");
 
 const F1 = "f0000000-0000-4000-8000-000000000001";
 const CODE = "123456";
@@ -94,12 +95,12 @@ describe("account-mfa uses the platform procedures", () => {
   });
 });
 
-describe("the venue's defaults are unchanged", () => {
-  it("verifyEnrolment and assertAttemptAllowed still call the mfa_* procedures when no set is given", async () => {
+describe("the venue passes its own set explicitly (there is no default)", () => {
+  it("verifyEnrolment and assertAttemptAllowed call the mfa_* procedures when given MEMBER_PROCEDURES", async () => {
     make({ mfa_attempt_allowed: ok(ALLOWED), mfa_record_enrolled: ok(true) });
     client.auth.mfa.challengeAndVerify.mockResolvedValue(verified());
-    await assertAttemptAllowed(sb());
-    await verifyEnrolment(sb(), F1, CODE);
+    await assertAttemptAllowed(sb(), MEMBER_PROCEDURES);
+    await verifyEnrolment(sb(), F1, CODE, MEMBER_PROCEDURES);
     expect(calls()).toEqual(["mfa_attempt_allowed", "mfa_attempt_allowed", "mfa_record_enrolled"]);
   });
 });
