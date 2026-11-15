@@ -35,9 +35,11 @@ export function DifferenceCard({
         <>
           <p
             data-tone={differenceTone(difference.amount)}
-            className={`font-display text-3xl font-semibold tabular-nums ${TONE[differenceTone(difference.amount)]}`}
+            className={TONE[differenceTone(difference.amount)]}
           >
-            {differenceFigure(difference.amount, difference.pct)}
+            <strong className="num text-3xl font-bold">
+              {differenceFigure(difference.amount, difference.pct)}
+            </strong>
           </p>
           <p className="font-bold">{differenceSentence(difference.amount)}</p>
           <p className="text-sm text-ink-muted">

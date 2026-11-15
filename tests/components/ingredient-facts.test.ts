@@ -6,7 +6,9 @@ import { resetMe } from "@/components/use-me";
 import { ING, ITEM, LOT } from "./stock-fixtures";
 
 // P2f-3: the facts of an ingredient are a FactList in a padded card; the on-hand total is the bold figure.
-let role = "chef";
+const role = "owner";
+// What /api/stock answers; a test swaps it for an ingredient with stock outside any lot.
+let stockItem = ITEM;
 const ok = (data: unknown) => Promise.resolve({ ok: true, status: 200, data });
 const apiJson = vi.fn((path: string) => {
   if (path === "/api/me")
@@ -15,7 +17,7 @@ const apiJson = vi.fn((path: string) => {
       tenant: { id: "t", name: "Osteria Demo" },
     });
   if (path === "/api/locations") return ok({ locations: [] });
-  if (path === "/api/stock") return ok({ items: [ITEM] });
+  if (path === "/api/stock") return ok({ items: [stockItem] });
   if (path.startsWith("/api/stock/lots"))
     return ok({
       ingredient: { id: ING, name: "Manzo muscolo (demo)", baseUnit: "kg" },
@@ -34,22 +36,26 @@ import StockPage from "@/app/(owner)/magazzino/[ingredientId]/page";
 
 beforeEach(() => {
   resetMe();
-  role = "owner";
+  stockItem = ITEM;
 });
 afterEach(cleanup);
 
+const draw = async () => {
+  await act(async () => {
+    render(
+      createElement(
+        Suspense,
+        { fallback: null },
+        createElement(StockPage as never, { params: Promise.resolve({ ingredientId: ING }) }),
+      ),
+    );
+  });
+  await screen.findByRole("heading", { level: 1 });
+};
+
 describe("the ingredient page, the facts", () => {
   it("are a FactList in a card with the default padding, the total in bold, a row per location", async () => {
-    await act(async () => {
-      render(
-        createElement(
-          Suspense,
-          { fallback: null },
-          createElement(StockPage as never, { params: Promise.resolve({ ingredientId: ING }) }),
-        ),
-      );
-    });
-    await screen.findByRole("heading", { level: 1 });
+    await draw();
     const list = document.querySelector("dl")!;
     expect(list.className).toContain("grid-cols-[auto_minmax(min-content,1fr)]");
     const card = list.closest(".rounded-card")!;
@@ -60,5 +66,27 @@ describe("the ingredient page, the facts", () => {
     const labels = [...list.querySelectorAll("dt")].map((dt) => dt.textContent);
     expect(labels).toEqual(["In giacenza", "Cella (demo)", "Freezer (demo)"]);
     expect(list.querySelector("dt")!.className).not.toContain("pr-4");
+  });
+
+  it("adds a Senza lotto row per location holding stock outside any lot, after the location rows", async () => {
+    stockItem = {
+      ...ITEM,
+      locations: [{ ...ITEM.locations[0]!, onHandQty: 10, unlottedQty: 1.5 }, ITEM.locations[1]!],
+    };
+    await draw();
+    const list = document.querySelector("dl")!;
+    const labels = [...list.querySelectorAll("dt")].map((dt) => dt.textContent);
+    expect(labels).toEqual([
+      "In giacenza",
+      "Cella (demo)",
+      "Freezer (demo)",
+      "Senza lotto · Cella (demo)",
+    ]);
+    const label = [...list.querySelectorAll("dt")].at(-1)!;
+    const value = label.nextElementSibling!;
+    expect(value.tagName).toBe("DD");
+    expect(value.className).toContain("num");
+    expect(value.textContent?.replace(/\s/g, " ")).toBe("1,5 kg");
+    expect(list.querySelectorAll("dd")).toHaveLength(4);
   });
 });

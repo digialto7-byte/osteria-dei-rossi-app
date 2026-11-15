@@ -7,12 +7,13 @@ const DIR = new URL("../../../src/app/(owner)/report/", import.meta.url);
 
 describe("the report screens compute no euro value", () => {
   const files = readdirSync(DIR).filter((f) => f.endsWith(".tsx"));
-  it("finds the eight files of the screen (M23 added discards-panel.tsx, M25c services-panel.tsx)", () => {
+  it("finds the nine files of the screen (M23 added discards-panel.tsx, M25c services-panel.tsx, P2g layout.tsx)", () => {
     expect(files.sort()).toEqual([
       "avt-panel.tsx",
       "discards-panel.tsx",
       "items-panel.tsx",
       "kpi-panel.tsx",
+      "layout.tsx",
       "page.tsx",
       "period-picker.tsx",
       "services-panel.tsx",

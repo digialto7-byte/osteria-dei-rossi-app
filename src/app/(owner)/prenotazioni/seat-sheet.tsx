@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button, Card, ErrorAlert, Field, Muted, Select } from "@/components/ui";
+import { Button, Card, ErrorAlert, Field, Muted, Select, SubHeading } from "@/components/ui";
 import { useFocusIntoView } from "@/components/use-focus-into-view";
 import { t } from "@/lib/i18n";
 import { rowTitle, type RowView } from "@/lib/reservations/day-view";
@@ -47,13 +47,9 @@ export function SeatSheet({
 
   return (
     <Card role="group" aria-label={t("reservations.seat.title")} className="flex flex-col gap-3">
-      <h2
-        ref={heading}
-        tabIndex={-1}
-        className="font-display text-[1.5rem] leading-tight font-semibold [overflow-wrap:anywhere]"
-      >
+      <SubHeading ref={heading} tabIndex={-1} className="[overflow-wrap:anywhere]">
         {t("reservations.seat.title")}
-      </h2>
+      </SubHeading>
       <p className="[overflow-wrap:anywhere]">{rowTitle(row)}</p>
       {row.leadTable && <p>{row.leadTable.name}</p>}
       {needsTable && (
