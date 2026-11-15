@@ -134,12 +134,19 @@ describe("platform-admin bootstrap with PLATFORM_ADMIN_EMAIL", () => {
     expect(h.rpc).not.toHaveBeenCalled();
   });
 
-  it("a missing or blank PLATFORM_ADMIN_EMAIL stops the run before the admin client is made", async () => {
+  it("a missing or blank PLATFORM_ADMIN_EMAIL with no --auth-id exits 1 before any Supabase call, with a fixed message that names the variable and holds no @", async () => {
     for (const env of [{}, { PLATFORM_ADMIN_EMAIL: "" }, { PLATFORM_ADMIN_EMAIL: "   " }]) {
       const h = harness();
       expect(await h.run(["bootstrap"], env)).toBe(1);
-      expect(h.err.join("\n")).toContain("PLATFORM_ADMIN_EMAIL");
+      expect(h.err).toEqual([
+        "Missing environment variable: PLATFORM_ADMIN_EMAIL (or pass --auth-id).",
+      ]);
+      expect(h.out).toEqual([]);
+      expect(h.all()).not.toContain("@");
+      // The injected client is never made, so neither an RPC nor an Auth admin call can have happened.
       expect(h.make).not.toHaveBeenCalled();
+      expect(h.rpc).not.toHaveBeenCalled();
+      expect(h.listUsers).not.toHaveBeenCalled();
     }
   });
 });

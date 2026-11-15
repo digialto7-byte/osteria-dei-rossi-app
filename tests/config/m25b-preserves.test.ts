@@ -181,6 +181,7 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100200_platform_staff_guards.sql",
   "20261208100300_platform_bootstrap.sql",
   "20261208100400_platform_script_audit.sql",
+  "20261208100450_script_audit_mfa_reset_tenant.sql",
   "20261208100500_platform_mfa.sql",
 ];
 

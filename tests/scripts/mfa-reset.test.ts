@@ -260,7 +260,7 @@ describe("mfa-reset: the platform audit (SP3 step 5)", () => {
   const auditCalls = (h: ReturnType<typeof harness>) =>
     h.rpc.mock.calls.filter(([fn]) => fn === "platform_record_script_run");
 
-  it("writes exactly one platform audit row after a successful reset, with the app_user id and no tenant (the begin answer does not carry it)", async () => {
+  it("writes exactly one platform audit row after a successful reset, with the app_user id and no tenant argument (the database resolves the tenant from the app_user)", async () => {
     const h = harness();
     expect(await h.run(ARGS)).toBe(0);
     expect(auditCalls(h)).toEqual([
