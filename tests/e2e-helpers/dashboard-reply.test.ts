@@ -26,12 +26,14 @@ describe("dashboardReplyProblem", () => {
   });
 
   it("a reply that does not fit the dashboard schema is named, so the owner's POST is not awaited in vain", () => {
+    const prefix =
+      "Oggi's GET /api/dashboard reply does not fit the dashboard schema after the link sign-in (Oggi sends no open POST then) at ";
     const broken = { ...owner, tiles: undefined };
-    expect(dashboardReplyProblem(broken, "owner")).toBe(
-      "Oggi's GET /api/dashboard reply does not fit the dashboard schema after the link sign-in (Oggi sends no open POST then)",
-    );
-    expect(dashboardReplyProblem("not json object", "admin")).toBe(
-      "Oggi's GET /api/dashboard reply does not fit the dashboard schema after the link sign-in (Oggi sends no open POST then)",
-    );
+    const missingTiles = dashboardReplyProblem(broken, "owner");
+    expect(missingTiles?.startsWith(prefix)).toBe(true);
+    // The message names the field that failed, so a drift is readable in the CI log.
+    expect(missingTiles?.slice(prefix.length).startsWith("tiles: ")).toBe(true);
+    const notObject = dashboardReplyProblem("not json object", "admin");
+    expect(notObject?.startsWith(`${prefix}(root): `)).toBe(true);
   });
 });

@@ -7,8 +7,12 @@ import { dashboardOutput } from "@/server/dashboard/output";
  */
 export function dashboardReplyProblem(body: unknown, role: "owner" | "admin"): string | null {
   const reply = dashboardOutput.safeParse(body);
-  if (!reply.success)
-    return "Oggi's GET /api/dashboard reply does not fit the dashboard schema after the link sign-in (Oggi sends no open POST then)";
+  if (!reply.success) {
+    // The first issue's path and message, so a schema drift is diagnosed from the CI log without the trace.
+    const issue = reply.error.issues[0];
+    const where = issue ? ` at ${issue.path.join(".") || "(root)"}: ${issue.message}` : "";
+    return `Oggi's GET /api/dashboard reply does not fit the dashboard schema after the link sign-in (Oggi sends no open POST then)${where}`;
+  }
   if (reply.data.role !== role)
     return `Oggi's GET /api/dashboard answered role ${reply.data.role}, expected ${role}, after the link sign-in`;
   return null;

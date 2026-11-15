@@ -10,6 +10,7 @@ import type {
 } from "@/server/reports/output";
 import type { ServicesReport, ServicesReportReply } from "@/server/services/output";
 
+// Type-level only: `vitest run` does not type-check, so these assertions are enforced by `npx tsc --noEmit` (tsconfig includes tests/; CI runs it).
 // The reply types of the three report routes the period picker reads (#137): the report plus the venue's business date. Builder 2's page reads
 // `businessDate` for the picker's max through these, not through an ad hoc cast.
 describe("the report reply types", () => {
