@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consolePagePath, hostKind, servedOnHost } from "@/lib/platform/host";
+import { consolePagePath, hostKind, normalisePath, servedOnHost } from "@/lib/platform/host";
 
 describe("hostKind", () => {
   it("is console only when the host equals CONSOLE_HOST, port included", () => {
@@ -79,5 +79,21 @@ describe("consolePagePath", () => {
     expect(consolePagePath("/")).toBe("/console");
     expect(consolePagePath("/registro")).toBe("/console/registro");
     expect(consolePagePath("/locali/abc")).toBe("/console/locali/abc");
+  });
+});
+
+describe("normalisePath", () => {
+  it("decodes each segment once and collapses repeated slashes", () => {
+    expect(normalisePath("/%63onsole/login")).toBe("/console/login");
+    expect(normalisePath("//console///login")).toBe("/console/login");
+    expect(normalisePath("/console%2Flogin")).toBe("/console/login");
+    expect(normalisePath("/%2563onsole")).toBe("/%63onsole");
+    expect(normalisePath("/")).toBe("/");
+    expect(normalisePath("/registro")).toBe("/registro");
+  });
+
+  it("is null for a malformed escape", () => {
+    expect(normalisePath("/%E0%A4%A")).toBeNull();
+    expect(normalisePath("/%")).toBeNull();
   });
 });

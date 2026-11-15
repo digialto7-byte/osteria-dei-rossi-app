@@ -21,7 +21,7 @@ const CONSOLE = "127.0.0.1:3000";
 // The Host header decides, not request.nextUrl.host: Next.js rewrites 127.0.0.1 to localhost inside NextURL, which would make the
 // two local hosts one.
 const request = (host: string, path: string) =>
-  new NextRequest(new URL(path, `http://${host}`), { headers: { host } });
+  new NextRequest(new URL(`http://${host}${path}`), { headers: { host } });
 
 beforeEach(() => {
   seen = [];
@@ -238,5 +238,42 @@ describe("proxy host rules: the Q-P11 rewrite on the console host", () => {
     expect(response.headers.get("content-security-policy")).not.toBe(
       cspForRequest(nonce, undefined, "/console/login/attiva-codice"),
     );
+  });
+});
+
+describe("proxy host rules: encoded and odd paths are decided on the normalised path", () => {
+  it.each(["/%63onsole/login", "//console/login", "/console%2Flogin", "/api/%70latform/x"])(
+    "app host: %s answers 404",
+    async (path) => {
+      const response = await proxy(request(APP, path));
+      expect(response.status).toBe(404);
+      expect(seen).toHaveLength(0);
+    },
+  );
+
+  it.each(["/%63onsole/registro", "/console%2Fx", "/api/%6denu/1"])(
+    "console host: %s answers 404",
+    async (path) => {
+      const response = await proxy(request(CONSOLE, path));
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(seen).toHaveLength(0);
+    },
+  );
+
+  it("console host: /api/%70latform/x is the platform API, so it is served", async () => {
+    expect((await proxy(request(CONSOLE, "/api/%70latform/x"))).status).toBe(200);
+  });
+
+  it.each([APP, CONSOLE])("%s: a malformed escape answers 404", async (host) => {
+    const response = await proxy(request(host, "/%E0%A4%A"));
+    expect(response.status).toBe(404);
+    expect(seen).toHaveLength(0);
+  });
+
+  it("the rewrite and the policy still use the raw visible path", async () => {
+    const response = await proxy(request(CONSOLE, "/%72egistro"));
+    expect(seen[0]!.rewriteTo?.pathname).toBe("/console/%72egistro");
+    expect(response.status).toBe(200);
   });
 });

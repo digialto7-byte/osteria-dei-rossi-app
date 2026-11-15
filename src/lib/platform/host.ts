@@ -29,8 +29,25 @@ function isConsoleApi(pathname: string): boolean {
 export const consolePagePath = (visiblePath: string) =>
   visiblePath === "/" ? "/console" : `/console${visiblePath}`;
 
+/**
+ * The path as a person or an attacker may have spelled it, for the host decision only: each segment decoded once, repeated slashes
+ * collapsed. Null for a malformed escape, which `servedOnHost` answers with 404 (defence in depth: Next does not route encoded names).
+ */
+export function normalisePath(pathname: string): string | null {
+  let decoded: string;
+  try {
+    decoded = pathname.split("/").map(decodeURIComponent).join("/");
+  } catch (error) {
+    if (error instanceof URIError) return null;
+    throw error;
+  }
+  return decoded.replace(/\/{2,}/g, "/");
+}
+
 /** False means the proxy answers 404 (plan §3.5). A typed `/console/**` on the console host would become `/console/console/**`. */
-export function servedOnHost(kind: HostKind, pathname: string): boolean {
+export function servedOnHost(kind: HostKind, rawPathname: string): boolean {
+  const pathname = normalisePath(rawPathname);
+  if (pathname === null) return false;
   if (kind === "app") return !isConsolePath(pathname) && !isPlatformApi(pathname);
   if (pathname === "/api" || pathname.startsWith("/api/")) return isConsoleApi(pathname);
   return !isConsolePath(pathname);
