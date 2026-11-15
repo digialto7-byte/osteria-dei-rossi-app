@@ -24,7 +24,7 @@ const periodTabId = (periodo: Periodo) => `report-period-${periodo}`;
  * children of the page (the box itself plays no animation). It assumes it is the 4th child of the page, after the heading, the view links
  * and this picker.
  */
-export function PeriodPanel({ periodo, children }: { periodo: Periodo; children: ReactNode }) {
+export function PeriodPanel({ periodo, children }: { periodo: Periodo; children?: ReactNode }) {
   return (
     <div
       role="tabpanel"

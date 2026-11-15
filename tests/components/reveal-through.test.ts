@@ -34,7 +34,7 @@ describe("the rise through a wrapper box", () => {
   });
 
   it("an empty panel renders no child nodes, so :empty matches", () => {
-    const { container } = render(createElement(PeriodPanel, { periodo: "giorno" }, null));
+    const { container } = render(createElement(PeriodPanel, { periodo: "giorno" }));
     expect(container.firstElementChild!.childNodes).toHaveLength(0);
   });
 
