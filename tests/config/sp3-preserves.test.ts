@@ -1,4 +1,13 @@
-import { existsSync, readdirSync, readFileSync, type Dirent } from "node:fs";
+import {
+  existsSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+  type Dirent,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import { join, relative } from "node:path";
 import { PLATFORM_AUDIT_ACTIONS, PLATFORM_NOTICE_KINDS } from "@/lib/platform/codes";
 import { describe, expect, it } from "vitest";
@@ -94,5 +103,131 @@ describe("sp3-preserves: naming (plan section 5)", () => {
   it("the platform-ops workflow is the only SP3 file that names the secret key", () => {
     for (const file of SP3_FILES.filter((f) => !f.includes("platform-ops")))
       expect(read(file), file).not.toContain("SUPABASE_SECRET_KEY");
+  });
+});
+
+// SP3 migrations (plan section 5, "Rules for all steps"): the 20261208* files are exactly the steps built so far and sort after SP2's last file; each creates
+// or replaces only the objects listed for it; none re-creates a gate helper or the PIN login, cascades, deletes, or names an object for cost, margin,
+// price or service. Every later SP3 migration step adds its file and its objects to STEPS on purpose.
+const MIGRATIONS = join(process.cwd(), "supabase/migrations");
+const AFTER_SP2 = "20261207100300_session_tenant_purge.sql";
+
+type Step = { file: string; tables: string[]; functions: string[]; triggers: string[] };
+const STEPS: Step[] = [
+  {
+    // Step 1: the organisation-side VAT guard.
+    file: "20261208100000_organisation_vat_guard.sql",
+    tables: [],
+    functions: ["platform.organisation_vat_locked"],
+    triggers: ["organisation_vat_locked"],
+  },
+];
+
+const FORBIDDEN_DEFINITIONS = [
+  "app.tenant_id",
+  "app.role",
+  "app.app_user_id",
+  "app.mfa_needs_aal2",
+  "app.staff_session_open",
+  "app.pin_sign_in_allowed",
+  "public.pin_login_begin",
+  "public.pin_login_finish",
+  "public.mfa_reset_service_begin",
+];
+
+/** The files of SP3 (timestamp 20261208*), sorted. */
+function sp3Migrations(dir: string): string[] {
+  return readdirSync(dir)
+    .filter((f) => f.startsWith("20261208") && f.endsWith(".sql"))
+    .sort();
+}
+
+/** The SQL without its `--` comments, so a name mentioned in a comment is not a definition. */
+function sqlWithoutComments(sql: string): string {
+  return sql
+    .split("\n")
+    .map((l) => l.replace(/--.*$/, ""))
+    .join("\n");
+}
+
+/** Names after `create [or replace] <kind>`, lower-cased (qualified for tables and functions, bare for triggers). */
+function created(sql: string, kind: "table" | "function" | "trigger"): string[] {
+  const re = {
+    table:
+      /create\s+(?:unlogged\s+|temp(?:orary)?\s+)?table\s+(?:if\s+not\s+exists\s+)?([a-z_]+\.[a-z_0-9]+)/gi,
+    function: /create\s+(?:or\s+replace\s+)?function\s+([a-z_]+\.[a-z_0-9]+)/gi,
+    trigger: /create\s+(?:or\s+replace\s+)?trigger\s+([a-z_0-9]+)/gi,
+  }[kind];
+  return [...sql.matchAll(re)].map((m) => m[1]!.toLowerCase());
+}
+
+const readSql = (file: string) => sqlWithoutComments(readFileSync(join(MIGRATIONS, file), "utf8"));
+
+describe("SP3 migrations", () => {
+  it("are exactly the steps built so far", () => {
+    expect(sp3Migrations(MIGRATIONS)).toEqual(STEPS.map((s) => s.file));
+  });
+
+  it("sort after SP2's last migration", () => {
+    for (const step of STEPS) expect(step.file.localeCompare(AFTER_SP2)).toBeGreaterThan(0);
+  });
+
+  it("self-test: the listing sees an extra SP3 file and ignores others", () => {
+    const dir = mkdtempSync(join(tmpdir(), "sp3-"));
+    try {
+      writeFileSync(join(dir, STEPS[0]!.file), "");
+      writeFileSync(join(dir, "20261208999999_extra.sql"), "");
+      writeFileSync(join(dir, AFTER_SP2), "");
+      expect(sp3Migrations(dir)).toEqual([STEPS[0]!.file, "20261208999999_extra.sql"]);
+    } finally {
+      rmSync(dir, { recursive: true });
+    }
+  });
+
+  for (const step of STEPS) {
+    describe(step.file, () => {
+      it("creates and replaces only the tables, functions and triggers listed for it", () => {
+        const sql = readSql(step.file);
+        expect(created(sql, "table")).toEqual(step.tables);
+        expect(created(sql, "function")).toEqual(step.functions);
+        expect(created(sql, "trigger")).toEqual(step.triggers);
+      });
+
+      it("never re-creates the gate helpers or the PIN login", () => {
+        const defined = created(readSql(step.file), "function");
+        for (const name of FORBIDDEN_DEFINITIONS) expect(defined).not.toContain(name);
+      });
+
+      it("never cascades or deletes", () => {
+        const sql = readSql(step.file);
+        expect(sql).not.toMatch(/\bcascade\b/i);
+        expect(sql).not.toMatch(/^\s*truncate\s/im);
+        expect(sql).not.toMatch(/^\s*delete\s+from\b/im);
+      });
+
+      it("names no object for cost, margin, price or service (naming rule, pgTAP 286)", () => {
+        const sql = readSql(step.file);
+        const names = [
+          ...created(sql, "table"),
+          ...created(sql, "function"),
+          ...created(sql, "trigger"),
+        ];
+        for (const name of names) expect(name).not.toMatch(/cost|margin|price|service/);
+      });
+
+      it("never mentions the SP0 scratch names sp0_ or sp0., comments included", () => {
+        expect(readFileSync(join(MIGRATIONS, step.file), "utf8")).not.toMatch(/sp0[_.]/);
+      });
+    });
+  }
+
+  it("self-test: the comment stripper hides a name in a comment, the extractor sees real ones", () => {
+    expect(created(sqlWithoutComments("-- create function app.tenant_id()\n"), "function")).toEqual(
+      [],
+    );
+    expect(created("create or replace function app.role() returns text", "function")).toEqual([
+      "app.role",
+    ]);
+    expect(created("create trigger t_one before update on x.y", "trigger")).toEqual(["t_one"]);
   });
 });

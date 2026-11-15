@@ -229,6 +229,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261207100200_select_tenant.sql",
   // SP2 step S5 (20261207100300_session_tenant_purge.sql), re-pinned on purpose by SP2 (step S5; was the list ending at 20261207100200_select_tenant.sql): the auth-purge job removes old selections.
   "20261207100300_session_tenant_purge.sql",
+  // SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was the list ending at 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
+  "20261208100000_organisation_vat_guard.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
