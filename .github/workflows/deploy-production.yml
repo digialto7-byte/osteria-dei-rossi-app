@@ -71,6 +71,7 @@ jobs:
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       # npm ci runs without the secrets in its environment and with --ignore-scripts, so no install script can change node_modules/.bin,
       # which later steps run with the secrets set. The supabase CLI needs no install script: its binary comes from the optional @supabase/cli-linux-x64 package.

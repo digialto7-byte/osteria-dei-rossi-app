@@ -70,6 +70,7 @@ jobs:
         uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       # The secrets are not in this step's environment, so no dependency install script sees them.
       - if: steps.secrets.outputs.ready == 'true'

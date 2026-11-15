@@ -96,6 +96,7 @@ jobs:
         if: steps.arm.outputs.armed == 'true'
         with:
           node-version-file: .nvmrc
+          package-manager-cache: false
 
       # npm ci runs without the secrets in its environment and with --ignore-scripts, so no install script can change node_modules/.bin,
       # which later steps run with the secrets set. The supabase CLI needs no install script: its binary comes from the optional @supabase/cli-linux-x64 package.
