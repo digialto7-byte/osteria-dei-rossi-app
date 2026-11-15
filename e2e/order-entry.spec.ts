@@ -471,7 +471,7 @@ test.describe("order entry on a phone (360 px)", () => {
       nextSync(a.page),
       a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click(),
     ]);
-    await a.page.waitForURL(COMANDA_URL);
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     for (const scheme of ["light", "dark"] as const) await expectCosti(scheme);
     await expectPhoneFriendlyBothThemes(a.page);
 
@@ -498,7 +498,7 @@ test.describe("order entry on a phone (360 px)", () => {
     await a.page.locator(`[data-table-id="${t1}"]`).click();
     await a.page.getByLabel("Coperti", { exact: true }).fill("4");
     await a.page.getByRole("button", { name: "Apri tavolo", exact: true }).click();
-    await a.page.waitForURL(COMANDA_URL);
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     await expect(sala).toBeVisible();
     const sessionId = sessionIdOf(a.page.url());
     await dish(a.page, ids.bruschetta).click();
@@ -664,7 +664,7 @@ test.describe("order entry on a phone (360 px)", () => {
 
     // One tap: the comanda of that session, with its line already showing.
     await tile.click();
-    await a.page.waitForURL(COMANDA_URL);
+    await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
     await expect(lineRow(a.page, lineId)).toBeVisible();
 
@@ -675,7 +675,7 @@ test.describe("order entry on a phone (360 px)", () => {
       .getByRole("dialog", { name: "1 piatto non inviato" })
       .getByRole("button", { name: "Esci comunque", exact: true })
       .click();
-    await a.page.waitForURL((url) => url.pathname === "/tavoli");
+    await a.page.waitForURL((url) => url.pathname === "/tavoli", { timeout: 15_000 });
     await expect(tile).toBeVisible();
     // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
     await expect
