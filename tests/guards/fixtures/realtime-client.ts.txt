@@ -1,0 +1,8 @@
+// Fixture for tests/guards/console-no-realtime.test.ts: a file the console must never contain. Not compiled (.txt).
+import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+
+const client = createClient("https://example.test", "test-key");
+export const subscription: RealtimeChannel = client.channel("room").subscribe();
+export const other = createBrowserClient("https://example.test", "test-key");

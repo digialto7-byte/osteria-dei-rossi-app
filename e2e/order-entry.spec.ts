@@ -43,6 +43,44 @@ const dish = (page: Page, id: string) =>
   page.locator(`[data-menu-item-id="${id}"]:not([data-pinned])`);
 const lineRow = (page: Page, id: string) => page.locator(`[data-line-id="${id}"]`);
 
+/** The grid's layout at one moment: page and grid size, every tile's name and status text, the banners and notices above it. */
+type Layout = {
+  scrollY: number;
+  scrollHeight: number;
+  innerHeight: number;
+  gridTop: number;
+  gridHeight: number;
+  tiles: { id: string | null; text: string }[];
+  notices: string[];
+};
+type LayoutProbe = { __gridLayout: () => Layout };
+
+/** Puts the layout reader on the page (again after a full load), so a capture-phase listener can call it at the tap. */
+async function installLayoutProbe(page: Page) {
+  await page.evaluate(() => {
+    const text = (el: Element) => el.textContent?.replace(/\s+/g, " ").trim() ?? "";
+    (window as unknown as LayoutProbe).__gridLayout = () => {
+      const tiles = Array.from(document.querySelectorAll("[data-table-id]"));
+      const grid = tiles[0]?.parentElement?.getBoundingClientRect();
+      return {
+        scrollY: window.scrollY,
+        scrollHeight: document.documentElement.scrollHeight,
+        innerHeight: window.innerHeight,
+        gridTop: Math.round((grid?.top ?? 0) + window.scrollY),
+        gridHeight: Math.round(grid?.height ?? 0),
+        tiles: tiles.map((el) => ({ id: el.getAttribute("data-table-id"), text: text(el) })),
+        notices: Array.from(document.querySelectorAll('[role="status"], [role="alert"]'))
+          .map(text)
+          .filter(Boolean),
+      };
+    };
+  });
+}
+const readLayout = (page: Page) =>
+  page.evaluate(() => (window as unknown as LayoutProbe).__gridLayout());
+/** What a shift is made of: everything but the scroll position itself. */
+const layoutShape = ({ scrollY: _scrollY, ...shape }: Layout) => shape;
+
 /** Dark and light, as the other signed-in specs do. */
 async function expectPhoneFriendlyBothThemes(page: Page) {
   await expectPhoneFriendly(page);
@@ -668,8 +706,7 @@ test.describe("order entry on a phone (360 px)", () => {
     expect(
       await a.page.evaluate(() => document.documentElement.scrollHeight > window.innerHeight),
     ).toBe(true);
-    // Measure only on a settled page: if it still grows, the last tile moves down, the click scrolls it back into view, and the app saves
-    // that offset, not `before` (CI on #136: 108 px). The page height must hold for two reads in a row.
+    // Measure only on a settled page: the page height must hold for two reads in a row.
     let lastHeight = -1;
     await expect
       .poll(
@@ -683,41 +720,47 @@ test.describe("order entry on a phone (360 px)", () => {
       )
       .toBe(true);
     await a.page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-    const before = await a.page.evaluate(() => window.scrollY);
-    expect(before).toBeGreaterThan(0);
+    expect(await a.page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    // The page can still change after a settled read (main CI, a4d0d0a: 108 px shorter between the measure and the tap, one tile row).
+    // The app's contract is "back to where the waiter tapped", so the reference is read at the tap itself, in a capture-phase listener.
+    // The layout is also read at the measure: when the two differ, both go into the report, to name what moved (lead, 2026-11-15).
+    await installLayoutProbe(a.page);
+    const atMeasure = await readLayout(a.page);
+    await a.page.evaluate(() =>
+      window.addEventListener(
+        "pointerdown",
+        () =>
+          window.sessionStorage.setItem(
+            "e2e.gridAtTap",
+            JSON.stringify((window as unknown as LayoutProbe).__gridLayout()),
+          ),
+        { capture: true, once: true },
+      ),
+    );
     // The tile is fully on screen, so the tap does not scroll the page first.
     await expect(tile).toBeInViewport({ ratio: 1 });
-    // What sits above and around the grid, read at save time and on return: if a notice, a banner or a tile's size differs between the
-    // two, the failure says so (CI on #136 read 108 px, one tile row or one banner).
-    const layout = () =>
-      tile.evaluate((el) => {
-        const grid = el.parentElement!.getBoundingClientRect();
-        const own = el.getBoundingClientRect();
-        return {
-          scrollY: window.scrollY,
-          scrollHeight: document.documentElement.scrollHeight,
-          innerHeight: window.innerHeight,
-          gridTop: Math.round(grid.top + window.scrollY),
-          gridHeight: Math.round(grid.height),
-          tileTop: Math.round(own.top + window.scrollY),
-          tileHeight: Math.round(own.height),
-          tileText: el.textContent?.replace(/\s+/g, " ").trim(),
-          notices: Array.from(document.querySelectorAll('[role="status"], [role="alert"]'))
-            .map((n) => n.textContent?.replace(/\s+/g, " ").trim())
-            .filter(Boolean),
-        };
-      });
-    const atSave = await layout();
 
     // One tap: the comanda of that session, with its line already showing.
     await tile.click();
     await a.page.waitForURL(COMANDA_URL, { timeout: 15_000 });
     expect(sessionIdOf(a.page.url())).toBe(sessionId);
-    // What the app saved is exactly where the waiter was (taken by /tavoli on the way back).
-    // (saveGridScroll rounds; an emulated phone can scroll by fractions of a pixel.)
-    expect(await a.page.evaluate(() => window.sessionStorage.getItem("tavoli.scroll"))).toBe(
-      String(Math.round(before)),
-    );
+    const atTap = JSON.parse(
+      (await a.page.evaluate(() => window.sessionStorage.getItem("e2e.gridAtTap"))) ?? "null",
+    ) as Layout | null;
+    expect(atTap, "the capture listener read the layout at the tap").not.toBeNull();
+    if (JSON.stringify(layoutShape(atMeasure)) !== JSON.stringify(layoutShape(atTap!))) {
+      // Also in the job log: the report artifact is not reachable from every place that reads CI (fake data only).
+      console.log(`grid-layout-shift: ${JSON.stringify({ atMeasure, atTap })}`);
+      await testInfo.attach("grid-layout-shift", {
+        contentType: "application/json",
+        body: JSON.stringify({ atMeasure, atTap }, null, 2),
+      });
+    }
+    // What the app saved is where the waiter was at the tap (saveGridScroll rounds; a phone can scroll by fractions of a pixel).
+    expect(
+      await a.page.evaluate(() => window.sessionStorage.getItem("tavoli.scroll")),
+      JSON.stringify({ atMeasure, atTap }),
+    ).toBe(String(Math.round(atTap!.scrollY)));
     await expect(lineRow(a.page, lineId)).toBeVisible();
 
     // Back through the link: the dish is not sent, so the leave sheet asks first (QW12); "Esci comunque" leaves, and the grid returns
@@ -731,10 +774,11 @@ test.describe("order entry on a phone (360 px)", () => {
     await expect(tile).toBeVisible();
     // ±2 px: the offset was the page's maximum, which a few px of browser chrome (WebKit's address bar) can clamp on return.
     await expect(async () => {
-      const onReturn = await layout();
+      await installLayoutProbe(a.page);
+      const onReturn = await readLayout(a.page);
       expect(
-        Math.abs(onReturn.scrollY - before),
-        JSON.stringify({ before, atSave, onReturn }),
+        Math.abs(onReturn.scrollY - atTap!.scrollY),
+        JSON.stringify({ atMeasure, atTap, onReturn }),
       ).toBeLessThanOrEqual(2);
     }).toPass({ timeout: 5_000 });
 

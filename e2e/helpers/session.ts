@@ -1,5 +1,8 @@
 import { execFileSync } from "node:child_process";
 import { randomInt, randomUUID } from "node:crypto";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   expect,
   test,
@@ -9,6 +12,8 @@ import {
   type Request,
   type Response,
 } from "@playwright/test";
+import { z } from "zod";
+import { dashboardReplyProblem } from "./dashboard-reply";
 import { admin } from "./seed-invoice";
 import { latestLinkFor } from "./mailbox";
 import { enrolOnScreen } from "./mfa";
@@ -42,23 +47,28 @@ const authIdOfStaff = new Map<string, string>();
 /** Creates a fresh tenant and owner with fake data through the admin script; returns the email. */
 export function createOwner(): string {
   const email = fakeEmail("owner");
-  const printed = execFileSync(
-    "npx",
-    [
-      "tsx",
-      "scripts/create-tenant.ts",
-      "--name",
-      "Osteria Demo",
-      "--vat",
-      fakeVat(),
-      "--owner-email",
-      email,
-      "--owner-name",
-      "Titolare Demo",
-    ],
-    { stdio: "pipe" },
-  );
-  tenantOfOwner.set(email, printed.toString().trim());
+  // The script reads the tenant and owner from the environment. Under Actions it prints only an 8-character id prefix, so the full ids come back through
+  // --ids-out: a new file in a private temporary folder, read here and deleted at once.
+  const dir = mkdtempSync(join(tmpdir(), "create-tenant-"));
+  const idsFile = join(dir, "ids.json");
+  try {
+    execFileSync("npx", ["tsx", "scripts/create-tenant.ts", "--ids-out", idsFile], {
+      stdio: "pipe",
+      env: {
+        ...process.env,
+        TENANT_NAME: "Osteria Demo",
+        TENANT_VAT_NUMBER: fakeVat(),
+        OWNER_EMAIL: email,
+        OWNER_NAME: "Titolare Demo",
+      },
+    });
+    const ids = z
+      .object({ tenantId: z.uuid(), ownerAuthId: z.uuid() })
+      .parse(JSON.parse(readFileSync(idsFile, "utf8")));
+    tenantOfOwner.set(email, ids.tenantId);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   return email;
 }
 
@@ -289,7 +299,10 @@ async function loadOggiAndItsReads(page: Page, role: "owner" | "admin"): Promise
     // succeeds, this only keeps a rejection that nobody awaits any more from being reported as unhandled.
     for (const wait of [read, opened]) wait?.catch(() => undefined);
     await page.goto("/", { waitUntil: "load" });
-    expectOk(await read);
+    const dashboard = await read;
+    expectOk(dashboard);
+    const problem = dashboardReplyProblem(await dashboard.json(), role);
+    if (problem) throw new Error(problem);
     if (opened) expectOk(await opened);
   } finally {
     page.off("framenavigated", onNavigated);

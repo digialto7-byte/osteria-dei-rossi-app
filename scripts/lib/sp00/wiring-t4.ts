@@ -6,7 +6,7 @@ import { romeToday } from "../demo/dates";
 import { buildFixture } from "../demo/fixture";
 import { buildPurgeDeps, buildSeedDeps } from "../demo/main";
 import { runSeed } from "../demo/seed";
-import { createTenant } from "../create-tenant";
+import { createTenant, FULL_IDS } from "../create-tenant";
 import {
   createAdminClient,
   createUserClient,
@@ -45,7 +45,8 @@ export function buildSeedContext(input: {
     seed: (pre) =>
       runT4Seed(
         {
-          createTenant: (tenantInput) => createTenant(admin, tenantInput),
+          createTenant: (tenantInput) =>
+            createTenant(admin, tenantInput, FULL_IDS).then((ids) => ids.tenantId),
           runSeed: (tenantId) =>
             runSeed(
               buildSeedDeps(

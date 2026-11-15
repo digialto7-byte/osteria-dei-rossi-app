@@ -6,7 +6,14 @@ import type { CloseOutput } from "@/server/bill/output";
 import type { BillOutput } from "@/server/bill/output";
 import type { DashboardOutput } from "@/server/dashboard/output";
 import type { AddLineOutput, FireOutput } from "@/server/orders/output";
-import type { AvtOutput, ItemsOutput, KpiReport, UnmappedOutput } from "@/server/reports/output";
+import type {
+  AvtOutput,
+  ItemsOutput,
+  ItemsReply,
+  KpiReport,
+  KpiReportReply,
+  UnmappedOutput,
+} from "@/server/reports/output";
 import type { TablesList } from "@/server/tables/output";
 import { addDish, buildAt2Table, openSession, type At2Lines } from "./helpers/closing";
 import {
@@ -369,8 +376,8 @@ describe.skipIf(!env)("the KPI reports on the real stack", () => {
       const kpiReply = await kpis(user, "?period=day");
       const itemsReply = await items(user, "?period=day");
       expect([kpiReply.status, itemsReply.status]).toEqual([200, 200]);
-      expect((kpiReply.body as KpiReport & { businessDate: string }).businessDate).toBe(day);
-      expect((itemsReply.body as ItemsOutput & { businessDate: string }).businessDate).toBe(day);
+      expect((kpiReply.body as KpiReportReply).businessDate).toBe(day);
+      expect((itemsReply.body as ItemsReply).businessDate).toBe(day);
     }
   });
 

@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import type { WithBusinessDate } from "./output";
 import { failReport, parseReport } from "./run";
 
 const businessDate = z.iso.date();
@@ -15,7 +16,7 @@ export async function withBusinessDate<T extends object>(
   supabase: SupabaseClient,
   report: T,
   now: Date = new Date(),
-): Promise<T & { businessDate: string }> {
+): Promise<WithBusinessDate<T>> {
   const { data, error } = await supabase.rpc("business_date_of", { p_at: now.toISOString() });
   if (error) failReport("business_date_of", error);
   return { ...report, businessDate: parseReport("business_date_of", businessDate, data) };

@@ -49,6 +49,7 @@ function parse<T extends Record<string, z.ZodType>>(
   argv: string[],
   names: (keyof T & string)[],
   shape: T,
+  flags: string[] = [],
 ): { [K in keyof T]: z.infer<T[K]> } {
   let values: Record<string, string | boolean | undefined>;
   try {
@@ -56,7 +57,10 @@ function parse<T extends Record<string, z.ZodType>>(
       args: argv,
       strict: true,
       allowPositionals: false,
-      options: Object.fromEntries(names.map((n) => [n, { type: "string" as const }])),
+      options: {
+        ...Object.fromEntries(names.map((n) => [n, { type: "string" as const }])),
+        ...Object.fromEntries(flags.map((n) => [n, { type: "boolean" as const }])),
+      },
     }));
   } catch (error) {
     throw new UsageError(error instanceof Error ? error.message : "invalid arguments");
@@ -84,7 +88,24 @@ function usage(io: ScriptIo, line: string, hint: string): number {
 
 const ENFORCEMENT_HINT =
   "Uso / Usage: set-mfa-enforcement.ts --tenant <uuid> --mode off|enrolled|required --actor <admin app_user uuid>";
-const RESET_HINT = "Uso / Usage: mfa-reset.ts --user <app_user uuid> --actor <admin app_user uuid>";
+const RESET_HINT =
+  "Uso / Usage: mfa-reset.ts --user <app_user uuid> --actor <admin app_user uuid> [--yes]";
+
+/**
+ * The break-glass confirmation (SP3 step 6, plan section 3.9.3; Italian text da approvare). The reset deletes every Auth session of the person, so it signs them out of
+ * every venue and, for the platform admin, out of the console too. The same text is the description of the workflow input conferma_disconnessione.
+ */
+export const MFA_RESET_CONFIRM_TEXT =
+  "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice.";
+const MFA_RESET_ANSWER = "sì";
+
+/** The extra input of the reset: a terminal to ask on. */
+export interface ResetIo extends ScriptIo {
+  /** True when stdin is a terminal a person can answer on. */
+  isTty: boolean;
+  /** Shows the question and returns the typed line. */
+  ask: (question: string) => Promise<string>;
+}
 
 /** Sets the enforcement mode of a tenant (T-3). `required` is refused while an active admin has no verified factor, so nobody is locked out. */
 export async function runSetMfaEnforcement(argv: string[], io: ScriptIo): Promise<number> {
@@ -136,13 +157,32 @@ function safeJson(text: string | null | undefined): unknown {
  * The break-glass reset (D2): begin writes the audit row app_user.mfa_reset first (T-8), which also deletes the target's Auth sessions (deleting a factor does not sign anyone out), then every factor of the account is
  * deleted through the Supabase admin API. A failure after begin is recorded by the failed twin. Prints the number of removed factors only.
  */
-export async function runMfaReset(argv: string[], io: ScriptIo): Promise<number> {
-  let args: { user: string; actor: string };
+export async function runMfaReset(argv: string[], io: ResetIo): Promise<number> {
+  let args: { user: string; actor: string; yes: boolean | undefined };
   try {
-    args = parse(argv, ["user", "actor"], { user: UUID, actor: UUID });
+    args = parse(
+      argv,
+      ["user", "actor"],
+      { user: UUID, actor: UUID, yes: z.boolean().optional() },
+      ["yes"],
+    );
   } catch (error) {
     if (!(error instanceof UsageError)) throw error;
     return usage(io, error.message, RESET_HINT);
+  }
+  if (!args.yes) {
+    if (!io.isTty) {
+      io.err(
+        "Nessun terminale per confermare: usa --yes dopo aver letto l'avviso. / No terminal to confirm on: pass --yes after reading the warning.",
+      );
+      return 2;
+    }
+    io.err(MFA_RESET_CONFIRM_TEXT);
+    const answer = await io.ask(`Scrivi «${MFA_RESET_ANSWER}» per continuare: `);
+    if (answer.trim().toLowerCase() !== MFA_RESET_ANSWER) {
+      io.err("Annullato: nessuna modifica. / Cancelled: nothing was changed.");
+      return 1;
+    }
   }
   const admin = io.admin();
   const began = await admin.rpc("mfa_reset_service_begin", {

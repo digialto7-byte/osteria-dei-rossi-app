@@ -132,7 +132,15 @@ describe("docs/runbook.md", () => {
       const row = rowOf("SUPABASE_SECRET_KEY")!.cells.join(" ");
       expect(row).toContain("`production-backup`");
       expect(row).toContain("invoice-file backup");
-      expect(row).toMatch(/update Vercel, `staging` and `production-backup`/);
+      // SP3: platform-ops joins the environments a rotation must reach.
+      expect(row).toMatch(/update Vercel, `staging`, `production-backup` and `platform-ops`/);
+      expect(row).toContain("`platform-ops`");
+    });
+
+    it("forbids debug logging on platform-ops runs (the workflow file cannot guard it)", () => {
+      expect(SECRETS).toContain(
+        "Never re-run a `platform-ops` job with debug logging, and never set `ACTIONS_STEP_DEBUG` or `ACTIONS_RUNNER_DEBUG`",
+      );
     });
 
     it("says the backup copies setting counts the files manifests and never packs", () => {
