@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hostKind, servedOnHost } from "@/lib/platform/host";
+import { consolePagePath, hostKind, servedOnHost } from "@/lib/platform/host";
 
 describe("hostKind", () => {
   it("is console only when the host equals CONSOLE_HOST, port included", () => {
@@ -57,7 +57,27 @@ describe("servedOnHost", () => {
     "/api/platformx",
     "/api/cron/reservation-mail",
     "/api",
+    "/console",
+    "/console/",
+    "/console/locali",
   ])("console host: %s is not served", (path) => {
     expect(servedOnHost("console", path)).toBe(false);
+  });
+});
+
+describe("servedOnHost: console pages", () => {
+  it.each(["/", "/login", "/locali/abc", "/registro", "/consolle"])(
+    "console host: %s is served",
+    (path) => {
+      expect(servedOnHost("console", path)).toBe(true);
+    },
+  );
+});
+
+describe("consolePagePath", () => {
+  it("puts the visible path under /console; the root is /console", () => {
+    expect(consolePagePath("/")).toBe("/console");
+    expect(consolePagePath("/registro")).toBe("/console/registro");
+    expect(consolePagePath("/locali/abc")).toBe("/console/locali/abc");
   });
 });

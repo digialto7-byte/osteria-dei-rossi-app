@@ -138,6 +138,32 @@ describe("updateSession forwards the nonce headers (ADR-028, M25)", () => {
     next.mockRestore();
   });
 
+  it("with a rewrite target it rewrites, forwarding the headers, the one after a cookie refresh included (SP3 step 16)", async () => {
+    refreshedCookie = { name: "sb-127-auth-token", value: "refreshed" };
+    const rewrite = vi.spyOn(NextResponse, "rewrite");
+    const headers = forwarded();
+    const target = new URL("/console/registro", "http://localhost:3000");
+    const response = await updateSession(request("/registro"), headers, target);
+    expect(response.headers.get("x-middleware-rewrite")).toBe(target.toString());
+    expect(rewrite.mock.calls.length).toBeGreaterThanOrEqual(2);
+    for (const [url, init] of rewrite.mock.calls) {
+      expect(String(url)).toBe(target.toString());
+      expect((init?.request?.headers as Headers).get("x-nonce")).toBe("AAAAAAAAAAAAAAAAAAAAAA==");
+    }
+    rewrite.mockRestore();
+  });
+
+  it("a signed-out visit redirects to /login even with a rewrite target (the visible path decides)", async () => {
+    claims = null;
+    const response = await updateSession(
+      request("/registro"),
+      forwarded(),
+      new URL("/console/registro", "http://localhost:3000"),
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe("http://localhost:3000/login?next=%2Fregistro");
+  });
+
   it("the refreshed session cookie is in the forwarded cookie header, so the render sees it", async () => {
     refreshedCookie = { name: "sb-127-auth-token", value: "refreshed" };
     const headers = forwarded();

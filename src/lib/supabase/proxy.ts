@@ -33,14 +33,19 @@ function redirectTo(url: URL, from: NextResponse): NextResponse {
  *
  * `requestHeaders` are the headers to forward to the render (the proxy's nonce and policy, ADR-028). Every
  * `NextResponse.next` is built with them, the one after a cookie refresh included, or the nonce would be lost.
+ * `rewriteTo` (the console host, Q-P11) makes every pass-through a rewrite to that URL instead; the sign-in redirect still
+ * uses the visible path, because `request` is untouched.
  */
 export async function updateSession(
   request: NextRequest,
   requestHeaders?: Headers,
+  rewriteTo?: URL,
 ): Promise<NextResponse> {
   const env = readPublicEnv();
-  const forward = () =>
-    NextResponse.next(requestHeaders ? { request: { headers: requestHeaders } } : { request });
+  const forward = () => {
+    const init = requestHeaders ? { request: { headers: requestHeaders } } : { request };
+    return rewriteTo ? NextResponse.rewrite(rewriteTo, init) : NextResponse.next(init);
+  };
   let response = forward();
 
   const supabase = createServerClient(env.supabaseUrl, env.supabasePublishableKey, {

@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
+import { cspForRequest } from "@/lib/security/csp";
 import { NONCE_PATTERN, nonceFromCsp } from "@/lib/security/nonce";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // SP3 step 16 (plan §3.5): the proxy's host rules. updateSession is mocked: it records the headers it is given and passes on.
-let seen: { headers: Headers | undefined }[];
+let seen: { headers: Headers | undefined; rewriteTo?: URL }[];
 vi.mock("@/lib/supabase/proxy", () => ({
-  updateSession: async (_request: NextRequest, headers?: Headers) => {
-    seen.push({ headers: headers ? new Headers(headers) : undefined });
-    return NextResponse.next();
+  updateSession: async (_request: NextRequest, headers?: Headers, rewriteTo?: URL) => {
+    seen.push({ headers: headers ? new Headers(headers) : undefined, rewriteTo });
+    return rewriteTo ? NextResponse.rewrite(rewriteTo) : NextResponse.next();
   },
 }));
 
@@ -157,5 +158,85 @@ describe("proxy host rules: the console host, pages", () => {
     expect(await img("/login/attiva-codice")).toContain(" data:");
     expect(await img("/login")).not.toContain("data:");
     expect(await img("/")).not.toContain("data:");
+  });
+});
+
+describe("proxy host rules: the Q-P11 rewrite on the console host", () => {
+  const rewritten = async (path: string) => {
+    seen = [];
+    const response = await proxy(request(CONSOLE, path));
+    return { response, to: seen[0]?.rewriteTo };
+  };
+
+  it.each([
+    ["/", "/console"],
+    ["/login", "/console/login"],
+    ["/login/codice", "/console/login/codice"],
+    ["/login/attiva-codice", "/console/login/attiva-codice"],
+    ["/locali/abc", "/console/locali/abc"],
+    ["/registro", "/console/registro"],
+    ["/avvisi", "/console/avvisi"],
+    ["/tavoli", "/console/tavoli"],
+  ])("rewrites the visible path %s to %s", async (visible, internal) => {
+    const { response, to } = await rewritten(visible);
+    expect(response.status).toBe(200);
+    expect(to?.pathname).toBe(internal);
+    expect(to?.host).toBe("localhost:3000");
+    expect(response.headers.get("x-middleware-rewrite")).toBe(to!.toString());
+  });
+
+  it("keeps the query string", async () => {
+    const { to } = await rewritten("/registro?dal=2025-03-01&al=2025-03-31");
+    expect(to?.pathname).toBe("/console/registro");
+    expect(to?.search).toBe("?dal=2025-03-01&al=2025-03-31");
+  });
+
+  it.each(["/console", "/console/", "/console/registro", "/console/console/registro"])(
+    "a typed %s is 404, with noindex, and is never rewritten",
+    async (path) => {
+      const { response, to } = await rewritten(path);
+      expect(response.status).toBe(404);
+      expect(response.headers.get("x-robots-tag")).toBe("noindex");
+      expect(to).toBeUndefined();
+      expect(seen).toHaveLength(0);
+    },
+  );
+
+  it("a look-alike such as /consolle is a page like any other, rewritten", async () => {
+    expect((await rewritten("/consolle")).to?.pathname).toBe("/console/consolle");
+  });
+
+  it("never rewrites an API path", async () => {
+    for (const path of ["/api/platform/me", "/api/health", "/api/auth/mfa/account"]) {
+      expect((await rewritten(path)).to, path).toBeUndefined();
+    }
+  });
+
+  it("never rewrites on the app host", async () => {
+    seen = [];
+    await proxy(request(APP, "/registro"));
+    expect(seen[0]!.rewriteTo).toBeUndefined();
+  });
+
+  it("keeps the nonce and the policy on the request and the response after the rewrite", async () => {
+    const { response } = await rewritten("/registro");
+    const forwarded = seen[0]!.headers!;
+    expect(forwarded.get("x-nonce")).toMatch(NONCE_PATTERN);
+    expect(nonceFromCsp(forwarded.get("content-security-policy"))).toBe(forwarded.get("x-nonce"));
+    expect(response.headers.get("content-security-policy")).toBe(
+      forwarded.get("content-security-policy"),
+    );
+    expect(response.headers.get("x-robots-tag")).toBe("noindex");
+  });
+
+  it("builds the policy from the visible path, not the rewritten one", async () => {
+    const { response } = await rewritten("/login/attiva-codice");
+    const nonce = seen[0]!.headers!.get("x-nonce")!;
+    expect(response.headers.get("content-security-policy")).toBe(
+      cspForRequest(nonce, undefined, "/login/attiva-codice"),
+    );
+    expect(response.headers.get("content-security-policy")).not.toBe(
+      cspForRequest(nonce, undefined, "/console/login/attiva-codice"),
+    );
   });
 });

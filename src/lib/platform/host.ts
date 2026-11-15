@@ -25,9 +25,13 @@ function isConsoleApi(pathname: string): boolean {
   );
 }
 
-/** False means the proxy answers 404 (plan §3.5). */
+/** The internal URL path of a console page: the visible `/<p>` is `/console/<p>`, so `/` is `/console` (Q-P11). */
+export const consolePagePath = (visiblePath: string) =>
+  visiblePath === "/" ? "/console" : `/console${visiblePath}`;
+
+/** False means the proxy answers 404 (plan §3.5). A typed `/console/**` on the console host would become `/console/console/**`. */
 export function servedOnHost(kind: HostKind, pathname: string): boolean {
   if (kind === "app") return !isConsolePath(pathname) && !isPlatformApi(pathname);
   if (pathname === "/api" || pathname.startsWith("/api/")) return isConsoleApi(pathname);
-  return true;
+  return !isConsolePath(pathname);
 }
