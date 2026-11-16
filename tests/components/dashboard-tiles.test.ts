@@ -244,13 +244,14 @@ describe("content", () => {
         `<span class="font-bold [overflow-wrap:anywhere]">${item.supplierName}</span>`,
       );
       const meta = row.indexOf('data-ledger-meta=""');
-      const trailing = row.indexOf('data-ledger-badge=""');
+      const trailing = row.indexOf('data-ledger-trailing=""');
       expect(title).toBeGreaterThanOrEqual(0);
       expect(meta).toBeGreaterThan(title);
       expect(trailing).toBeGreaterThan(meta);
       expect(row.slice(meta, trailing)).toContain("text-ink-muted");
       expect(row.slice(meta, trailing)).toContain(dueWords(item.daysToDue, item.overdue));
-      expect(row.slice(trailing)).toMatch(/<span class="num font-bold">[^<]*\d[^<]*€<\/span>/);
+      expect(row.slice(trailing)).toMatch(/<strong class="num">[^<]*\d[^<]*€<\/strong>/);
+      expect(row.slice(trailing)).not.toContain("font-bold");
     });
   });
 

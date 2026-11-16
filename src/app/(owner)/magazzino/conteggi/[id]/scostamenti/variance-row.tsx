@@ -47,7 +47,7 @@ export function VarianceTotals({
         <FactRow label={t("variance.totals.loss")}>{formatCountEuro(totals.lossEur)}</FactRow>
         <FactRow label={t("variance.totals.gain")}>{formatCountEuro(totals.gainEur)}</FactRow>
         <FactRow label={t("variance.totals.net")}>
-          <span className="font-bold">{formatCountEuro(totals.valueEur)}</span>
+          <strong>{formatCountEuro(totals.valueEur)}</strong>
         </FactRow>
         {totals.unvaluedCount > 0 && (
           <FactRow label={t("variance.totals.unvalued")}>{totals.unvaluedCount}</FactRow>

@@ -56,7 +56,7 @@ describe("WasteCostsView", () => {
   it("shows the total in a fact sheet, in euro the Italian way", () => {
     const html = render();
     expect(html).toMatch(
-      /<dt[^>]*>Valore degli sprechi<\/dt><dd[^>]*class="num[^"]*"[^>]*><span class="font-bold">15,00 €<\/span><\/dd>/,
+      /<dt[^>]*>Valore degli sprechi<\/dt><dd[^>]*class="num[^"]*"[^>]*><strong>15,00 €<\/strong><\/dd>/,
     );
   });
 

@@ -37,7 +37,7 @@ export function WasteCostsView({ data }: { data: WasteCosts }) {
       <Card className="flex flex-col gap-3">
         <FactList>
           <FactRow label={t("stock.costs.total")} testId="fact-waste-total">
-            <span className="font-bold">{formatEuro(data.valueEur)}</span>
+            <strong>{formatEuro(data.valueEur)}</strong>
           </FactRow>
           {data.unvaluedCount > 0 && (
             <FactRow label={t("stock.costs.unvalued")} testId="fact-unvalued">

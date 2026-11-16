@@ -180,7 +180,7 @@ export default function StockDetailPage({ params }: { params: Promise<{ ingredie
       <Card className="flex flex-col gap-3">
         <FactList>
           <FactRow label={t("stock.onHand")} testId="fact-on-hand">
-            <span className="font-bold">{formatStockQty(item?.onHandQty ?? 0, unit)}</span>
+            <strong>{formatStockQty(item?.onHandQty ?? 0, unit)}</strong>
           </FactRow>
           {item?.locations.map((location) => (
             <FactRow key={location.locationId} label={location.name}>

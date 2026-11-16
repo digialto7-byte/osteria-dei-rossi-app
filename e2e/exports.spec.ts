@@ -21,7 +21,7 @@ requireSupabaseStack();
 // route announcer is a role=alert too); no `.first()` or `.last()`; no toggle is added, so no `aria-expanded` check is needed. Every date comes from
 // the seed (the business date the app shows), not the calendar. Fake data only.
 //   AT1  the downloaded file equals the API (T3: `kpis.csv` reaches `[file]`, `monthly-pack` the static segment)
-//   AT3  the four sections, the print emulation (no navigation, light ink on paper) and the A4 page (T1)    AT4  the chef and the waiter
+//   AT3  the four sections, the print emulation (no navigation, black ink on white) and the A4 page (T1)    AT4  the chef and the waiter
 
 test.describe.configure({ mode: "serial" });
 test.setTimeout(300_000);
@@ -214,7 +214,7 @@ test.describe("the monthly pack (AT3)", () => {
     expect(first).toEqual({ href: "/report", beforeHeading: true });
   });
 
-  test("on paper: no navigation, no controls, light ink, the four sections and an A4 page (T1)", async ({
+  test("on paper: no navigation, no controls, black ink on white, the four sections and an A4 page (T1)", async ({
     page,
   }) => {
     await signInWithMagicLink(page, owner!.email);
@@ -235,8 +235,17 @@ test.describe("the monthly pack (AT3)", () => {
     await expect(page.getByRole("navigation")).not.toHaveCount(0);
     await expect(printButton).toBeVisible();
     await expect(backLink).toBeVisible();
+    // The pack has no shadowed element of its own: a probe with an inline shadow proves the print rule removes shadows.
+    const probe = main(page).locator("[data-e2e-shadow-probe]");
+    await main(page).evaluate((el) => {
+      const div = document.createElement("div");
+      div.dataset.e2eShadowProbe = "";
+      div.style.boxShadow = "0 1px 2px rgb(0 0 0)";
+      el.append(div);
+    });
+    expect(await probe.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 
-    // A phone in dark mode still prints light ink on light paper.
+    // A phone in dark mode still prints black ink on white paper.
     await page.emulateMedia({ media: "print", colorScheme: "dark" });
     await expect(page.getByRole("navigation")).toHaveCount(0);
     await expect(printButton).toBeHidden();
@@ -244,9 +253,18 @@ test.describe("the monthly pack (AT3)", () => {
     for (const name of ["Indicatori", "Acquisti", "Sprechi", "Scostamenti"]) {
       await expect(main(page).getByRole("heading", { name, exact: true })).toBeVisible();
     }
-    // Since P2g the pack wears Costì: on paper it is the Costì light palette (its dark block is screen-only), Charcoal ink on Off-white.
-    await expect(page.locator("body")).toHaveCSS("color", "rgb(31, 41, 51)");
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
+    // On paper the Costì print palette applies (costi-design-system §10.5): black on white, no band background, no shadows.
+    await expect(page.locator("body")).toHaveCSS("color", "rgb(0, 0, 0)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(page.locator(".band")).toHaveCSS("background-image", "none");
+    // White, not the venue's green: the print rule beats HeaderBand's inline --color-band.
+    await expect(page.locator(".band")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    // No shadows on paper: the probe's inline shadow is gone, and so is every other one.
+    expect(await probe.evaluate((el) => getComputedStyle(el).boxShadow)).toBe("none");
+    const shadows = await page
+      .locator("body *")
+      .evaluateAll((els) => [...new Set(els.map((el) => getComputedStyle(el).boxShadow))]);
+    expect(shadows).toEqual(["none"]);
 
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // A4 is 595 x 842 points. T1: if Chromium writes other numbers, widen this to the observed A4 values and say so here.
