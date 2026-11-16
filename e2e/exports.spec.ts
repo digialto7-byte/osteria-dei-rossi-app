@@ -235,6 +235,15 @@ test.describe("the monthly pack (AT3)", () => {
     await expect(page.getByRole("navigation")).not.toHaveCount(0);
     await expect(printButton).toBeVisible();
     await expect(backLink).toBeVisible();
+    // The pack has no shadowed element of its own: a probe with an inline shadow proves the print rule removes shadows.
+    const probe = main(page).locator("[data-e2e-shadow-probe]");
+    await main(page).evaluate((el) => {
+      const div = document.createElement("div");
+      div.dataset.e2eShadowProbe = "";
+      div.style.boxShadow = "0 1px 2px rgb(0 0 0)";
+      el.append(div);
+    });
+    expect(await probe.evaluate((el) => getComputedStyle(el).boxShadow)).not.toBe("none");
 
     // A phone in dark mode still prints black ink on white paper.
     await page.emulateMedia({ media: "print", colorScheme: "dark" });
@@ -250,11 +259,12 @@ test.describe("the monthly pack (AT3)", () => {
     await expect(page.locator(".band")).toHaveCSS("background-image", "none");
     // White, not the venue's green: the print rule beats HeaderBand's inline --color-band.
     await expect(page.locator(".band")).toHaveCSS("background-color", "rgb(255, 255, 255)");
-    const cardShadows = await page
-      .locator(".rounded-card")
-      .evaluateAll((cards) => cards.map((card) => getComputedStyle(card).boxShadow));
-    expect(cardShadows.length).toBeGreaterThan(0);
-    expect(new Set(cardShadows)).toEqual(new Set(["none"]));
+    // No shadows on paper: the probe's inline shadow is gone, and so is every other one.
+    expect(await probe.evaluate((el) => getComputedStyle(el).boxShadow)).toBe("none");
+    const shadows = await page
+      .locator("body *")
+      .evaluateAll((els) => [...new Set(els.map((el) => getComputedStyle(el).boxShadow))]);
+    expect(shadows).toEqual(["none"]);
 
     const pdf = await page.pdf({ preferCSSPageSize: true });
     // A4 is 595 x 842 points. T1: if Chromium writes other numbers, widen this to the observed A4 values and say so here.
