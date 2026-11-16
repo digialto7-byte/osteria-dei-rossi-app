@@ -16,13 +16,14 @@ import {
   warningNoteClass,
 } from "@/components/ui";
 import { REPORT } from "../helpers/bill-data";
-import { PRINT_FILLS } from "./print-fills-selectors";
+import { PRINT_DROPPED, PRINT_FILLS } from "./print-fills-selectors";
 
 // The print-fill rule in globals.css (costi-design-system §10.5) targets classes and attributes the components already render. This is the
 // link between the two: if a component stops rendering its fill class, or a fill is made another way, this list fails. A new filled
 // component goes here.
 afterEach(cleanup);
 const fill = PRINT_FILLS.join(",");
+const dropped = PRINT_DROPPED.join(",");
 
 describe("filled components are matched by the print-fill rule", () => {
   it.each<BadgeTone>(["neutral", "info", "warning", "success", "danger", "highlight"])(
@@ -90,5 +91,30 @@ describe("things that are not fills are not matched", () => {
     const tone = container.querySelector("p[data-tone]") as HTMLElement;
     expect(tone).not.toBeNull();
     expect(tone.matches(fill)).toBe(false);
+  });
+});
+
+describe("paper leaves out what the print-drop rule matches", () => {
+  it("an unselected segment is dropped, the selected one prints, so the chosen period shows on paper", () => {
+    render(
+      createElement(SegmentedControl, {
+        label: "Periodo",
+        segments: [
+          { key: "a", label: "Uno" },
+          { key: "b", label: "Due" },
+        ],
+        selected: "a",
+        onSelect: () => {},
+      }),
+    );
+    expect(screen.getByRole("tab", { name: "Uno" }).matches(dropped)).toBe(false);
+    expect(screen.getByRole("tab", { name: "Due" }).matches(dropped)).toBe(true);
+  });
+
+  it("the Coral edge of a Card is dropped, and the card itself prints", () => {
+    const { container } = render(createElement(Card, { edge: true }, "Contenuto"));
+    const edge = container.querySelector("span[aria-hidden]") as HTMLElement;
+    expect(edge.matches(dropped)).toBe(true);
+    expect((container.firstElementChild as HTMLElement).matches(dropped)).toBe(false);
   });
 });

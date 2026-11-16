@@ -252,6 +252,7 @@ export const PRINT_COLORS: Record<ColorToken, string> = {
   "rule-strong": "#000000",
   band: "#ffffff",
   "band-ink": "#000000",
+  // Coral marks (rules under headings) print black; as a fill it is unused on paper, because the Card's Coral edge is hidden in print.
   gold: "#000000",
   highlight: "#ffffff",
   "on-highlight": "#000000",

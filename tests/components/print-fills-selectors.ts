@@ -12,3 +12,11 @@ export const PRINT_FILLS = [
   ".bg-danger-bg",
   ".bg-info-bg",
 ] as const;
+
+// What paper leaves out (designer, alignment check 2026-11-16): an unselected segment, so only the chosen period prints, in its
+// outline; and the Coral edge of a Card, which would print as a 4 px outlined strip. Shared by print-css.test.ts (one print rule hides
+// exactly these) and print-fills.test.ts (the components render what they match).
+export const PRINT_DROPPED = [
+  '[role="tab"][aria-selected="false"]',
+  'span.bg-gold[aria-hidden="true"]',
+] as const;
