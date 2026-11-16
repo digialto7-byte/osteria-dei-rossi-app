@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { contrastRatio } from "@/lib/design/contrast";
 import { COLOR_TOKENS, CONTRAST_PAIRS, PRINT_COLORS, type ColorToken } from "@/lib/design/tokens";
-import { PRINT_FILLS } from "./print-fills-selectors";
+import { PRINT_DROPPED, PRINT_FILLS } from "./print-fills-selectors";
 
 // M24 step 9 (plan §3.1.9, AT3, ADR-027): one global print block sets A4, hides every navigation and status slot, and the dark palette is limited
 // to the screen. Alignment pass (costi-design-system §10.5): paper is black on white, fills print white with a 1 px outline. The real PDF is checked in e2e/exports.spec.ts (T1).
@@ -185,6 +185,13 @@ describe("the print block", () => {
     expect(body).toMatch(/color:\s*var\(--color-ink\)\s*!important/);
     expect(body).toMatch(/outline:\s*1px solid var\(--color-ink\)\s*;/);
     expect(body).toMatch(/outline-offset:\s*-1px\s*;/);
+  });
+
+  it("one rule drops exactly the PRINT_DROPPED selectors: unselected segments and the Coral edge", () => {
+    const drops = rules.filter((r) => r.selectors.includes(PRINT_DROPPED[0]));
+    expect(drops).toHaveLength(1);
+    expect([...drops[0]!.selectors].sort()).toEqual([...PRINT_DROPPED].sort());
+    expect(drops[0]!.body).toMatch(/display:\s*none\s*;/);
   });
 });
 

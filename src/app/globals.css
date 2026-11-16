@@ -428,6 +428,13 @@ html:has([data-slot="sticky-action-bar"]) {
     outline: 1px solid var(--color-ink);
     outline-offset: -1px;
   }
+
+  /* Only the chosen period prints, in its outline (every outlined segment would look alike); the Coral edge of a Card would print as a
+     4 px outlined strip, a double line under the card's own border. */
+  [role="tab"][aria-selected="false"],
+  span.bg-gold[aria-hidden="true"] {
+    display: none;
+  }
 }
 
 /*
