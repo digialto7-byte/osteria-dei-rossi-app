@@ -1,9 +1,9 @@
 import Link from "next/link";
+import { FactList, FactRow } from "@/components/fact-list";
 import { Badge, Card, linkClass, SubHeading } from "@/components/ui";
 import { fixedCostView } from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
 import type { FixedCostStatus } from "@/server/costing/types";
-import { Detail, DETAIL_LIST_CLASS } from "../fatture/detail";
 
 /**
  * The fixed-cost card, shown to the owner only (the API sends the status to no one else). Allocated
@@ -15,29 +15,27 @@ export function FixedCostCard({ status }: { status: FixedCostStatus }) {
     <Card className="flex flex-col gap-3">
       <SubHeading>{t("costs.fixed.title")}</SubHeading>
       {view.kind === "allocated" ? (
-        <dl className={DETAIL_LIST_CLASS}>
-          <Detail label={t("costs.fixed.month")} value={view.month} testId="fixed-month" numeric />
-          <Detail label={t("costs.fixed.sold")} value={view.sold} testId="fixed-sold" numeric />
-          <Detail
-            label={t("costs.fixed.perPlate")}
-            value={view.perPlate}
-            testId="fixed-per-plate"
-            numeric
-          />
-        </dl>
+        <FactList>
+          <FactRow label={t("costs.fixed.month")} figure testId="fixed-month">
+            {view.month}
+          </FactRow>
+          <FactRow label={t("costs.fixed.sold")} figure testId="fixed-sold">
+            {view.sold}
+          </FactRow>
+          <FactRow label={t("costs.fixed.perPlate")} figure testId="fixed-per-plate">
+            <strong>{view.perPlate}</strong>
+          </FactRow>
+        </FactList>
       ) : (
         <>
           <Badge tone="info">{t("costs.fixed.unallocatedBadge")}</Badge>
           {view.kind === "no_sales" ? (
             <>
-              <dl className={DETAIL_LIST_CLASS}>
-                <Detail
-                  label={t("costs.fixed.month")}
-                  value={view.month}
-                  testId="fixed-month"
-                  numeric
-                />
-              </dl>
+              <FactList>
+                <FactRow label={t("costs.fixed.month")} figure testId="fixed-month">
+                  {view.month}
+                </FactRow>
+              </FactList>
               <p>{t("costs.fixed.noSales")}</p>
             </>
           ) : (

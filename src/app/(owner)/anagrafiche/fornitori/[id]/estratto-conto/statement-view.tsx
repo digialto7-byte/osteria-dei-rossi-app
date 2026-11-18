@@ -3,7 +3,7 @@ import { t } from "@/lib/i18n";
 import { asOfText, creditRows, isStatementEmpty, totalsRows } from "@/lib/payables/statement-view";
 import type { SupplierStatement } from "@/server/payables/types";
 import { PayableRow } from "@/app/(owner)/pagamenti/payable-row";
-import { Detail, DETAIL_LIST_CLASS } from "@/app/(owner)/fatture/detail";
+import { FactList, FactRow } from "@/components/fact-list";
 
 /**
  * The statement for the monthly settlement: totals, open invoices, credits. Every figure is the
@@ -18,18 +18,14 @@ export function StatementView({ statement }: { statement: SupplierStatement }) {
         <p className="font-bold [overflow-wrap:anywhere]">{statement.supplier.name}</p>
         <p className="num text-ink-muted">{asOfText(statement.asOf)}</p>
       </div>
-      <Card className="py-1">
-        <dl className={DETAIL_LIST_CLASS}>
+      <Card className="flex flex-col gap-3">
+        <FactList>
           {totalsRows(statement.totals).map((row) => (
-            <Detail
-              key={row.id}
-              label={row.label}
-              value={row.value}
-              testId={`statement-${row.id}`}
-              numeric
-            />
+            <FactRow key={row.id} label={row.label} testId={`statement-${row.id}`} end figure>
+              {row.id === "balance" ? <strong>{row.value}</strong> : row.value}
+            </FactRow>
           ))}
-        </dl>
+        </FactList>
       </Card>
       {empty ? (
         <Muted>{t("statement.empty")}</Muted>

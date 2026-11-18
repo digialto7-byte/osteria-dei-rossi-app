@@ -2,23 +2,21 @@
 
 import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
+import { FactList } from "@/components/fact-list";
 import { PlateBreakdownView } from "@/components/cost/plate-breakdown";
 import { Badge, Card, ErrorAlert, Heading, Muted, SubHeading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { incompleteNotes, plateFigures, statusView } from "@/lib/costing/cost-view";
 import { t } from "@/lib/i18n";
-import { formatEuro } from "@/lib/money/format";
 import type { OwnerPlateBreakdown } from "@/server/costing/plate-breakdown";
 import type { RecipeCost } from "@/server/costing/types";
-import { Detail, DETAIL_LIST_CLASS } from "../../../fatture/detail";
 import { AtDateField, useAtDate } from "../../at-date-field";
+import { CostFact } from "./cost-fact";
 import { CostLines } from "./cost-lines";
 
 const FORBIDDEN = 403;
 const NOT_FOUND = 404;
-
-const eur = (value: number | null) => (value === null ? null : formatEuro(value));
 
 /** The cost of one recipe on a day, with the lines that make it. Reads /api/recipes/:key/cost only. */
 export default function RecipeCostPage({ params }: { params: Promise<{ key: string }> }) {
@@ -87,6 +85,13 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
     );
   }
 
+  const hasFact =
+    cost.type === "plate"
+      ? cost.totalCostEur !== null
+      : cost.type === "sub"
+        ? cost.unitCostEur !== null
+        : cost.totalCostEur !== null || cost.unitCostEur !== null;
+
   return (
     <>
       <BackLink href="/costi">{t("costs.recipe.back")}</BackLink>
@@ -94,46 +99,45 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
         <Heading>{cost.name}</Heading>
       </div>
       {dateField}
-      <Card className="flex flex-col gap-3 py-1">
-        <p className="border-b border-rule py-3 font-bold">
-          {t("costs.recipe.version", { version: cost.version })}
-        </p>
-        <dl className={DETAIL_LIST_CLASS}>
-          {cost.type === "batch" && (
-            <>
-              <Detail
-                label={t("costs.recipe.batchTotal")}
-                value={eur(cost.totalCostEur)}
-                testId="cost-total"
-                numeric
-              />
-              <Detail
-                label={t("costs.recipe.perPortion")}
-                value={eur(cost.unitCostEur)}
+      <Card className="flex flex-col gap-3">
+        <p className="font-bold">{t("costs.recipe.version", { version: cost.version })}</p>
+        {hasFact && (
+          <FactList>
+            {cost.type === "batch" && (
+              <>
+                <CostFact
+                  label={t("costs.recipe.batchTotal")}
+                  value={cost.totalCostEur}
+                  testId="cost-total"
+                />
+                <CostFact
+                  label={t("costs.recipe.perPortion")}
+                  value={cost.unitCostEur}
+                  testId="cost-unit"
+                  strong
+                />
+              </>
+            )}
+            {cost.type === "sub" && (
+              <CostFact
+                label={t("costs.recipe.perUnit", { unit: cost.costUnit })}
+                value={cost.unitCostEur}
                 testId="cost-unit"
-                numeric
+                strong
               />
-            </>
-          )}
-          {cost.type === "sub" && (
-            <Detail
-              label={t("costs.recipe.perUnit", { unit: cost.costUnit })}
-              value={eur(cost.unitCostEur)}
-              testId="cost-unit"
-              numeric
-            />
-          )}
-          {cost.type === "plate" && (
-            <Detail
-              label={t("costs.recipe.plateFood")}
-              value={eur(cost.totalCostEur)}
-              testId="cost-total"
-              numeric
-            />
-          )}
-        </dl>
+            )}
+            {cost.type === "plate" && (
+              <CostFact
+                label={t("costs.recipe.plateFood")}
+                value={cost.totalCostEur}
+                testId="cost-total"
+                strong
+              />
+            )}
+          </FactList>
+        )}
         {cost.incomplete && (
-          <div className="flex flex-col gap-1 pb-2">
+          <div className="flex flex-col gap-1">
             <Badge tone="danger">{t("costs.recipe.incomplete")}</Badge>
             {incompleteNotes(cost).map((note) => (
               <p key={note} className="text-warning">
