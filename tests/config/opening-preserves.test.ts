@@ -61,6 +61,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     functions: ["app.opening_reversal_reasons", "public.reverse_opening_stock"],
     tables: [],
     triggers: [],
+  }, // Step 10 (M7): the opening-cost fallback, app.ingredient_unit_costs re-created with the same signature.
+  "20261206210600_ingredient_cost_opening_fallback.sql": {
+    functions: ["app.ingredient_unit_costs"],
+    tables: [],
+    triggers: [],
   },
 };
 const FILES = Object.keys(EXPECTED);

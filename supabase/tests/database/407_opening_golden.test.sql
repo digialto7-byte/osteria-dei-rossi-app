@@ -14,7 +14,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 -- PR 1 review: the session time zone is fixed, so no pin can depend on the runner's zone (dates and times rendered as text, business dates).
 set local timezone = 'UTC';
-select plan(12);
+select plan(13);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -281,6 +281,21 @@ select is(md5((select v from g_costs where k = 'recipe_costs')), 'd8ed93e1e70af3
 select is(md5((select string_agg(c.total_cost::text || '|' || c.unit_cost_at_sale || '|' || c.incomplete || '|' || cardinality(c.missing_ingredient_ids), E'\n') from public.order_line_cost c)
            || '#' || (select string_agg(c.total_cost::text || '|' || c.unit_cost_frozen || '|' || c.incomplete || '|' || c.cost_at, E'\n') from public.batch_cost c)),
           'a38b0e93e755d4b23011cec7b5f85a50', 'the frozen costs (order_line_cost of the fired sale, batch_cost of the batch) equal their value on main');
+
+-- Step 10 (the one assertion this file gains, plan AT7/Q12): Lievito has no invoice; the AVT values it at null without a carico, and at its carico cost with one (inheritance).
+create function pg_temp.avt_lievito_cost() returns text language sql as $$
+  select coalesce((select e ->> 'unitCostEur' from jsonb_array_elements(public.avt_report('c5000000-0000-4000-8000-000000000002') -> 'rows') e
+                    where e ->> 'ingredientId' = '1e000000-0000-4000-8000-000000000004'), 'null') $$;
+grant execute on function pg_temp.avt_lievito_cost() to authenticated;
+select is(pg_temp.scn(array[$s$ set local role authenticated $s$, $s$ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner') $s$],
+                      'select pg_temp.avt_lievito_cost()')
+       || '/' ||
+       pg_temp.scn(array[$s$ insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+                             values ('11111111-1111-4111-8111-111111111111', '1e000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-0000000000a1', 'opening', 1, 0.55, 'opening',
+                                     gen_random_uuid(), '1998-10-15', 'a1000000-0000-4000-8000-00000000000a') $s$,
+                         $s$ set local role authenticated $s$, $s$ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner') $s$],
+                   'select pg_temp.avt_lievito_cost()'),
+  'null/0.5500', 'step 10: the AVT unit cost of the invoice-less Lievito is null without a carico and its carico cost (0,55) with one; its quantities are unchanged');
 
 -- 2. Mutation: one more received kilo (a receipt of 1 kg at 8,00) moves the purchases pin, so the pin can fail -------------------------------------------------------------
 select isnt(pg_temp.scn(array[$s$ select pg_temp.receive('1e000000-0000-4000-8000-000000000012', 1, 8.00, '1998-11-20 08:00+00') $s$], 'select pg_temp.pin_purchases()'),

@@ -197,6 +197,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206210400_post_opening_stock.sql",
   // Opening stock step 9 (20261206210500_reverse_opening_stock.sql), re-pinned on purpose by opening stock (step 9; was the list ending at 20261206210400_post_opening_stock.sql): reverse_opening_stock and the reason list.
   "20261206210500_reverse_opening_stock.sql",
+  // Opening stock step 10 (20261206210600_ingredient_cost_opening_fallback.sql), re-pinned on purpose by opening stock (step 10; was the list ending at 20261206210500_reverse_opening_stock.sql): the opening-cost fallback in app.ingredient_unit_costs.
+  "20261206210600_ingredient_cost_opening_fallback.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

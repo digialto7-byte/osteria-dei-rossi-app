@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(37);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -177,6 +177,15 @@ reset role;
 select is((select count(*)::int from public.stock_movement where tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'nothing was written to A''s ledger by any of the refused calls');
 select is((select count(*)::int from public.stock_opening), 1, 'and no operation was booked by B (A''s one fixture row only)');
 select is((select count(*)::int from public.opening_draft_line where tenant_id = '11111111-1111-4111-8111-111111111111'), 1, 'and A''s draft line is still there');
+
+-- Step 10: B's carico never changes A's costs (the fallback reads the tenant's own opening rows only). B's Mozzarella gets a carico at 9,99 as a fixture row.
+insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+  values ('22222222-2222-4222-8222-222222222222', '1b000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-0000000000b1', 'opening', 1, 9.99, 'opening', gen_random_uuid(),
+          '1998-11-02', 'b1000000-0000-4000-8000-00000000000b');
+select is((select string_agg(c.ingredient_id::text || ':' || coalesce(c.unit_cost::numeric(12, 2)::text, '-'), ',' order by c.ingredient_id)
+             from app.ingredient_unit_costs('11111111-1111-4111-8111-111111111111', null, null) c),
+  '1a000000-0000-4000-8000-000000000001:1.00,1a000000-0000-4000-8000-000000000002:-',
+  'A''s costs are unchanged by B''s carico: Farina 1,00 from its invoice, Mozzarella still null (no carico of A), and none of B''s ingredients');
 
 -- 3. Mutation: a policy that lets B read A's ledger turns the first group red. The block is rolled back; the ledger is not touched ----------------------------------------------
 create function pg_temp.mutated_a_rows() returns text language plpgsql as $$
