@@ -9,9 +9,12 @@ import {
 } from "@/lib/auth/password-policy";
 
 const EMAIL = "titolare.demo@example.test";
-const check = (password: string, email = EMAIL) => checkNewPassword(password, { email });
-const reason = (password: string, email = EMAIL) => {
-  const result = check(password, email);
+// Tenant #1's name: the words the policy refused before SP1 came from constants, now they come from the name (SP1 step 15, G for H32).
+const ROSSI = ["Osteria Dei Rossi"];
+const check = (password: string, email = EMAIL, venueNames: string[] = ROSSI) =>
+  checkNewPassword(password, { email, venueNames });
+const reason = (password: string, email = EMAIL, venueNames: string[] = ROSSI) => {
+  const result = check(password, email, venueNames);
   return result.ok ? "ok" : result.reason;
 };
 
@@ -132,6 +135,79 @@ describe("checkNewPassword", () => {
   it("checks the rules in the documented order", () => {
     expect(reason("password1")).toBe("too_short");
     expect(reason("osteria")).toBe("too_short");
+  });
+});
+
+// SP1 step 15 (H32, AT5): the refused words come from the tenant's own name.
+describe("checkNewPassword, venue words from the tenant's name", () => {
+  const B = ["Osteria Demo B"];
+
+  it("with venueNames ['Osteria Demo B'] the password 'DemoB-cucina-2026' is refused like_venue", () => {
+    expect(reason("DemoB-cucina-2026", EMAIL, B)).toBe("like_venue");
+  });
+
+  it("the same password is fine for tenant #1, whose words are not Demo", () => {
+    expect(reason("DemoB-cucina-2026")).toBe("ok");
+  });
+
+  it("another tenant's words are not refused: 'Osteria2026!sole' passes for a venue with other words", () => {
+    expect(reason("Osteria2026!sole", EMAIL, ["Trattoria Da Luigi"])).toBe("ok");
+    expect(reason("Luigi2026!sole", EMAIL, ["Trattoria Da Luigi"])).toBe("like_venue");
+  });
+
+  it("refuses the joins of every run of two or more words, and the reverse of first and last", () => {
+    const name = ["Osteria Dei Rossi"];
+    for (const p of [
+      "osteriadei 2026 abc",
+      "deirossi 2026 abc",
+      "osteriadeirossi1",
+      "osteriarossi 2026",
+      "rossiosteria 2026",
+    ]) {
+      expect(reason(p, EMAIL, name), p).toBe("like_venue");
+    }
+    expect(reason("Casa Bella Vista", EMAIL, ["Casa Bella Vista"])).toBe("like_venue");
+    expect(reason("vistacasa 2026 xy", EMAIL, ["Casa Bella Vista"])).toBe("like_venue");
+    expect(reason("bellavista 2026 x", EMAIL, ["Casa Bella Vista"])).toBe("like_venue");
+  });
+
+  it("derives words from accents, full-width letters and zero-width characters in the name", () => {
+    expect(reason("zucchero 2026 abc", EMAIL, ["Caff\u00E8 Zucchero"])).toBe("like_venue");
+    expect(reason("caffe 2026 abcd", EMAIL, ["Caff\u00E8 Zucchero"])).toBe("like_venue");
+    expect(reason("zucchero 2026 abc", EMAIL, ["\uFF3A\uFF55cchero"])).toBe("like_venue");
+    expect(reason("zucchero 2026 abc", EMAIL, ["Zu\u200Bcchero"])).toBe("like_venue");
+  });
+
+  it("words shorter than four letters alone are not refused, only inside a join", () => {
+    expect(reason("dei miei amici al mare", EMAIL, ["Osteria Dei Rossi"])).toBe("ok");
+    expect(reason("Una frase con Dei Bar", EMAIL, ["Dei Bar"])).toBe("like_venue");
+    expect(reason("una frase con bar e dei", EMAIL, ["Dei Bar"])).toBe("ok");
+  });
+
+  it("a join shorter than four letters is not refused: 'B&B Rossi' does not refuse \"bb\"", () => {
+    expect(reason("abbastanza lunga 2026", EMAIL, ["B&B Rossi"])).toBe("ok");
+  });
+
+  it("a join of four or more letters is still refused, even of short words: 'Da Ro' refuses \"daro\"", () => {
+    expect(reason("daro2026!sole", EMAIL, ["Da Ro"])).toBe("like_venue");
+    expect(reason("Il BBRossi 2026", EMAIL, ["B&B Rossi"])).toBe("like_venue");
+  });
+
+  it("checks every name it is given", () => {
+    expect(reason("Marinella2026!x", EMAIL, ["Osteria Dei Rossi", "Da Marinella"])).toBe(
+      "like_venue",
+    );
+    expect(reason("Rossi2026!xyz", EMAIL, ["Osteria Dei Rossi", "Da Marinella"])).toBe(
+      "like_venue",
+    );
+  });
+
+  it("with no names nothing is refused for the venue", () => {
+    expect(reason("OsteriaDeiRossi!!", EMAIL, [])).toBe("ok");
+  });
+
+  it("does not refuse words that merely contain the tenant's words", () => {
+    expect(reason("la prossima volta in Demolizione", EMAIL, B)).toBe("ok");
   });
 });
 

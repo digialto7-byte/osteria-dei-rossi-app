@@ -127,11 +127,7 @@ const tableNames = () =>
 const listNames = () =>
   within(list())
     .getAllByRole("listitem")
-    .map(
-      (li) =>
-        // LedgerRow: the link holds a column of title then meta
-        within(li).getAllByRole("link")[0]!.firstElementChild!.firstElementChild!.textContent,
-    );
+    .map((li) => li.querySelector("[data-ledger-title]")?.textContent);
 const ready = () => screen.findByTestId("locali-table");
 const th = (name: string) => within(table()).getByRole("columnheader", { name });
 const sortButton = (name: string) => within(th(name)).getByRole("button");

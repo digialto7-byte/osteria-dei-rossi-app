@@ -15,4 +15,16 @@ describe("SYSTEM_PROMPT", () => {
     expect(SYSTEM_PROMPT).toMatch(/cessionario\/committente/i);
     expect(SYSTEM_PROMPT).toMatch(/never the buyer/i);
   });
+
+  // SP1 step 14 (H26, AT4): the prompt serves any food business; the venue type is not named.
+  it("contains no venue-type word", () => {
+    expect(SYSTEM_PROMPT).not.toMatch(
+      /restaurant|ristorante|osteria|trattoria|pizzeria|\bbar\b|caff[eè]|café|coffee/i,
+    );
+  });
+
+  it("describes the buyer as the business receiving the invoice", () => {
+    expect(SYSTEM_PROMPT).toMatch(/purchasing assistant of an Italian food business/);
+    expect(SYSTEM_PROMPT).toMatch(/the business receiving the invoice/);
+  });
 });
