@@ -14,10 +14,11 @@ const filesOf = (dir: string): string[] =>
   });
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
-// Any use of the display face (the utility class, `var(--font-display)`, `font-(family-name:--font-display)`, `[font-family:var(--font-display)]`),
-// as strict as the old substring guard. The one name it lets through is the root layout's next/font variable `--font-display-face`, which
-// only declares the face and styles nothing (P2j review).
-const FONT_DISPLAY = /font-display(?!-face\b)/;
+// Any use of the display face, as strict as the old substring guard: the utility class, `var(--font-display)`, `font-(family-name:--font-display)`,
+// `[font-family:var(--font-display)]` and the raw next/font variable `--font-display-face`. The root layout is the one file that may name it,
+// because it declares that variable (P2j review).
+const FONT_DISPLAY = /font-display/;
+const FONT_DISPLAY_DECLARED_IN = "src/app/layout.tsx";
 
 const SRC = filesOf("src").filter((file) => /\.(ts|tsx|css)$/.test(file));
 // The components that define the type ramp, and two display faces (docs plan 2026-11-14 §4.4).
@@ -49,7 +50,7 @@ describe("there is one theme", () => {
       const source = read(file);
       expect(source, `${file}: a <dl>: use FactList`).not.toMatch(/<dl[\s>]/);
       expect(source, `${file}: role="tablist": use SegmentedControl`).not.toMatch(/role="tablist"/);
-      if (!FONT_DISPLAY_ALLOWED.includes(file)) {
+      if (!FONT_DISPLAY_ALLOWED.includes(file) && file !== FONT_DISPLAY_DECLARED_IN) {
         expect(source, `${file}: font-display: use Heading or SubHeading`).not.toMatch(
           FONT_DISPLAY,
         );
@@ -57,16 +58,17 @@ describe("there is one theme", () => {
     }
   });
 
-  it("(b) catches every way of setting the display face, and lets only the root layout's --font-display-face variable through", () => {
+  it("(b) catches every way of setting the display face, the raw --font-display-face variable included; only the root layout declares it", () => {
     for (const use of [
       'className="font-display"',
       "font-family: var(--font-display)",
       'className="font-(family-name:--font-display)"',
       'className="[font-family:var(--font-display)]"',
+      'className="[font-family:var(--font-display-face)]"',
     ]) {
       expect(use, use).toMatch(FONT_DISPLAY);
     }
-    expect('variable: "--font-display-face",').not.toMatch(FONT_DISPLAY);
+    expect(read(FONT_DISPLAY_DECLARED_IN)).toContain('variable: "--font-display-face"');
   });
 
   it("(c) globals.css has no :root:has() switch, one paper declaration per palette block (@theme, screen-dark :root, print :root) and one screen-dark query", () => {
