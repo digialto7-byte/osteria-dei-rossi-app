@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, render as mount, screen } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render as mount, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { PinPad } from "@/app/(public)/pin/pin-pad";
@@ -66,6 +66,16 @@ describe("PinPad", () => {
   });
   it("the submit button is disabled in the server render, even with four digits", () => {
     expect(render({ pin: "4827" })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
+  });
+  // Lead, 2026-11-14 (docs/ux/costi-sign-in.md §7, S3, Q-UX21): paste allowed, no autofill. The kitchen phone is shared, so the field keeps
+  // autocomplete="off" and a browser never offers one person's saved PIN to the next; "off" does not block paste.
+  it("allows paste and keeps autofill off on the shared phone", () => {
+    mounted();
+    const field = screen.getByLabelText("PIN");
+    const paste = createEvent.paste(field, { clipboardData: { getData: () => "4827" } });
+    fireEvent(field, paste);
+    expect(paste.defaultPrevented).toBe(false);
+    expect(field.getAttribute("autocomplete")).toBe("off");
   });
   it("shows a message as an alert", () => {
     expect(render({ message: "PIN errato. Tentativi rimasti: 2." })).toMatch(

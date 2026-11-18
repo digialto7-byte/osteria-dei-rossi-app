@@ -81,8 +81,8 @@ describe("LoginScreen on an enrolled device", () => {
     pinReply = { ok: false, status: 401, error: { code, message: "x" } };
     render(createElement(LoginScreen, { ...screenProps, hasDevice: true }));
     fireEvent.click(await screen.findByRole("button", { name: /Cameriere Demo/ }));
+    // The fourth digit is the submit: no click on "Entra".
     fireEvent.change(await screen.findByLabelText("PIN"), { target: { value: "4827" } });
-    fireEvent.click(screen.getByRole("button", { name: "Entra" }));
     await screen.findByRole("heading", { name: "Accedi" });
   }
 

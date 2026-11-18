@@ -133,6 +133,15 @@ describe("the booking form", () => {
     expect([...party.options].at(-1)?.textContent).toBe("Più di 8");
   });
 
+  // G-b (designer): «Richiedi una prenotazione» names the page's task, so it is ink, not the muted grey of a hint; the intro stays muted.
+  it("the task line is in ink, the intro below it stays muted", async () => {
+    await loaded();
+    const title = screen.getByText(it_["publicReservation.title"]);
+    expect(title.className).toContain("text-ink");
+    expect(title.className).not.toContain("text-ink-muted");
+    expect(screen.getByText(it_["publicReservation.intro"]).className).toContain("text-ink-muted");
+  });
+
   it("selecting more than the maximum shows the contact text, hides the form and sends nothing: no phone known", async () => {
     await loaded();
     fireEvent.change(screen.getByLabelText(it_["publicReservation.party"]), {
