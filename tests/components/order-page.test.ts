@@ -52,6 +52,7 @@ const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
       ok({
         user: { id: DEMO.id, displayName: DEMO.displayName, role: "waiter" },
         tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+        settings: ME_SETTINGS,
       }),
     );
   }
@@ -88,6 +89,7 @@ vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")
 import OrderPage from "@/app/(owner)/tavoli/comanda/page";
 import { LeaveGuardProvider } from "@/components/nav/leave-guard";
 import { AppShellView } from "@/app/(owner)/app-shell";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(async () => {
   resetMe();
@@ -1680,6 +1682,7 @@ describe("Comanda page: leaving with dishes not sent (QW12)", () => {
                 me: {
                   user: { id: DEMO.id, displayName: DEMO.displayName, role: "waiter" },
                   tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+                  settings: ME_SETTINGS,
                 },
               },
             },

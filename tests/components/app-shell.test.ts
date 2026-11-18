@@ -4,6 +4,7 @@ import { cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShellView } from "@/app/(owner)/app-shell";
 import type { MeState } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 
@@ -16,6 +17,7 @@ const ok = (role: "owner" | "admin" | "chef" | "waiter"): MeState => ({
   me: {
     user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
     tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+    settings: ME_SETTINGS,
   },
 });
 const LOADING: MeState = { status: "loading", me: null };

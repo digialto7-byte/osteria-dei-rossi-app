@@ -3,10 +3,21 @@ import { createElement, StrictMode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { resetMe, useMe } from "@/components/use-me";
+import {
+  applyVenueSettings,
+  currentVenueSettings,
+  venueSettingsApplied,
+} from "@/lib/venue/current";
+import { ME_SETTINGS } from "../helpers/me-data";
+
+const reported = vi.hoisted(() => vi.fn());
+vi.mock("@/lib/observability/report", () => ({ reportError: reported }));
+const LISBON_SETTINGS = { ...ME_SETTINGS, timeZone: "Europe/Lisbon", locale: "en" };
 
 const ME = {
   user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role: "chef" },
   tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo: false },
+  settings: ME_SETTINGS,
 };
 
 const reply = (status: number, body: unknown) =>
@@ -24,6 +35,7 @@ function Probe({ id }: { id: string }) {
 }
 
 beforeEach(() => {
+  reported.mockClear();
   resetMe();
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
@@ -278,5 +290,50 @@ describe("useMe", () => {
       expect(firstRenders[0]).toBe("ok");
       expect(fetchMock).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+// SP1 step 9. Lead ruling 2026-11-18 (Rule B): no silent settings defaults. An ok reply applies its settings; one without
+// valid settings (an old offline cache, a malformed answer) is an error the screen shows, reported, and the store stays unfilled.
+describe("useMe and the venue settings (SP1 step 9)", () => {
+  it("an ok reply applies its settings to the store", async () => {
+    fetchMock.mockImplementation(() => reply(200, { ...ME, settings: LISBON_SETTINGS }));
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
+    expect(venueSettingsApplied()).toBe(true);
+    expect(currentVenueSettings()).toEqual(LISBON_SETTINGS);
+  });
+
+  it.each([
+    ["without settings (an old cached reply)", () => ({ user: ME.user, tenant: ME.tenant })],
+    [
+      "with an unknown zone",
+      () => ({ ...ME, settings: { ...ME_SETTINGS, timeZone: "Not/AZone" } }),
+    ],
+    ["with another currency", () => ({ ...ME, settings: { ...ME_SETTINGS, currency: "USD" } })],
+    ["with an empty list", () => ({ ...ME, settings: { ...ME_SETTINGS, receiptTypes: [] } })],
+  ])("a reply %s is an error, is reported, and applies nothing", async (_name, body) => {
+    fetchMock.mockImplementation(() => reply(200, body()));
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+    expect(reported).toHaveBeenCalledTimes(1);
+    expect(venueSettingsApplied()).toBe(false);
+  });
+
+  it("an error for lack of settings is not kept: retry asks again and a good answer applies", async () => {
+    fetchMock.mockImplementationOnce(() => reply(200, { user: ME.user, tenant: ME.tenant }));
+    fetchMock.mockImplementation(() => reply(200, ME));
+    render(createElement(Probe, { id: "a" }));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("error:-"));
+    fireEvent.click(screen.getByTestId("a"));
+    await waitFor(() => expect(screen.getByTestId("a").textContent).toBe("ok:chef"));
+    expect(venueSettingsApplied()).toBe(true);
+  });
+
+  it("resetMe empties the store", () => {
+    applyVenueSettings(LISBON_SETTINGS as never);
+    resetMe();
+    expect(venueSettingsApplied()).toBe(false);
+    expect(window.localStorage.getItem("venue-settings")).toBeNull();
   });
 });

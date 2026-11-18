@@ -2,11 +2,16 @@
 
 import { useSyncExternalStore } from "react";
 import { apiJson } from "@/lib/api/client";
+import { reportError } from "@/lib/observability/report";
+import { applyVenueSettings, resetVenueSettings } from "@/lib/venue/current";
+import { venueSettingsSchema, type VenueSettings } from "@/lib/venue/settings";
 
 /** The reply of GET /api/me (src/app/api/me/route.ts). */
 export interface Me {
   user: { id: string; displayName: string; role: "owner" | "admin" | "chef" | "waiter" };
   tenant: { id: string; name: string; isDemo?: boolean };
+  /** The tenant's venue settings. Required: a reply without valid ones is an `error`, never filled with defaults. */
+  settings: VenueSettings;
 }
 
 /**
@@ -14,8 +19,8 @@ export interface Me {
  * - `ok`: the user and tenant;
  * - `signedOut`: 401, there is no session;
  * - `noAccess`: 403, signed in but enabled for no venue;
- * - `error`: anything else (network failure, 5xx, a reply that is not JSON): we do not know, so a screen
- *   must say so and offer a retry, never claim "signed out".
+ * - `error`: anything else (network failure, 5xx, a reply that is not JSON, a reply without valid `settings`, e.g.
+ *   one an old offline cache kept): we do not know, so a screen must say so and offer a retry, never claim "signed out".
  */
 export type MeState =
   | { status: "loading"; me: null }
@@ -43,7 +48,15 @@ function publish(next: MeState): void {
 }
 
 function stateOf(result: Awaited<ReturnType<typeof apiJson<Me>>>): MeState {
-  if (result.ok) return { status: "ok", me: result.data };
+  if (result.ok) {
+    // Lead ruling 2026-11-18 (Rule B): settings that are missing or malformed are an error, never replaced by defaults.
+    const settings = venueSettingsSchema.safeParse(result.data.settings);
+    if (!settings.success) {
+      reportError(new Error("/api/me answered without valid settings"));
+      return { status: "error", me: null };
+    }
+    return { status: "ok", me: { ...result.data, settings: settings.data } };
+  }
   if (result.status === 401) return { status: "signedOut", me: null };
   if (result.status === 403) return { status: "noAccess", me: null };
   return { status: "error", me: null };
@@ -57,8 +70,10 @@ function start(): void {
     pending = null;
     // Nobody is mounted and the answer is a 401, 403 or error: do not publish it. The next mount would render it
     // for one frame (after logout then an e-mail login: "Accedi") before subscribe() forgets it.
-    if (listeners.size === 0 && !result.ok) return;
-    publish(stateOf(result));
+    const next = stateOf(result);
+    if (listeners.size === 0 && next.status !== "ok") return;
+    if (next.status === "ok") applyVenueSettings(next.me.settings);
+    publish(next);
   });
   pending = request;
 }
@@ -73,6 +88,7 @@ function restart(): void {
 
 /** Forgets the cached user. Logout, PIN login and the end of a session call it, so a shared device never keeps a role. */
 export function resetMe(): void {
+  resetVenueSettings();
   restart();
 }
 

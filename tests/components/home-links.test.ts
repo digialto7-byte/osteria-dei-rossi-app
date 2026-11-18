@@ -15,6 +15,7 @@ const apiJson = vi.fn((path: string) =>
       : {
           user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
           tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo },
+          settings: ME_SETTINGS,
         },
   }),
 );
@@ -24,6 +25,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
 import HomePage from "@/app/(owner)/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   // useMe keeps one /api/me answer per session; every case starts a new one.

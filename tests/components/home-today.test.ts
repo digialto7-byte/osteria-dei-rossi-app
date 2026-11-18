@@ -43,6 +43,7 @@ const apiJson = vi.fn((path: string, init?: { method?: string }): Promise<Reply>
     data: {
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo: false },
+      settings: ME_SETTINGS,
     },
   });
 });
@@ -57,6 +58,7 @@ import { resetMe } from "@/components/use-me";
 import { renderDashboard } from "@/server/dashboard/render";
 import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
 import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
 const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");

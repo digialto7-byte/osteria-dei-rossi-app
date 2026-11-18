@@ -52,6 +52,7 @@ const apiJson = vi.fn((path: string) => {
     return ok({
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     });
   }
   if (path.startsWith("/api/suppliers/")) return ok({ supplier: SUPPLIER });
@@ -68,6 +69,7 @@ import IngredientsPage from "@/app/(owner)/anagrafiche/ingredienti/page";
 import LocationsPage from "@/app/(owner)/anagrafiche/ubicazioni/page";
 import SuppliersPage from "@/app/(owner)/anagrafiche/fornitori/page";
 import SupplierPage from "@/app/(owner)/anagrafiche/fornitori/[id]/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

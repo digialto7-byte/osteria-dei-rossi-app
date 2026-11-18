@@ -51,6 +51,7 @@ const apiJson = vi.fn((path: string) => {
     return ok({
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     });
   }
   if (path.startsWith("/api/rules/ingredients"))
@@ -95,6 +96,7 @@ import RuleIngredientsPage from "@/app/(owner)/riordino/ingredienti/page";
 import RuleSuppliersPage from "@/app/(owner)/riordino/fornitori/page";
 import IngredientCostsPage from "@/app/(owner)/costi/ingredienti/page";
 import StockDetailPage from "@/app/(owner)/magazzino/[ingredientId]/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

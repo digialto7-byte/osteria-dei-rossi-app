@@ -24,10 +24,12 @@ vi.mock("@/pwa/use-outbox", async () => {
 
 import { AppShell } from "@/app/(owner)/app-shell";
 import InvoicesPage from "@/app/(owner)/fatture/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 const ME = {
   user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role: "owner" },
   tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo: true },
+  settings: ME_SETTINGS,
 };
 let meCalls = 0;
 let failFirst = true;

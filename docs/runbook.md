@@ -427,6 +427,8 @@ Order: **migrations first, then the code** (decision Q190), so new code never me
 5. `npx tsx scripts/check-headers.ts --base-url https://<production address> --expect production`. It must print no findings.
 6. Rollback of code: promote the previous deployment. Migrations are not rolled back: a bad one is fixed by a new migration.
 
+**Deploys that change `/api/me`.** A production deploy that changes the `/api/me` reply (a new key, as SP1's `settings`) goes out **outside service hours**, and each device opens the app once while online afterwards. An old cached `/api/me` without `settings` shows the error state with its retry button, by design (Rule B: no silent defaults); one online reply replaces it.
+
 **Previews are off.** Only `main` deploys on Vercel (staging); pull requests get no preview, and GitHub CI covers them. The Hobby plan
 allows 100 deployments a day, which branch previews used up on 2026-11-14. The switch is `git.deploymentEnabled` in `vercel.json`
 (`"**": false, "main": true`). To get a preview for one branch, add `"<branch>": true` there in that branch, and remove it before merging:

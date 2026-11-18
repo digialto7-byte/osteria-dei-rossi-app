@@ -12,6 +12,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../helpers/fake-supabase";
+import { ME_SETTINGS } from "../helpers/me-data";
 import { SERVICE_MENU, TABLES_LIST } from "../helpers/menu-tables-data";
 import { ADD_STEAK_REPLY, LINE_STEAK, OIDS, ORDER_VIEW } from "../helpers/orders-data";
 import { STEAK_ITEM } from "../helpers/order-components";
@@ -123,8 +124,10 @@ interface Read {
 const READS: Record<string, Read> = {
   "/api/me": {
     call: () => me.GET(new Request("http://localhost:3000/api/me")),
-    options: { meRow: ME_ROW },
-    poisoned: null,
+    // re-pinned on purpose by SP1 (step 9): the fixture gains the tenant_settings RPC result, and `poisoned` becomes a reply
+    // with `settings.vatRates` injected, which the strict output must refuse (a stronger check, not a weaker one).
+    options: { meRow: ME_ROW, rpc: { tenant_settings: [ok(ME_SETTINGS)] } },
+    poisoned: { rpc: { tenant_settings: [ok({ ...ME_SETTINGS, vatRates: [0, 4, 5, 10, 22] })] } },
   },
   "/api/menu": {
     call: () => menu.GET(new Request("http://localhost:3000/api/menu")),
