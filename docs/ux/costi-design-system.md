@@ -105,7 +105,7 @@ Every screen uses the same components (`src/components/ui.tsx` and the files in 
 
 | Figma component | Code | Variants in Figma | Product notes |
 |---|---|---|---|
-| `Button` | `Button` | `primary` · `secondary` · `quiet` · `danger` × `default` · `hover` · `pressed` · `focus` · `disabled` | Primary = Forest / Off-white (dark: Sage / Charcoal) |
+| `Button` | `Button` | `primary` · `secondary` · `quiet` · `danger` · `selected` × `default` · `hover` · `pressed` · `focus` · `disabled` | Primary = Forest / Off-white (dark: Sage / Charcoal). `selected` = a picked option in a set of buttons (`aria-pressed`, e.g. the booking time): filled in ink with paper text and the secondary's border, never the action green (§10.3) |
 | `LinkButton` | `primaryLinkClass` | default · focus | Navigation dressed as the primary |
 | `TextLink` | `linkClass` | default · focus | Forest, underlined |
 | `Field` | `Field` + `TextInput` / `Select` | empty · filled · focus · error · disabled; with/without hint | Label `costi/label`, hint `costi/meta` |
@@ -215,7 +215,7 @@ existing `COLOR_TOKENS` list; no name is added or renamed.
 
 | Figma component | Code | Status |
 |---|---|---|
-| Button (4 × 5) | `Button` (`ui.tsx`), `comfort` prop for tap-comfort | exists |
+| Button (5 × 5) | `Button` (`ui.tsx`), `comfort` prop for tap-comfort | exists; `selected` added in #179 (Figma: 5th variant still to draw) |
 | LinkButton | `primaryLinkClass` (`ui.tsx`) | exists |
 | TextLink | `linkClass` (`ui.tsx`) | exists |
 | Badge (6 tones) | `Badge` (`ui.tsx`) + `RecommendedBadge` (`brand.tsx`) for `highlight` | exists; `highlight` → **new tone** in `Badge` (fold `RecommendedBadge` into it) |
