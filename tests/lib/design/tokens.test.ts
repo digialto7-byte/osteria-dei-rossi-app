@@ -195,12 +195,10 @@ function colorDeclarations(block: string): Record<string, string> {
   return out;
 }
 
-/** The css with the print palette rule (`:root, :root:has([data-brand="costi"]) { … }` inside `@media print`) cut out, and that rule's text. */
+/** The css with the print palette rule (`:root { … }` inside `@media print`) cut out, and that rule's text. */
 function splitPrintPalette(source: string): { rest: string; palette: string } {
   const print = source.indexOf("@media print");
-  const match = /:root,\s*:root:has\(\[data-brand="costi"\]\)\s*\{[^}]*\}/.exec(
-    source.slice(print),
-  );
+  const match = /:root\s*\{[^}]*--color-paper:[^}]*\}/.exec(source.slice(print));
   if (print < 0 || !match) throw new Error("the print palette rule is missing");
   const start = print + match.index;
   const end = start + match[0].length;

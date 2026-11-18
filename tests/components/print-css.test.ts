@@ -76,13 +76,9 @@ describe("the print block", () => {
   const ruleFor = (selector: string) =>
     rules.filter((r) => r.selectors.includes(selector)).map((r) => r.body);
 
-  it("declares the print palette on both light roots, equal to PRINT_COLORS for all 25 tokens", () => {
-    const palette = rules.filter(
-      (r) =>
-        r.selectors.length === 2 &&
-        r.selectors[0] === ":root" &&
-        r.selectors[1] === ':root:has([data-brand="costi"])',
-    );
+  it("declares the print palette on :root, equal to PRINT_COLORS for all 25 tokens, with color-scheme light", () => {
+    const palette = rules.filter((r) => r.selectors.length === 1 && r.selectors[0] === ":root");
+    expect(palette[0]?.body).toMatch(/color-scheme:\s*light\s*;/);
     expect(palette).toHaveLength(1);
     const declared = Object.fromEntries(
       [...palette[0]!.body.matchAll(/--color-([\w-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)].map((m) => [
@@ -98,7 +94,7 @@ describe("the print block", () => {
   });
 
   it("no rule of the block other than the palette carries a hex colour or a colour token", () => {
-    const others = rules.filter((r) => !r.selectors.includes(':root:has([data-brand="costi"])'));
+    const others = rules.filter((r) => !(r.selectors.length === 1 && r.selectors[0] === ":root"));
     expect(others.length).toBeGreaterThan(0);
     for (const rule of others) {
       expect(rule.body, rule.selectors.join(", ")).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);

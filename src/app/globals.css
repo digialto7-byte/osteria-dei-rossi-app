@@ -280,10 +280,6 @@ html:has([data-slot="sticky-action-bar"]) {
 
   :root {
     color-scheme: light;
-  }
-
-  :root,
-  :root:has([data-brand="costi"]) {
     --color-paper: #ffffff;
     --color-surface: #ffffff;
     --color-sunk: #ffffff;

@@ -237,7 +237,7 @@ export const PRODUCT_THEMES: Record<Theme, Record<ColorToken, string>> = {
 
 /**
  * The print palette (docs/ux/costi-design-system.md §10.5): paper is printed in black on white, not in the screen palette. Mirrored in the
- * `@media print` block of globals.css (`:root, :root:has([data-brand="costi"])`), and tests/components/print-css.test.ts fails if the two
+ * `@media print` block of globals.css (`:root`), and tests/components/print-css.test.ts fails if the two
  * drift apart. Text, rules, Coral and the tone colours are black (the meaning is in the words); every fill token is white, and the print-fill
  * rule in globals.css gives each fill a 1 px outline instead, with black words.
  */
