@@ -281,8 +281,9 @@ select is((select count(*)::int from public.batch_input bi join public.stock_mov
             where m.ref_type = 'batch' and m.ref_id = bi.batch_id), 3, 'each is mirrored by a batch_input');
 
 -- The movement types M12 knows were not extended.
+-- re-pinned on purpose by opening stock (step 3; was receipt,consumption,waste,transfer,count): the enum gains `opening` (docs/plans/2026-11-18-opening-stock.md section 3.1).
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.stock_movement_type'::regtype),
-  'receipt,consumption,waste,transfer,count', 'stock_movement_type is unchanged');
+  'receipt,consumption,waste,transfer,count,opening', 'stock_movement_type is the six labels (the five of M12, then opening)');
 
 select * from finish();
 rollback;

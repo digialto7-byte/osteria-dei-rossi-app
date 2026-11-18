@@ -137,7 +137,8 @@ select is((select string_agg(p.policyname::text || ':' || p.cmd::text, ',' order
           'invoices_object_insert:INSERT,invoices_object_select:SELECT', 'the Storage policies of the invoices bucket are the same two names (the insert one re-created, no update, no delete)');
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,mfa-failure-retention,reservation-mail,reservation-retention',
           'the cron jobs are main''s (eight, no new job)');
-select is((select count(*)::int from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)), 92, 'the enum values are main''s (92)');
+-- re-pinned on purpose by opening stock (step 3; was 92): stock_movement_type gains `opening` (20261206210000). Not in plan section 3.11; found by the full run.
+select is((select count(*)::int from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)), 93, 'the enum values are main''s plus stock_movement_type.opening (93)');
 
 select * from finish();
 rollback;
