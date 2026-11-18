@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 // time, in the order of docs/ux/costi-design-system.md §11. `DONE` is the number of steps finished. For a finished step every root renders
 // `CostiTheme` and its files no longer hand-write a definition list, a tablist or a display-font heading; a later step's roots do not
 // mention `CostiTheme` yet. P2j deletes the marker and this guard.
-const DONE = 6;
+const DONE = 7;
 
 const OWNER = "src/app/(owner)";
 const PUBLIC = "src/app/(public)";
