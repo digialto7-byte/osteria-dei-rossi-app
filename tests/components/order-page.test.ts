@@ -1447,14 +1447,17 @@ describe("Comanda page: the Conto tab (M21)", () => {
       }
     });
 
-    it("a tenant that lists Fattura first gets Fattura preselected", async () => {
-      meReply = Promise.resolve(
+    const meWithReceipts = (receiptTypes: string[]) =>
+      Promise.resolve(
         ok({
           user: { id: DEMO.id, displayName: DEMO.displayName, role: "waiter" },
           tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
-          settings: { ...ME_SETTINGS, receiptTypes: ["fattura", "scontrino"] },
+          settings: { ...ME_SETTINGS, receiptTypes },
         }),
       );
+
+    it("a tenant that lists Fattura first gets Fattura preselected", async () => {
+      meReply = meWithReceipts(["fattura", "scontrino"]);
       await openBill();
       fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
       expect(
@@ -1463,6 +1466,34 @@ describe("Comanda page: the Conto tab (M21)", () => {
       expect((screen.getByRole("radio", { name: "Scontrino" }) as HTMLInputElement).checked).toBe(
         false,
       );
+    });
+
+    it("choosing only the payment posts the preselected document (the tenant's first: Fattura here)", async () => {
+      meReply = meWithReceipts(["fattura", "scontrino"]);
+      billReply = (path) =>
+        path === CLOSE_PATH
+          ? ok({ changed: true, bill: { ...BILL_CLOSED, sessionId: OIDS.session } })
+          : ok(BILL_HERE);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      fireEvent.click(await screen.findByRole("radio", { name: "Carta" }));
+      fireEvent.click(closeButton("Chiudi senza numero"));
+      await waitFor(() => expect(closeCalls()).toHaveLength(1));
+      expect(closeCalls()[0]!.init?.body).toMatchObject({
+        receiptType: "fattura",
+        paymentType: "card",
+      });
+    });
+
+    // VenueSettings requires at least one document (src/lib/venue/settings.ts), so an empty list is a settings failure: the settings
+    // message, never a guessed document.
+    it("a tenant with no documents gets none guessed: the settings message, no radio (Rule B)", async () => {
+      meReply = meWithReceipts([]);
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      expect(await screen.findByText(/^Impostazioni del locale non disponibili/)).toBeTruthy();
+      noChoiceRadios();
+      expect(closeCalls()).toHaveLength(0);
     });
   });
 
