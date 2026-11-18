@@ -22,6 +22,12 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
   "20261206210000_stock_movement_opening_type.sql": { functions: [], tables: [], triggers: [] },
   // Step 4 (M2): the shape CHECK stock_movement_opening_ck, no object of its own.
   "20261206210100_stock_movement_opening_shape.sql": { functions: [], tables: [], triggers: [] },
+  // Step 5 (M3): the operation and draft tables, the append-only guards of stock_opening, the purge list re-created with both tables.
+  "20261206210200_stock_opening_tables.sql": {
+    functions: ["app.demo_purge_tables"],
+    tables: ["public.stock_opening", "public.opening_draft_line"],
+    triggers: ["stock_opening_append_only", "stock_opening_no_truncate"],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -95,6 +101,9 @@ function createdTriggers(sql: string): string[] {
   );
 }
 
+/** A `drop ... cascade` statement (an `on delete cascade` foreign key is not one). */
+const DROP_CASCADE = /\bdrop\b[^;]*\bcascade\b/i;
+
 const body = (file: string) => sqlWithoutComments(readFileSync(join(MIGRATIONS, file), "utf8"));
 
 describe("opening stock migrations: the file list", () => {
@@ -150,7 +159,7 @@ describe("opening stock migrations: what they create", () => {
 
     it(`${file} never drops with cascade and never updates, deletes from or truncates a ledger or lot table`, () => {
       const sql = body(file);
-      expect(sql).not.toMatch(/\bcascade\b/i);
+      expect(sql).not.toMatch(DROP_CASCADE);
       expect(sql).not.toMatch(
         /\b(update|delete\s+from|truncate(\s+table)?)\s+(only\s+)?(public\.)?(stock_movement|stock_opening|raw_lot)\b/i,
       );
@@ -229,6 +238,15 @@ describe("opening stock migrations: the scanners", () => {
     expect(createdFunctions(sql)).toEqual(["app.a", "public.b"]);
     expect(createdTables(sql)).toEqual(["public.t"]);
     expect(createdTriggers(sql)).toEqual(["tg"]);
+  });
+
+  it("self-test: the cascade rule catches a drop ... cascade and lets an on delete cascade foreign key through", () => {
+    expect("drop table public.x cascade;").toMatch(DROP_CASCADE);
+    expect("drop function app.f(uuid)\n  cascade;").toMatch(DROP_CASCADE);
+    expect("create table t (a uuid references u (id) on delete cascade);").not.toMatch(DROP_CASCADE);
+    expect("alter table t drop constraint c; alter table t add constraint d foreign key (a) references u (id) on delete cascade;").not.toMatch(
+      DROP_CASCADE,
+    );
   });
 
   it("self-test: the ledger rule catches an update, a delete and a truncate, and lets a draft-table delete through", () => {

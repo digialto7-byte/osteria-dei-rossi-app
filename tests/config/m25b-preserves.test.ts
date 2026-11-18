@@ -189,6 +189,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206210000_stock_movement_opening_type.sql",
   // Opening stock step 4 (20261206210100_stock_movement_opening_shape.sql), re-pinned on purpose by opening stock (step 4; was the list ending at 20261206210000_stock_movement_opening_type.sql): one CHECK on stock_movement.
   "20261206210100_stock_movement_opening_shape.sql",
+  // Opening stock step 5 (20261206210200_stock_opening_tables.sql), re-pinned on purpose by opening stock (step 5; was the list ending at 20261206210100_stock_movement_opening_shape.sql): the two opening tables.
+  "20261206210200_stock_opening_tables.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

@@ -27,7 +27,8 @@ const ROOT = new URL("../../", import.meta.url);
 // SP1 step 7 (20261206200400_tenant_locale_settings.sql), re-pinned on purpose by SP1: tenant.default_locale, public.tenant_settings and public.set_tenant_settings, and app.check_sale_vat_rate re-created with the tenant-row lock; no new table.
 // Opening stock step 3 (20261206210000_stock_movement_opening_type.sql), re-pinned on purpose by opening stock (step 3; was 20261206200400_tenant_locale_settings.sql): one `alter type ... add value 'opening'`, no other object.
 // Opening stock step 4 (20261206210100_stock_movement_opening_shape.sql), re-pinned on purpose by opening stock (step 4; was 20261206210000_stock_movement_opening_type.sql): one CHECK on stock_movement (stock_movement_opening_ck), no other object.
-const LAST_MIGRATION = "20261206210100_stock_movement_opening_shape.sql";
+// Opening stock step 5 (20261206210200_stock_opening_tables.sql), re-pinned on purpose by opening stock (step 5; was 20261206210100_stock_movement_opening_shape.sql): the stock_opening and opening_draft_line tables, the audit values and the purge list.
+const LAST_MIGRATION = "20261206210200_stock_opening_tables.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 
