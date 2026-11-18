@@ -6,6 +6,7 @@ import {
   auditDetailEntries,
   auditListMeta,
   auditPlace,
+  auditPlaceDetail,
   auditRequestPath,
   auditSentence,
   originLabel,
@@ -57,6 +58,20 @@ describe("originLabel and auditPlace", () => {
   });
   it("shows «Locale cancellato» and the first 8 characters of the id for an erased venue", () => {
     expect(auditPlace({ tenantId: ID, tenantName: null })).toBe("Locale cancellato 3f2c9a10");
+  });
+});
+
+describe("auditPlaceDetail", () => {
+  it("shows the venue name and the short id", () => {
+    expect(auditPlaceDetail({ tenantId: ID, tenantName: "Osteria Demo A" })).toBe(
+      "Osteria Demo A · 3f2c9a10",
+    );
+  });
+  it("shows «Locale cancellato» and the short id once, for an erased venue", () => {
+    expect(auditPlaceDetail({ tenantId: ID, tenantName: null })).toBe("Locale cancellato 3f2c9a10");
+  });
+  it("shows a dash for a platform-wide row", () => {
+    expect(auditPlaceDetail({ tenantId: null, tenantName: null })).toBe("—");
   });
 });
 

@@ -83,6 +83,17 @@ describe("the Per servizio card", () => {
     expect(card().textContent).toContain(nb("Totale giorno 153,00 €"));
   });
 
+  it("sets only the amount of each service row in <strong>", async () => {
+    await open();
+    const rows = [...card().querySelectorAll("[data-service-key]")];
+    expect(rows.map((r) => r.querySelectorAll("strong").length)).toEqual([1, 1]);
+    expect(rows.map((r) => r.querySelector("strong")?.textContent)).toEqual([
+      nb("18,00 €"),
+      nb("135,00 €"),
+    ]);
+    expect(card().querySelector("[data-service-key] .font-bold")).toBeNull();
+  });
+
   it("says that the register closes once a day, so the difference is on the total", async () => {
     await open();
     expect(

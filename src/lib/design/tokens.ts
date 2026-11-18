@@ -236,6 +236,41 @@ export const PRODUCT_THEMES: Record<Theme, Record<ColorToken, string>> = {
   },
 };
 
+/**
+ * The print palette (docs/ux/costi-design-system.md §10.5): paper is printed in black on white, not in the screen palette. Mirrored in the
+ * `@media print` block of globals.css (`:root, :root:has([data-brand="costi"])`), and tests/components/print-css.test.ts fails if the two
+ * drift apart. Text, rules, Coral and the tone colours are black (the meaning is in the words); every fill token is white, and the print-fill
+ * rule in globals.css gives each fill a 1 px outline instead, with black words.
+ */
+export const PRINT_COLORS: Record<ColorToken, string> = {
+  paper: "#ffffff",
+  surface: "#ffffff",
+  sunk: "#ffffff",
+  ink: "#000000",
+  "ink-muted": "#404040",
+  rule: "#000000",
+  "rule-strong": "#000000",
+  band: "#ffffff",
+  "band-ink": "#000000",
+  // Coral marks (rules under headings) print black; as a fill it is unused on paper, because the Card's Coral edge is hidden in print.
+  gold: "#000000",
+  highlight: "#ffffff",
+  "on-highlight": "#000000",
+  accent: "#ffffff",
+  "accent-hover": "#ffffff",
+  "on-accent": "#000000",
+  "accent-ink": "#000000",
+  focus: "#000000",
+  success: "#000000",
+  "success-bg": "#ffffff",
+  warning: "#000000",
+  "warning-bg": "#ffffff",
+  danger: "#000000",
+  "danger-bg": "#ffffff",
+  info: "#000000",
+  "info-bg": "#ffffff",
+};
+
 /** WCAG AA minimums: 4.5:1 for body text, 3:1 for UI boundaries and focus indicators (1.4.11). */
 export const AA_TEXT = 4.5;
 export const AA_NON_TEXT = 3;

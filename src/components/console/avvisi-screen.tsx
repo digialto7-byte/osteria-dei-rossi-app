@@ -107,7 +107,7 @@ function NoticeItem({
  * then shows the reply's date and the Avvisato count is read again. A notice moves to «Letti» on the next read, never under the person's thumb.
  */
 export function AvvisiScreen() {
-  const { load, reload } = useConsoleRead<{ notices: Notice[] }>("/api/platform/notices");
+  const { load, reload, busy } = useConsoleRead<{ notices: Notice[] }>("/api/platform/notices");
   const { refreshMe } = useConsoleShell();
   const [tab, setTab] = useState<Tab>("unread");
   const [marks, setMarks] = useState<Record<string, Mark>>({});
@@ -162,16 +162,17 @@ export function AvvisiScreen() {
           },
         ]}
       />
-      {load.kind === "loading" && <Muted>{t("common.loading")}</Muted>}
-      {load.kind === "error" && (
-        <ReadError
-          message={failureMessage(load.failure, "console.notices.readError")}
-          onRetry={reload}
-        />
-      )}
-      {load.kind === "ready" && (
-        <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={tabId(tab)}>
-          {shown.length === 0 ? (
+      <div id={`${tabsId}-panel`} role="tabpanel" aria-labelledby={tabId(tab)}>
+        {load.kind === "loading" && <Muted>{t("common.loading")}</Muted>}
+        {load.kind === "error" && (
+          <ReadError
+            message={failureMessage(load.failure, "console.notices.readError")}
+            onRetry={reload}
+            busy={busy}
+          />
+        )}
+        {load.kind === "ready" &&
+          (shown.length === 0 ? (
             <Muted>
               {t(tab === "unread" ? "console.notices.emptyUnread" : "console.notices.emptyRead")}
             </Muted>
@@ -186,9 +187,8 @@ export function AvvisiScreen() {
                 />
               ))}
             </LedgerList>
-          )}
-        </div>
-      )}
+          ))}
+      </div>
     </>
   );
 }

@@ -93,6 +93,16 @@ export function unwrap(result: { data: unknown; error: DbError | null }): unknow
 }
 
 /**
+ * Rule B: which refused uploads are reported (by Storage status and invoice id only). An outage (502) is; so is a 413 or 415, which
+ * no user can cause (checkInvoiceFile and the multipart cap refuse those files before Storage), so it means the bucket's
+ * file_size_limit or allowed_mime_types disagrees with our checks. A 401 (the token expired between withApi and Storage) and a 403
+ * (a role revoked mid-session) are expected answers and are not reported.
+ */
+export function isReportedUploadFailure(failure: ApiError): boolean {
+  return failure.status === 502 || failure.status === 413 || failure.status === 415;
+}
+
+/**
  * A refused Storage upload as an API error. storage-js puts the body's statusCode (else its code,
  * e.g. "InvalidJWT") in `statusCode`, and the HTTP status (often 400) in `status`: a numeric
  * statusCode wins, then the HTTP status. Anything unrecognised is 502.
@@ -145,7 +155,17 @@ export async function storeInvoiceUpload(
   const stored = await supabase.storage
     .from(INVOICE_BUCKET)
     .upload(path, file.bytes, { contentType: checked.mime, upsert: false });
-  if (stored.error) throw storageUploadError(stored.error);
+  if (stored.error) {
+    const failure = storageUploadError(stored.error);
+    if (isReportedUploadFailure(failure)) {
+      reportError(
+        new Error(
+          `Invoice upload to storage failed (status ${storageStatus(stored.error)}, answered ${failure.status}) for invoice ${id}`,
+        ),
+      );
+    }
+    throw failure;
+  }
 
   const inserted = await supabase
     .from("invoice")

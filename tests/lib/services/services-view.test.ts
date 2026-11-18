@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dayServiceRow,
+  dayServiceRowParts,
   daySessionLine,
   rowsFromPeriods,
   rowsToBody,
@@ -8,6 +9,7 @@ import {
   servicesPreview,
   windowLabel,
 } from "@/lib/services/services-view";
+import { formatEuro } from "@/lib/money/format";
 import { SERVICE_PERIODS, SET_SERVICE_PERIODS } from "../../helpers/services-data";
 
 describe("windowLabel", () => {
@@ -86,6 +88,53 @@ describe("dayServiceRow", () => {
     expect(
       dayServiceRow({ name: "Cena", tables: 2, covers: 5, totalEur: 135, openTables: 3 }),
     ).toContain("3 tavoli ancora aperti");
+  });
+});
+
+describe("dayServiceRowParts", () => {
+  const nb = (text: string) => text.replace(/(\d) €/g, "$1\u00a0€");
+  const service = (over: Partial<Parameters<typeof dayServiceRow>[0]> = {}) => ({
+    name: "Pranzo",
+    tables: 1,
+    covers: 2,
+    totalEur: 18,
+    openTables: 0,
+    ...over,
+  });
+
+  it("lead + amount + tail is the row of dayServiceRow, for 0, 1 and 3 open tables", () => {
+    for (const openTables of [0, 1, 3]) {
+      const s = service({ openTables });
+      const { lead, amount, tail } = dayServiceRowParts(s);
+      expect(lead + amount + tail).toBe(dayServiceRow(s));
+    }
+  });
+
+  it("the amount is the formatted total, the lead holds the labels", () => {
+    const parts = dayServiceRowParts(service());
+    expect(parts.amount).toBe(nb("18,00 €"));
+    expect(parts.lead).toBe("Pranzo · 1 tavolo · 2 coperti · ");
+    expect(parts.tail).toBe("");
+  });
+
+  it("the tail holds the open-tables words", () => {
+    expect(dayServiceRowParts(service({ openTables: 1 })).tail).toBe(" · 1 tavolo ancora aperto");
+    expect(dayServiceRowParts(service({ openTables: 3 })).tail).toBe(" · 3 tavoli ancora aperti");
+  });
+
+  it("a service named like the amount still splits on the real amount", () => {
+    const parts = dayServiceRowParts(service({ name: nb("18,00 €") }));
+    expect(parts.amount).toBe(nb("18,00 €"));
+    expect(parts.lead).toBe(nb("18,00 €") + " · 1 tavolo · 2 coperti · ");
+  });
+
+  it("works in the en locale, where the message keeps the same order", () => {
+    const parts = dayServiceRowParts(service(), "en");
+    expect(parts.amount).toBe(formatEuro(18, "en"));
+    expect(parts.lead).toBe("Pranzo · 1 table · 2 covers · ");
+    expect(parts.lead + parts.amount + parts.tail).toBe(
+      `Pranzo · 1 table · 2 covers · ${parts.amount}`,
+    );
   });
 });
 

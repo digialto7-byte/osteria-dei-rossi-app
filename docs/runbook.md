@@ -414,6 +414,10 @@ been run; do it once on a spare Free project before you depend on it.
 Order: **migrations first, then the code** (decision Q190), so new code never meets an old schema.
 
 1. Merge the pull request. CI runs on `main` and staging follows by itself (migrations pushed to staging).
+   The staging deploy checks out the commit whose CI passed (`workflow_run.head_sha`), not the tip of `main`. GitHub labels a
+   `workflow_run` run with the tip of `main` when the event fires, so a run labelled with a newer commit may deploy an older one: read its
+   checkout step. When a newer push cancels a CI run on `main`, that run's deploy is skipped and the next green run deploys both changes.
+   (test: tests/config/deploy-staging-workflow.test.ts)
 2. Look at staging: the pages that changed, then `npx tsx scripts/check-headers.ts --base-url <staging> --expect preview`.
 3. Actions, "Deploy production database", Run workflow on `main`. It dry-runs, then waits for **the founder's approval**, then pushes the
    migrations to the production project only. It never seeds or resets.

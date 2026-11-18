@@ -1,6 +1,7 @@
 import type { ServicePeriods } from "@/server/services/output";
 import type { ServicesBody } from "@/server/services/schemas";
 import { t, tn } from "@/lib/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
 import { formatTime } from "@/lib/time/format";
 
@@ -43,23 +44,52 @@ export function rowsToBody(rows: readonly ServiceRow[]): ServicesBody | null {
   return { periods };
 }
 
-/** "Pranzo · 1 tavolo · 2 coperti · 18,00 €", plus " · 1 tavolo ancora aperto" when some table of the service is still open. */
-export function dayServiceRow(service: {
+type DayServiceRowInput = {
   name: string;
   tables: number;
   covers: number;
   totalEur: number;
   openTables: number;
-}): string {
-  const base = t("dayClose.services.row", {
-    name: service.name,
-    tables: tn("dayClose.tables", service.tables),
-    covers: tn("dayClose.covers", service.covers),
-    amount: formatEuro(service.totalEur),
-  });
-  return service.openTables > 0
-    ? `${base} \u00b7 ${tn("dayClose.services.open", service.openTables)}`
-    : base;
+};
+
+// Private-use characters stand in for the amount and the name while the message is formatted, so the split never depends on the content.
+const AMOUNT_MARK = "\ue000";
+const NAME_MARK = "\ue001";
+
+/**
+ * The row of a service in three parts, so the card can set only the amount in <strong>: what comes before the amount, the amount, and what
+ * follows it (the open-tables words go here). The amount's place comes from the message, so any locale works.
+ */
+export function dayServiceRowParts(
+  service: DayServiceRowInput,
+  locale: Locale = DEFAULT_LOCALE,
+): { lead: string; amount: string; tail: string } {
+  const [lead = "", rest = ""] = t(
+    "dayClose.services.row",
+    {
+      name: NAME_MARK,
+      tables: tn("dayClose.tables", service.tables, locale),
+      covers: tn("dayClose.covers", service.covers, locale),
+      amount: AMOUNT_MARK,
+    },
+    locale,
+  ).split(AMOUNT_MARK);
+  const withName = (text: string) => text.replace(NAME_MARK, () => service.name);
+  const open =
+    service.openTables > 0
+      ? ` \u00b7 ${tn("dayClose.services.open", service.openTables, locale)}`
+      : "";
+  return {
+    lead: withName(lead),
+    amount: formatEuro(service.totalEur, locale),
+    tail: withName(rest) + open,
+  };
+}
+
+/** "Pranzo · 1 tavolo · 2 coperti · 18,00 €", plus " · 1 tavolo ancora aperto" when some table of the service is still open. */
+export function dayServiceRow(service: DayServiceRowInput): string {
+  const { lead, amount, tail } = dayServiceRowParts(service);
+  return lead + amount + tail;
 }
 
 /** "Tavolo 2 (demo) · aperto alle 21:30 · Cena": the opening time in Europe/Rome. */

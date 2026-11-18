@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { messages, t, tn } from "@/lib/i18n";
 import type { MessageKey } from "@/lib/i18n";
@@ -38,8 +39,6 @@ const VERBATIM: [MessageKey, string][] = [
   ["console.locali.readError", "Non riesco a leggere i locali."],
   ["console.locali.unread.one", "{count} avviso da leggere"],
   ["console.locali.unread.other", "{count} avvisi da leggere"],
-  ["console.locali.digialtoMeta.yes", "DigiAlto: sì"],
-  ["console.locali.digialtoMeta.no", "DigiAlto: no"],
   ["console.detail.back", "Locali"],
   ["console.detail.noGroup", "nessun gruppo"],
   ["console.createdOn", "creato il {date}"],
@@ -65,7 +64,7 @@ const VERBATIM: [MessageKey, string][] = [
   ["console.detail.settings.name", "Nome del locale"],
   ["console.detail.settings.timeZone", "Fuso orario"],
   ["console.detail.settings.bookingSlug", "Pagina prenotazioni"],
-  ["console.detail.notFound", "Locale non trovato."],
+  ["console.detail.notFound", "Locale non trovato"],
   ["console.detail.readError", "Non riesco a leggere il locale."],
   ["console.audit.title", "Registro della piattaforma"],
   ["console.audit.filter.locale", "Locale"],
@@ -171,5 +170,17 @@ describe("console.* strings", () => {
   it("fills counts through tn", () => {
     expect(tn("console.locali.people", 1)).toBe("1 persona");
     expect(tn("console.locali.people", 4)).toBe("4 persone");
+  });
+
+  it("marks every console key «(da approvare)» in it.ts until the founder approves it", () => {
+    const lines = readFileSync("src/lib/i18n/messages/it.ts", "utf8").split("\n");
+    const unmarked: string[] = [];
+    lines.forEach((line, i) => {
+      if (!line.startsWith('  "console.')) return;
+      // A long entry carries its value on the next line, and the marker ends that line.
+      const last = line.trimEnd().endsWith(":") ? (lines[i + 1] ?? "") : line;
+      if (!last.trimEnd().endsWith("// (da approvare)")) unmarked.push(line.trim());
+    });
+    expect(unmarked).toEqual([]);
   });
 });

@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { meReply, tenantSummary } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 17: Locali, the console's home. It reads nothing itself: the shell's tenant list is the data.
 
@@ -127,7 +128,9 @@ const listNames = () =>
   within(list())
     .getAllByRole("listitem")
     .map(
-      (li) => within(li).getAllByRole("link")[0]!.querySelector("[data-slot=title]")!.textContent,
+      (li) =>
+        // LedgerRow: the link holds a column of title then meta
+        within(li).getAllByRole("link")[0]!.firstElementChild!.firstElementChild!.textContent,
     );
 const ready = () => screen.findByTestId("locali-table");
 const th = (name: string) => within(table()).getByRole("columnheader", { name });
@@ -186,14 +189,28 @@ describe("Locali: the rows", () => {
     expect(cells(4)).toEqual(["Cantina Demo2 persone", "—", "12 nov", "No"]);
   });
 
-  it("a «No» is bold and a «Sì» is not", async () => {
+  it("a «No» is wrapped in <strong> and a «Sì» is not, with no font-bold class on the cell", async () => {
     happy();
     mount();
     await ready();
     const rows = within(table()).getAllByRole("row");
     const digialto = (i: number) => within(rows[i]!).getAllByRole("cell")[3]!;
-    expect(digialto(1).className).toContain("font-bold");
-    expect(digialto(2).className).not.toContain("font-bold");
+    expect(digialto(1).querySelector("strong")!.textContent).toBe("No");
+    expect(digialto(2).querySelector("strong")).toBeNull();
+    expect(digialto(1).className).not.toContain("font-bold");
+  });
+
+  it("on the phone the «no» of «DigiAlto: no» is <strong>, the «sì» of «DigiAlto: sì» is not", async () => {
+    happy();
+    mount();
+    await ready();
+    const items = within(list()).getAllByRole("listitem");
+    const strongs = (i: number) =>
+      [...items[i]!.querySelectorAll("strong")].map((n) => n.textContent);
+    expect(strongs(0)).toEqual(["no"]);
+    expect(strongs(1)).toEqual([]);
+    expect(strongs(2)).toEqual([]);
+    expect(strongs(3)).toEqual(["no"]);
   });
 
   it("the phone list shows the meta line of each venue", async () => {
@@ -202,13 +219,25 @@ describe("Locali: the rows", () => {
     await ready();
     const metas = within(list())
       .getAllByRole("listitem")
-      .map((li) => li.querySelector("[data-slot=meta]")!.textContent);
+      .map((li) => li.querySelector("[data-ledger-meta]")!.textContent);
     expect(metas).toEqual([
       "4 persone · — · oggi · DigiAlto: no",
       "1 persona · Gruppo Demo · ieri · DigiAlto: sì",
       "1 persona · Gruppo Demo · — · DigiAlto: sì",
       "2 persone · — · 12 nov · DigiAlto: no",
     ]);
+  });
+
+  it("the phone list is a LedgerRow list: one li per venue holding one link, title then meta", async () => {
+    happy();
+    mount();
+    await ready();
+    const items = within(list()).getAllByRole("listitem");
+    expect(items).toHaveLength(TENANT_LIST.length);
+    for (const li of items) {
+      expect(li.querySelectorAll("a")).toHaveLength(1);
+      expect(li.querySelectorAll("[data-ledger-meta]")).toHaveLength(1);
+    }
   });
 
   it("each row has one link, to /locali/<id>, in the table and in the list", async () => {
@@ -417,6 +446,48 @@ describe("Locali: states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     await ready();
     expect(calls.filter((c) => c.path === TENANTS)).toHaveLength(2);
+  });
+
+  it("«Riprova» keeps focus through a retry that fails again", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    const { button, answer } = pressRetryHolding(apiJson);
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    await answer(fail(400, "invalid_request"));
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    expectSameFocusedButton(button);
+  });
+
+  it("«Riprova» keeps focus through a retry that succeeds, and then the error goes", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    const { answer } = pressRetryHolding(apiJson);
+    await answer(ok({ tenants: TENANT_LIST }));
+    await ready();
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+  });
+
+  it("«Riprova» that fails the same way is announced, and a success removes the error and the status", async () => {
+    replies[ME] = [ok(meReply())];
+    replies[TENANTS] = [fail(400, "invalid_request"), fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere i locali.");
+    expect(screen.getByRole("status").textContent).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    await waitFor(() =>
+      expect(screen.getByRole("status").textContent).toBe("Ancora nessuna risposta"),
+    );
+    expect(screen.getByText("Non riesco a leggere i locali.")).toBeTruthy();
+    replies[TENANTS] = [ok({ tenants: TENANT_LIST })];
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    await ready();
+    expect(screen.queryByText("Non riesco a leggere i locali.")).toBeNull();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByText("Ancora nessuna risposta")).toBeNull();
   });
 
   it("a console that does not answer says so", async () => {

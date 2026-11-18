@@ -23,7 +23,7 @@ import {
   digialtoWord,
   filterTenants,
   groupLabel,
-  listMeta,
+  listMetaParts,
   localiHref,
   nextSort,
   parseLocaliQuery,
@@ -106,8 +106,12 @@ function LocaliTable({
               </td>
               <td className={`px-3 py-2 ${WRAP}`}>{groupLabel(tenant.organisation) ?? EM_DASH}</td>
               <td className="px-3 py-2">{formatActivityDay(tenant.lastActivityDate, today)}</td>
-              <td className={`px-3 py-2${tenant.digialtoAttached ? "" : " font-bold"}`}>
-                {digialtoWord(tenant.digialtoAttached)}
+              <td className="px-3 py-2">
+                {tenant.digialtoAttached ? (
+                  digialtoWord(true)
+                ) : (
+                  <strong>{digialtoWord(false)}</strong>
+                )}
               </td>
             </tr>
           ))}
@@ -117,24 +121,27 @@ function LocaliTable({
   );
 }
 
+/** The phone's meta line; a «no» is set in <strong>, because the emphasis carries the meaning. */
+function ListMeta({ tenant, today }: { tenant: TenantSummary; today: string }) {
+  const { lead, label, word, attached } = listMetaParts(tenant, today);
+  return (
+    <>
+      {lead} · {label}: {attached ? word : <strong>{word}</strong>}
+    </>
+  );
+}
+
 function LocaliList({ tenants, today }: { tenants: TenantSummary[]; today: string }) {
   return (
     <div data-testid="locali-list" className="lg:hidden">
       <LedgerList>
         {tenants.map((tenant) => (
-          <LedgerRow key={tenant.id}>
-            <Link
-              href={venueHref(tenant.id)}
-              className="flex min-h-tap flex-col justify-center py-3"
-            >
-              <span data-slot="title" className={`font-bold text-ink ${WRAP}`}>
-                {tenant.name}
-              </span>
-              <span data-slot="meta" className={`text-sm text-ink-muted ${WRAP}`}>
-                {listMeta(tenant, today)}
-              </span>
-            </Link>
-          </LedgerRow>
+          <LedgerRow
+            key={tenant.id}
+            href={venueHref(tenant.id)}
+            title={tenant.name}
+            meta={<ListMeta tenant={tenant} today={today} />}
+          />
         ))}
       </LedgerList>
     </div>
@@ -148,7 +155,7 @@ function LocaliList({ tenants, today }: { tenants: TenantSummary[]; today: strin
 export function LocaliScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { tenants, me, retryTenants } = useConsoleShell();
+  const { tenants, me, retryTenants, tenantsBusy } = useConsoleShell();
   const query = parseLocaliQuery(params);
   const [search, setSearch] = useState(query.search);
   // The address is the truth: when it changes from outside (a click on «Locali», back), the box follows. The values this screen wrote itself
@@ -198,6 +205,7 @@ export function LocaliScreen() {
         <ReadError
           message={failureMessage(tenants.failure, "console.locali.readError")}
           onRetry={retryTenants}
+          busy={tenantsBusy}
         />
       )}
       {tenants.kind === "ready" && shown.length === 0 && all.length > 0 && (

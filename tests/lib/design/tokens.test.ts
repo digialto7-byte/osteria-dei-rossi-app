@@ -12,6 +12,7 @@ import {
   DERIVED,
   PRODUCT_BRAND,
   PRODUCT_DERIVED,
+  PRINT_COLORS,
   PRODUCT_THEMES,
   THEMES,
   type Theme,
@@ -187,6 +188,36 @@ function colorDeclarations(block: string): Record<string, string> {
   return out;
 }
 
+/** The css with the print palette rule (`:root, :root:has([data-brand="costi"]) { … }` inside `@media print`) cut out, and that rule's text. */
+function splitPrintPalette(source: string): { rest: string; palette: string } {
+  const print = source.indexOf("@media print");
+  const match = /:root,\s*:root:has\(\[data-brand="costi"\]\)\s*\{[^}]*\}/.exec(
+    source.slice(print),
+  );
+  if (print < 0 || !match) throw new Error("the print palette rule is missing");
+  const start = print + match.index;
+  const end = start + match[0].length;
+  return { rest: source.slice(0, start) + source.slice(end), palette: match[0] };
+}
+
+/**
+ * The guard on colour tokens in globals.css: the colour tokens declared outside the two osteria blocks and the two product blocks
+ * (`stray`), and those of the print palette rule, which is cut out first (`palette`).
+ */
+function colourTokensOutsideThemes(source: string): {
+  stray: Record<string, string>;
+  palette: Record<string, string>;
+} {
+  const { rest, palette } = splitPrintPalette(source);
+  const themeStart = rest.indexOf("@theme {");
+  const inlineStart = rest.indexOf("@theme inline");
+  const darkStart = rest.indexOf("@media screen and (prefers-color-scheme: dark)");
+  const baseStart = rest.indexOf("@layer base");
+  const elsewhere =
+    rest.slice(0, themeStart) + rest.slice(inlineStart, darkStart) + rest.slice(baseStart);
+  return { stray: colorDeclarations(elsewhere), palette: colorDeclarations(palette) };
+}
+
 describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", () => {
   const css = readFileSync(join(process.cwd(), "src/app/globals.css"), "utf8");
   const themeStart = css.indexOf("@theme {");
@@ -235,10 +266,21 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(colorDeclarations(css.slice(productDarkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
   });
 
-  it("declares no colour token outside the two osteria blocks and the two product blocks", () => {
-    const elsewhere =
-      css.slice(0, themeStart) + css.slice(inlineStart, darkStart) + css.slice(baseStart);
-    expect(colorDeclarations(elsewhere)).toEqual({});
+  it("declares no colour token outside the two osteria blocks, the two product blocks and the print palette rule", () => {
+    const { stray, palette } = colourTokensOutsideThemes(css);
+    expect(stray).toEqual({});
+    // The cut-out rule (§10.5) is exactly PRINT_COLORS; print-css.test.ts pins its selector and that nothing else in the print block has a colour.
+    expect(palette).toEqual(
+      Object.fromEntries(Object.entries(PRINT_COLORS).map(([k, v]) => [k, v.toUpperCase()])),
+    );
+  });
+
+  it("the same guard sees a stray colour token, even one the print palette also declares", () => {
+    const withStray = css.replace(
+      "@layer base",
+      "@layer base { .stray { --color-accent: #123456; } }\n@layer base",
+    );
+    expect(colourTokensOutsideThemes(withStray).stray).toEqual({ accent: "#123456" });
   });
 
   it("the rise keeps `backwards` fill, so it never pins a child's transform after it ends", () => {

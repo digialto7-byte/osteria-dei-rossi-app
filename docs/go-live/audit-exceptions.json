@@ -1,3 +1,11 @@
 {
-  "exceptions": []
+  "exceptions": [
+    {
+      "package": "picomatch",
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "reason": "No patched release exists (affected <=4.0.7, which includes the 2.x line; 4.0.7 is the registry's latest). picomatch is reached only through build tooling (the Sentry bundler plugin of @sentry/nextjs via @rollup/plugin-commonjs and @rollup/pluginutils) and through test and lint globs (vitest, vite, tinyglobby, fast-glob/micromatch, typescript-eslint) on our own source patterns, never with request input. Replace with the real bump as soon as a version above 4.0.7 is published (lead, 2026-11-18).",
+      "reviewBy": "2026-12-02",
+      "devOnly": false
+    }
+  ]
 }

@@ -9,13 +9,13 @@ afterEach(cleanup);
 const inList = (row: ReturnType<typeof createElement>) =>
   render(createElement(LedgerList, null, row));
 
-describe("LedgerRow with title, meta and badge", () => {
-  it("lays out the title, the meta line and the trailing badge in reading order", () => {
+describe("LedgerRow with title, meta and trailing", () => {
+  it("lays out the title, the meta line and the trailing slot in reading order", () => {
     inList(
       createElement(LedgerRow, {
         title: "Fornitore Uno",
         meta: "Scade tra 3 giorni",
-        badge: createElement(Badge, { tone: "warning" }, "In scadenza"),
+        trailing: createElement(Badge, { tone: "warning" }, "In scadenza"),
       }),
     );
     const row = screen.getByRole("listitem");
@@ -26,12 +26,12 @@ describe("LedgerRow with title, meta and badge", () => {
     expect(screen.getByText("Scade tra 3 giorni").className).toContain("text-ink-muted");
   });
 
-  it("a row without meta or badge renders neither", () => {
+  it("a row without meta or trailing renders neither", () => {
     inList(createElement(LedgerRow, { title: "Solo titolo" }));
     const row = screen.getByRole("listitem");
     expect(row.textContent).toBe("Solo titolo");
     expect(row.querySelector("[data-ledger-meta]")).toBeNull();
-    expect(row.querySelector("[data-ledger-badge]")).toBeNull();
+    expect(row.querySelector("[data-ledger-trailing]")).toBeNull();
   });
 
   it("long unbroken title and meta wrap instead of widening the page", () => {
@@ -47,7 +47,7 @@ describe("LedgerRow with title, meta and badge", () => {
         href: "/fatture/abc",
         title: "Fornitore Due",
         meta: "Riga meta",
-        badge: createElement(Badge, { tone: "danger" }, "Scaduta"),
+        trailing: createElement(Badge, { tone: "danger" }, "Scaduta"),
       }),
     );
     const link = screen.getByRole("link");
@@ -79,5 +79,11 @@ describe("LedgerRow with title, meta and badge", () => {
     // @ts-expect-error title and children are two shapes of one row, never both
     const both: LedgerRowProps = { title: "T", children: "x" };
     expect(both.title).toBe("T");
+  });
+
+  it("has no badge prop any more: the end slot is trailing", () => {
+    // @ts-expect-error badge was renamed to trailing, with no alias
+    const old: LedgerRowProps = { title: "T", badge: "x" };
+    expect(old.title).toBe("T");
   });
 });

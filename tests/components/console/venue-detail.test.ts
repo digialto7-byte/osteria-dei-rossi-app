@@ -3,6 +3,7 @@ import { createElement, StrictMode } from "react";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { auditRow, DEMO_TENANT_ID, tenantDetail } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 18: the venue detail. Metadata only; the read is GET /api/platform/tenants/<id>.
 
@@ -247,11 +248,11 @@ describe("the venue detail: states", () => {
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
   });
 
-  it.each(["tenant_not_found", "not_found"])("404 %s says «Locale non trovato.»", async (code) => {
+  it.each(["tenant_not_found", "not_found"])("404 %s says «Locale non trovato»", async (code) => {
     replies[PATH] = [fail(404, code)];
     mount();
     expect(
-      await screen.findByRole("heading", { level: 1, name: "Locale non trovato." }),
+      await screen.findByRole("heading", { level: 1, name: "Locale non trovato" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
     expect(screen.getByRole("link", { name: "Locali" }).getAttribute("href")).toBe("/");
@@ -265,6 +266,27 @@ describe("the venue detail: states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     expect(await screen.findByRole("heading", { level: 1, name: "Osteria Demo A" })).toBeTruthy();
     expect(count(PATH)).toBe(2);
+  });
+
+  it("«Riprova» keeps focus through a retry that fails again, with one h1 throughout", async () => {
+    replies[PATH] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere il locale.");
+    const { button, answer } = pressRetryHolding(apiJson);
+    expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+    await answer(fail(400, "invalid_request"));
+    expect(screen.getByText("Non riesco a leggere il locale.")).toBeTruthy();
+    expectSameFocusedButton(button);
+  });
+
+  it("«Riprova» keeps focus through a retry that succeeds, and then the error goes", async () => {
+    replies[PATH] = [fail(400, "invalid_request")];
+    mount();
+    await screen.findByText("Non riesco a leggere il locale.");
+    const { answer } = pressRetryHolding(apiJson);
+    await answer(detail());
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(screen.getByRole("heading", { level: 1, name: "Osteria Demo A" })).toBeTruthy();
   });
 
   it("«Riprova» after console_unavailable posts /api/platform/console again", async () => {

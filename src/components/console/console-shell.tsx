@@ -30,6 +30,8 @@ export interface ConsoleShellState {
   me: Load<MeReply>;
   /** The person asked again after a failed list: clears the switch guard, then reads the list (and /me, if it had failed) once more. */
   retryTenants: () => void;
+  /** True while the list is being read again after a failure: the error stays on screen, its «Riprova» disabled. */
+  tenantsBusy: boolean;
   /** Reads /me once more (the Avvisi count, after «Segna come avvisato»). The tenant list is not read again. */
   refreshMe: () => void;
 }
@@ -47,25 +49,30 @@ const tenantsOf = (reply: { tenants: TenantSummary[] }) => reply.tenants;
 const meOf = (reply: MeReply) => reply;
 
 /**
- * One GET into a `Load`. A reply that is taking the page away (the switch into console mode, a sign-in redirect) keeps "loading": the
- * screen never flashes an error for it. A newer read supersedes an older one.
+ * One GET into a `Load`. A reply that is taking the page away (the switch into console mode, a sign-in redirect) changes nothing on screen ("loading" stays loading; a retry keeps its error with `busy` set until the navigation): the
+ * screen never flashes a new error for it. A newer read supersedes an older one.
  */
 function useRead<R, T>(path: `/api/platform/${string}`, pick: (reply: R) => T) {
   const [load, setLoad] = useState<Load<T>>(LOADING);
+  const [busy, setBusy] = useState(false);
   const latest = useRef(0);
-  const read = useCallback(
-    (showLoading: boolean) => {
-      const mine = ++latest.current;
-      if (showLoading) setLoad(LOADING);
-      void consoleApi<R>(path).then((result) => {
-        if (mine !== latest.current) return;
-        if (result.ok) setLoad({ kind: "ready", data: pick(result.data) });
-        else if (!result.leaving) setLoad({ kind: "error", failure: result });
-      });
-    },
-    [path, pick],
-  );
-  return [load, read] as const;
+  // A read never resets `load`: the first one starts from "loading", and a retry keeps the error (busy) so the «Riprova» that was pressed
+  // stays mounted and keeps focus.
+  const read = useCallback(() => {
+    const mine = ++latest.current;
+    setBusy(true);
+    void consoleApi<R>(path).then((result) => {
+      if (mine !== latest.current) return;
+      if (result.ok) {
+        setLoad({ kind: "ready", data: pick(result.data) });
+        setBusy(false);
+      } else if (!result.leaving) {
+        setLoad({ kind: "error", failure: result });
+        setBusy(false);
+      }
+    });
+  }, [path, pick]);
+  return [load, read, busy] as const;
 }
 
 /**
@@ -73,10 +80,10 @@ function useRead<R, T>(path: `/api/platform/${string}`, pick: (reply: R) => T) {
  * Each read happens once on mount; nothing re-reads on a timer or when the tab comes back.
  */
 export function ConsoleShell({ children }: { children: ReactNode }) {
-  const [tenants, readTenants] = useRead<{ tenants: TenantSummary[] }, TenantSummary[]>(
-    "/api/platform/tenants",
-    tenantsOf,
-  );
+  const [tenants, readTenants, tenantsBusy] = useRead<
+    { tenants: TenantSummary[] },
+    TenantSummary[]
+  >("/api/platform/tenants", tenantsOf);
   const [me, readMe] = useRead<MeReply, MeReply>("/api/platform/me", meOf);
 
   const started = useRef(false);
@@ -84,21 +91,21 @@ export function ConsoleShell({ children }: { children: ReactNode }) {
     // StrictMode runs effects twice in development: the guard keeps the reads to one each.
     if (started.current) return;
     started.current = true;
-    readMe(false);
-    readTenants(false);
+    readMe();
+    readTenants();
   }, [readMe, readTenants]);
 
   const meFailed = me.kind === "error";
   const retryTenants = useCallback(() => {
     resetConsoleSwitch();
-    readTenants(true);
-    if (meFailed) readMe(true);
+    readTenants();
+    if (meFailed) readMe();
   }, [meFailed, readMe, readTenants]);
-  const refreshMe = useCallback(() => readMe(false), [readMe]);
+  const refreshMe = readMe;
 
   const state = useMemo(
-    () => ({ tenants, me, retryTenants, refreshMe }),
-    [tenants, me, retryTenants, refreshMe],
+    () => ({ tenants, me, retryTenants, tenantsBusy, refreshMe }),
+    [tenants, me, retryTenants, tenantsBusy, refreshMe],
   );
   const counts: SectionCounts = {
     locali: tenants.kind === "ready" ? tenants.data.length : null,

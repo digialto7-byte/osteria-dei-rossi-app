@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Badge, Button, Card, Muted, SubHeading } from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
-import { dayServiceRow, daySessionLine } from "@/lib/services/services-view";
+import { dayServiceRowParts, daySessionLine } from "@/lib/services/services-view";
 import type { DayServices } from "@/server/services/output";
 import { ServiceSwitch } from "./service-switch";
 
@@ -42,11 +42,16 @@ export function DayServicesCard({
     <Card role="group" aria-label={t("dayClose.services.title")} className="flex flex-col gap-3">
       <SubHeading>{t("dayClose.services.title")}</SubHeading>
       <ul className="flex flex-col gap-1 tabular-nums">
-        {data.services.map((service) => (
-          <li key={service.key} data-service-key={service.key}>
-            {dayServiceRow(service)}
-          </li>
-        ))}
+        {data.services.map((service) => {
+          const { lead, amount, tail } = dayServiceRowParts(service);
+          return (
+            <li key={service.key} data-service-key={service.key}>
+              {lead}
+              <strong>{amount}</strong>
+              {tail}
+            </li>
+          );
+        })}
       </ul>
       <p className="text-lg font-bold tabular-nums">
         {t("dayClose.services.total", { amount: formatEuro(data.total.totalEur) })}

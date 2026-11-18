@@ -9,6 +9,7 @@ import {
   meReply,
   tenantSummary,
 } from "./console-fixtures";
+import { expectSameFocusedButton, pressRetryHolding } from "./retry-focus";
 
 // SP3 step 18, step 19: the platform audit. Codes and ids only; dal and al are always sent.
 
@@ -519,14 +520,44 @@ describe("Registro: the detail panel", () => {
     expect(within(panel).getByRole("heading", { level: 2, name: "Dettaglio" })).toBeTruthy();
     const text = panel.textContent!;
     expect(text).toContain("console.tenant_opened");
-    expect(text).toContain(DEMO_TENANT_ID);
+    // the Locale row: the name and the short id, never the whole UUID
+    expect(within(panel).getByText("Locale").nextElementSibling!.textContent).toBe(
+      `Osteria Demo A · ${DEMO_TENANT_ID.slice(0, 8)}`,
+    );
+    expect(text).not.toContain(DEMO_TENANT_ID);
     expect(text).toContain("14 nov 2026, 09:40");
     // detail entries sorted by key; null is a dash
     expect(within(panel).getByText("changed").nextElementSibling!.textContent).toBe("true");
     expect(within(panel).getByText("mode").nextElementSibling!.textContent).toBe("console");
     expect(within(panel).getByText("note").nextElementSibling!.textContent).toBe("—");
-    expect(text).not.toContain("Osteria Demo A");
     expect(screen.getAllByRole("heading", { level: 1 })).toHaveLength(1);
+  });
+
+  it("an erased venue's panel shows «Locale cancellato» and the 8-character prefix", async () => {
+    setup(page([auditRow({ tenantId: "12345678-0000-4000-8000-000000000012", tenantName: null })]));
+    mount();
+    const rows = within(await table())
+      .getAllByRole("row")
+      .slice(1);
+    fireEvent.click(within(rows[0]!).getByRole("button"));
+    const panel = screen.getByTestId("audit-detail");
+    expect(within(panel).getByText("Locale").nextElementSibling!.textContent).toBe(
+      "Locale cancellato 12345678",
+    );
+    expect(panel.textContent).not.toContain("12345678-0000");
+  });
+
+  it("a platform-wide row's panel shows a dash for the Locale", async () => {
+    setup(page([auditRow({ tenantId: null, tenantName: null })]));
+    mount();
+    const rows = within(await table())
+      .getAllByRole("row")
+      .slice(1);
+    fireEvent.click(within(rows[0]!).getByRole("button"));
+    expect(
+      within(screen.getByTestId("audit-detail")).getByText("Locale").nextElementSibling!
+        .textContent,
+    ).toBe("—");
   });
 
   it("«Chiudi» closes it", async () => {
@@ -612,6 +643,23 @@ describe("Registro: Carica altri", () => {
     expect(auditCalls().slice(1)).toEqual([`${FIRST}&prima=9`, `${FIRST}&prima=9`]);
   });
 
+  it("«Riprova» on a failed page keeps focus through a retry that fails again, then through one that succeeds", async () => {
+    setup(page([ROWS[0]!], 9));
+    replies.audit!.push(fail(500, "internal"));
+    mount();
+    await table();
+    fireEvent.click(screen.getByRole("button", { name: "Carica altri" }));
+    await screen.findByText("La console non risponde. Riprova tra poco.");
+    const first = pressRetryHolding(apiJson);
+    expect(screen.getByText("La console non risponde. Riprova tra poco.")).toBeTruthy();
+    await first.answer(fail(500, "internal"));
+    expectSameFocusedButton(first.button);
+    const second = pressRetryHolding(apiJson);
+    await second.answer(page([ROWS[1]!], null));
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(within(screen.getByTestId("audit-table")).getAllByRole("row")).toHaveLength(3);
+  });
+
   it("drops a page that arrives after the filters changed", async () => {
     let release!: (reply: Reply) => void;
     setup(page([ROWS[0]!], 9));
@@ -650,6 +698,20 @@ describe("Registro: states", () => {
     fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
     await table();
     expect(auditCalls()).toEqual([FIRST, FIRST]);
+  });
+
+  it("«Riprova» keeps focus through a retry that fails again, and through one that succeeds", async () => {
+    setup(fail(400, "invalid_request"));
+    mount();
+    await screen.findByText("Non riesco a leggere il registro.");
+    const first = pressRetryHolding(apiJson);
+    expect(screen.getByText("Non riesco a leggere il registro.")).toBeTruthy();
+    await first.answer(fail(400, "invalid_request"));
+    expectSameFocusedButton(first.button);
+    const second = pressRetryHolding(apiJson);
+    await second.answer(page());
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    await table();
   });
 
   it("«Riprova» after console_unavailable posts /api/platform/console again", async () => {

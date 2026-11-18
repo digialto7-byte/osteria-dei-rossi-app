@@ -134,18 +134,24 @@ export function digialtoWord(attached: boolean): string {
   return t(attached ? "console.yes" : "console.no");
 }
 
-/** The phone list's second line: "4 persone · Gruppo Demo · oggi · DigiAlto: sì". */
-export function listMeta(tenant: SortableTenant, today: string): string {
-  return [
-    peopleMeta(tenant.members),
-    groupLabel(tenant.organisation) ?? EM_DASH,
-    formatActivityDay(tenant.lastActivityDate, today),
-    t(
-      tenant.digialtoAttached
-        ? "console.locali.digialtoMeta.yes"
-        : "console.locali.digialtoMeta.no",
-    ),
-  ].join(" · ");
+/**
+ * The phone list's second line, in parts: "4 persone · Gruppo Demo · oggi" then "DigiAlto" and "sì". The screen builds the node, so it can set
+ * a «no» in <strong>.
+ */
+export function listMetaParts(
+  tenant: SortableTenant,
+  today: string,
+): { lead: string; label: string; word: string; attached: boolean } {
+  return {
+    lead: [
+      peopleMeta(tenant.members),
+      groupLabel(tenant.organisation) ?? EM_DASH,
+      formatActivityDay(tenant.lastActivityDate, today),
+    ].join(" · "),
+    label: t("console.locali.col.digialto"),
+    word: digialtoWord(tenant.digialtoAttached).toLocaleLowerCase(),
+    attached: tenant.digialtoAttached,
+  };
 }
 
 /** "1 titolare · 1 cuoco · 2 camerieri · DigiAlto"; roles with nobody are left out. */
