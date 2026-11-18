@@ -2,6 +2,7 @@
 
 import { BackLink } from "@/components/back-link";
 import { use, useEffect, useState } from "react";
+import { FactList, FactRow } from "@/components/fact-list";
 import { PlateBreakdownView } from "@/components/cost/plate-breakdown";
 import { Badge, Card, ErrorAlert, Heading, Muted, SubHeading } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
@@ -11,14 +12,11 @@ import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { OwnerPlateBreakdown } from "@/server/costing/plate-breakdown";
 import type { RecipeCost } from "@/server/costing/types";
-import { Detail, DETAIL_LIST_CLASS } from "../../../fatture/detail";
 import { AtDateField, useAtDate } from "../../at-date-field";
 import { CostLines } from "./cost-lines";
 
 const FORBIDDEN = 403;
 const NOT_FOUND = 404;
-
-const eur = (value: number | null) => (value === null ? null : formatEuro(value));
 
 /** The cost of one recipe on a day, with the lines that make it. Reads /api/recipes/:key/cost only. */
 export default function RecipeCostPage({ params }: { params: Promise<{ key: string }> }) {
@@ -94,44 +92,38 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
         <Heading>{cost.name}</Heading>
       </div>
       {dateField}
-      <Card className="flex flex-col gap-3 py-1">
-        <p className="border-b border-rule py-3 font-bold">
-          {t("costs.recipe.version", { version: cost.version })}
-        </p>
-        <dl className={DETAIL_LIST_CLASS}>
+      <Card className="flex flex-col gap-3">
+        <p className="font-bold">{t("costs.recipe.version", { version: cost.version })}</p>
+        <FactList>
           {cost.type === "batch" && (
             <>
-              <Detail
+              <CostFact
                 label={t("costs.recipe.batchTotal")}
-                value={eur(cost.totalCostEur)}
+                value={cost.totalCostEur}
                 testId="cost-total"
-                numeric
               />
-              <Detail
+              <CostFact
                 label={t("costs.recipe.perPortion")}
-                value={eur(cost.unitCostEur)}
+                value={cost.unitCostEur}
                 testId="cost-unit"
-                numeric
               />
             </>
           )}
           {cost.type === "sub" && (
-            <Detail
+            <CostFact
               label={t("costs.recipe.perUnit", { unit: cost.costUnit })}
-              value={eur(cost.unitCostEur)}
+              value={cost.unitCostEur}
               testId="cost-unit"
-              numeric
             />
           )}
           {cost.type === "plate" && (
-            <Detail
+            <CostFact
               label={t("costs.recipe.plateFood")}
-              value={eur(cost.totalCostEur)}
+              value={cost.totalCostEur}
               testId="cost-total"
-              numeric
             />
           )}
-        </dl>
+        </FactList>
         {cost.incomplete && (
           <div className="flex flex-col gap-1 pb-2">
             <Badge tone="danger">{t("costs.recipe.incomplete")}</Badge>
@@ -149,6 +141,24 @@ export default function RecipeCostPage({ params }: { params: Promise<{ key: stri
       <SubHeading>{t("costs.recipe.linesTitle")}</SubHeading>
       <CostLines lines={cost.lines} />
     </>
+  );
+}
+
+/** A cost row; a cost the reading could not work out (null) is left out, as before. */
+function CostFact({
+  label,
+  value,
+  testId,
+}: {
+  label: string;
+  value: number | null;
+  testId: string;
+}) {
+  if (value === null) return null;
+  return (
+    <FactRow label={label} testId={testId}>
+      <strong>{formatEuro(value)}</strong>
+    </FactRow>
   );
 }
 

@@ -32,6 +32,13 @@ describe("StatementView", () => {
     expect(dl).toContain(`−70,00${NBSP}€`);
   });
 
+  it("is a FactList: the balance is a <strong>, the other totals are plain, no hairline grid", () => {
+    const html = render();
+    expect(html).toMatch(/<dd data-testid="statement-balance"[^>]*><strong>[^<]+<\/strong><\/dd>/);
+    expect(html).toMatch(/<dd data-testid="statement-invoices"[^>]*>[^<]+<\/dd>/);
+    expect(/<dl[\s\S]*?<\/dl>/.exec(html)?.[0]).not.toContain("border-b");
+  });
+
   it("leaves out 'di cui contestate' when nothing is disputed", () => {
     const html = render({ ...STATEMENT, totals: { ...STATEMENT.totals, disputedAmount: 0 } });
     expect(html).not.toContain("di cui contestate");

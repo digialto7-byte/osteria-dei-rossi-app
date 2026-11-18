@@ -23,6 +23,26 @@ describe("FixedCostCard", () => {
     expect(html).not.toContain("Non ripartiti");
   });
 
+  it("allocated: a FactList whose per-plate figure is a <strong> and whose card has no hairline grid", () => {
+    const html = renderToStaticMarkup(
+      createElement(FixedCostCard, {
+        status: {
+          periodMonth: "2026-10-01",
+          monthlyTotalEur: 13500,
+          platesSold: 1500,
+          perPlateEur: 9,
+          reason: null,
+        },
+      }),
+    );
+    expect(html).toMatch(
+      /<dd data-testid="fixed-per-plate"[^>]*><strong>[^<]*9,00[^<]*<\/strong><\/dd>/,
+    );
+    expect(html).toContain('data-testid="fixed-month"');
+    expect(html).toContain('data-testid="fixed-sold"');
+    expect(html).not.toContain("border-b");
+  });
+
   it("no sales: 'Non ripartiti' in words and the sentence that food cost % stays valid", () => {
     const html = render({
       periodMonth: "2026-10-01",

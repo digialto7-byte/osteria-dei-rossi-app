@@ -52,6 +52,23 @@ describe("RecipeFacts", () => {
     expect(html).toMatch(/Prezzo di vendita \(IVA inclusa\)<\/dt>\s*<dd[^>]*>—<\/dd>/);
   });
 
+  it("is a FactList, not the old hairline grid, and keeps every fact testid", () => {
+    const html = render();
+    expect(html).toContain("gap-y-2");
+    expect(html).not.toContain("[&>*]:border-b");
+    for (const id of [
+      "type",
+      "version",
+      "output",
+      "portions",
+      "portion-size",
+      "shelf-life",
+      "prep-time",
+    ]) {
+      expect(html).toContain(`data-testid="fact-${id}"`);
+    }
+  });
+
   it("omits the facts a recipe does not have", () => {
     const html = render(PLATE);
     expect(html).not.toMatch(/Resa del lotto|Conservazione|Preparazione|Porzioni minime/);
