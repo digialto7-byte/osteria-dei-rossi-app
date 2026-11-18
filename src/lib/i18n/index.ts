@@ -1,4 +1,5 @@
-import { DEFAULT_LOCALE, type Locale } from "./locale";
+import { currentVenueSettings } from "@/lib/venue/current";
+import type { Locale } from "./locale";
 import { en } from "./messages/en";
 import { it } from "./messages/it";
 import type { MessageKey } from "./messages/keys";
@@ -17,7 +18,7 @@ export function isMessageKey(key: string): key is MessageKey {
 export function t(
   key: MessageKey,
   values: Record<string, string | number> = {},
-  locale: Locale = DEFAULT_LOCALE,
+  locale: Locale = currentVenueSettings().locale,
 ): string {
   return messages[locale][key].replace(PLACEHOLDER, (match, name: string) =>
     name in values ? String(values[name]) : match,
@@ -31,6 +32,10 @@ type PluralBase = MessageKey extends infer K
   : never;
 
 /** A message with a singular and a plural form (`<base>.one` / `<base>.other`); `{count}` is filled in. */
-export function tn(base: PluralBase, count: number, locale: Locale = DEFAULT_LOCALE): string {
+export function tn(
+  base: PluralBase,
+  count: number,
+  locale: Locale = currentVenueSettings().locale,
+): string {
   return t(`${base}.${count === 1 ? "one" : "other"}` as MessageKey, { count }, locale);
 }
