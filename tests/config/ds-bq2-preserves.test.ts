@@ -11,10 +11,14 @@ const CODE_HASH_COMMENT = "20261206100100_device_enrolment_code_hash_comment.sql
 // Main's newest migration at the time of the branch (BQ-1).
 const AFTER_MAIN = "20261205100000_tables_unsent_count.sql";
 
-/** The files of this feature (timestamp 20261206*), sorted. */
+/**
+ * The files of this feature, sorted: DS-BQ-2's own hour (timestamp 20261206 + hour 10). Re-pinned on purpose by SP1 (lead-ratified, plan Q7, 2026-11-18):
+ * the filter was every 20261206* file, and is narrowed to this hour so SP1 can use 20261206200000-20261206200400 (the 20261206200* files are
+ * guarded by tests/config/sp1-preserves.test.ts). The exact-list assertion below is unchanged.
+ */
 function bq2Migrations(dir: string): string[] {
   return readdirSync(dir)
-    .filter((f) => f.startsWith("20261206") && f.endsWith(".sql"))
+    .filter((f) => f.startsWith("2026120610") && f.endsWith(".sql"))
     .sort();
 }
 
@@ -27,7 +31,7 @@ function sqlWithoutComments(sql: string): string {
 }
 
 describe("DS-BQ-2 migration", () => {
-  it("is exactly the 20261206 file, followed only by the code_hash comment fix", () => {
+  it("is exactly the 20261206 file, followed only by the code_hash comment fix (within its own hour)", () => {
     // The small fix (lead, 2026-11-15) sits between DS-BQ-2 and SP2's 20261207*, so it shares this day. It only comments a column
     // (pgTAP 388), so DS-BQ-2's "no new object" checks below stay on FILE alone.
     expect(bq2Migrations(MIGRATIONS)).toEqual([FILE, CODE_HASH_COMMENT]);
@@ -45,13 +49,15 @@ describe("DS-BQ-2 migration", () => {
     expect(FILE.localeCompare(AFTER_MAIN)).toBeGreaterThan(0);
   });
 
-  it("self-test: the listing sees an extra feature file and ignores others", () => {
+  it("self-test: the listing sees an extra file of the DS-BQ-2 hour and ignores the others, SP1's 20261206200* files included", () => {
     const dir = mkdtempSync(join(tmpdir(), "bq2-"));
     try {
       writeFileSync(join(dir, FILE), "");
-      writeFileSync(join(dir, "20261206999999_extra.sql"), "");
+      writeFileSync(join(dir, "20261206100200_extra.sql"), "");
+      writeFileSync(join(dir, "20261206200000_x.sql"), "");
+      writeFileSync(join(dir, "20261207100000_y.sql"), "");
       writeFileSync(join(dir, AFTER_MAIN), "");
-      expect(bq2Migrations(dir)).toEqual([FILE, "20261206999999_extra.sql"]);
+      expect(bq2Migrations(dir)).toEqual([FILE, "20261206100200_extra.sql"]);
     } finally {
       rmSync(dir, { recursive: true });
     }

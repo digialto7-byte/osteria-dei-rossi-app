@@ -175,6 +175,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206100000_order_view_opener_coperto.sql",
   // The code_hash comment small fix (lead, 2026-11-15): one `comment on column`, no object.
   "20261206100100_device_enrolment_code_hash_comment.sql",
+  // SP1 (docs/plans/2026-11-15-sp01-tenant-config.md), re-pinned on purpose by SP1: step 3, the tenant sale VAT list (one table, three app functions, three triggers, a backfill). Each SP1 migration step adds its file here.
+  "20261206200000_tenant_sale_vat.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

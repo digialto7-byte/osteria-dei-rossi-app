@@ -9,7 +9,7 @@
 -- Later SP1 steps add rows to the fixture (B's sale list [10, 22] from step 3).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(10);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -47,6 +47,10 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
 insert into public.day_close (tenant_id, business_date, register_total, created_by)
   values ('11111111-1111-4111-8111-111111111111', '2026-01-02', 33.00, 'a1000000-0000-4000-8000-00000000000a'),
          ('22222222-2222-4222-8222-222222222222', '2026-01-02', 2.00, 'b1000000-0000-4000-8000-00000000000b');
+-- SP1 step 3: B sells at 10 % and 22 % only (its other seeded rates are deactivated, never deleted); A keeps today's five.
+update public.tenant_vat_rate set is_active = false where tenant_id = '22222222-2222-4222-8222-222222222222' and rate not in (10, 22);
+select is((select array_agg(rate order by rate) from public.tenant_vat_rate where tenant_id = '22222222-2222-4222-8222-222222222222' and is_active),
+  array[10, 22]::numeric[], 'fixture: B''s sale list is [10, 22]');
 
 -- The loop. Runs as B's owner. Result: {tables, read_leaks, insert_leaks, odd_inserts, own_read_tables}.
 --   read_leaks     tables where B's owner counted at least one row of A
