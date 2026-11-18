@@ -69,6 +69,24 @@ describe("the cancel page", () => {
     expect(document.body.textContent).not.toMatch(/tavol|table/i);
   });
 
+  // P2i-4: the summary is the house FactList; the day and time and the party size are figures (never broken inside), the rest is text.
+  it("shows the booking as a fact list, the day, time and party as figures", async () => {
+    show();
+    await screen.findByText("ven 27 novembre 2026, 20:00");
+    const terms = [...document.querySelectorAll("dl > dt")].map((dt) => dt.textContent);
+    expect(terms).toEqual([
+      it_["publicReservation.cancel.when"],
+      it_["publicReservation.cancel.party"],
+      it_["publicReservation.cancel.service"],
+      it_["publicReservation.cancel.status"],
+    ]);
+    const value = (text: string) => screen.getByText(text).closest("dd")!;
+    expect(value("ven 27 novembre 2026, 20:00").className).not.toContain("overflow-wrap");
+    expect(value("4 persone").className).not.toContain("overflow-wrap");
+    expect(value("Cena").className).toContain("overflow-wrap");
+    expect(value(it_["publicReservation.status.accepted"]).className).toContain("overflow-wrap");
+  });
+
   it.each(["../admin", "A/B", "x", "a b", "-ab", "ab-", "osteria?x=1", ""])(
     "a path slug that is not a valid slug (%j) shows the invalid-link text and makes no request",
     async (slug) => {

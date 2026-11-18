@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FactList, FactRow } from "@/components/fact-list";
 import { Button, ErrorAlert, Heading, Muted, SuccessNote, linkClass } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { t, tn } from "@/lib/i18n";
@@ -94,21 +95,18 @@ export function CancelView({
     const { view } = phase;
     body = (
       <div className="flex flex-col gap-4">
-        <dl className="flex flex-col gap-2">
-          <Row
-            label={tt("publicReservation.cancel.when")}
-            value={`${dayLabel(view.date, locale)}, ${view.time}`}
-          />
-          <Row
-            label={tt("publicReservation.cancel.party")}
-            value={tn("reservationMail.party", view.party, locale)}
-          />
-          <Row label={tt("publicReservation.cancel.service")} value={view.serviceName} />
-          <Row
-            label={tt("publicReservation.cancel.status")}
-            value={tt(`publicReservation.status.${view.status}`)}
-          />
-        </dl>
+        <FactList>
+          <FactRow label={tt("publicReservation.cancel.when")} figure>
+            {`${dayLabel(view.date, locale)}, ${view.time}`}
+          </FactRow>
+          <FactRow label={tt("publicReservation.cancel.party")} figure>
+            {tn("reservationMail.party", view.party, locale)}
+          </FactRow>
+          <FactRow label={tt("publicReservation.cancel.service")}>{view.serviceName}</FactRow>
+          <FactRow label={tt("publicReservation.cancel.status")}>
+            {tt(`publicReservation.status.${view.status}`)}
+          </FactRow>
+        </FactList>
         {view.canCancel ? (
           <>
             <ErrorAlert message={error} />
@@ -134,15 +132,6 @@ export function CancelView({
       {languageSwitch}
       <Heading>{tt("publicReservation.cancel.title")}</Heading>
       {body}
-    </div>
-  );
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex flex-col">
-      <dt className="text-sm text-ink-muted">{label}</dt>
-      <dd className="font-bold">{value}</dd>
     </div>
   );
 }

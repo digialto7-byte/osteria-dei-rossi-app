@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { createElement } from "react";
+import { createElement, createRef } from "react";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SegmentedControl } from "@/components/segmented-control";
@@ -89,6 +89,12 @@ describe("SegmentedControl", () => {
     const tab = screen.getByRole("tab", { name: "Secondi · 1" });
     expect(tab.getAttribute("id")).toBe("tab-secondi");
     expect(tab.getAttribute("aria-controls")).toBe("panel-secondi");
+  });
+
+  it("hands the selected tab's button to `selectedRef`, so a form can move focus there", () => {
+    const ref = createRef<HTMLButtonElement>();
+    show({ selectedRef: ref });
+    expect(ref.current).toBe(screen.getByRole("tab", { name: "Primi · 2" }));
   });
 
   it("puts no id or aria-controls on a tab the caller did not name", () => {

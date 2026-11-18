@@ -123,11 +123,12 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     expect(csp.violations.filter((line) => !/script-src/.test(line))).toEqual([]);
   });
 
-  test("an unknown booking address keeps the venue's cream, tab title and band", async ({
+  // P2i (step 8): the guest booking page wears the Costì values (Off-white) with the venue's layer; only the 404 above is still cream.
+  test("an unknown booking address wears Costì's Off-white with the venue's tab title and band", async ({
     page,
   }) => {
     await page.goto("/prenota/osteria-demo-nessuna");
-    await expectBodyBackground(page, OSTERIA_CREAM);
+    await expectBodyBackground(page, OFF_WHITE);
     await expect(page).toHaveTitle("Osteria Dei Rossi");
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
     // The guest band keeps the venue's name and is not a link.
