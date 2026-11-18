@@ -211,3 +211,11 @@ None. The #180 check before step 1 can only lead to a hand-off to the lead; it d
 | Q1 | After step 4, `tests/design/kitchen-contrast.test.ts` and `tests/lib/design/costi-contrast.test.ts` check the same pairs. Keep both? | Keep both (DS-BQ-1 as approved), and merge them in a later tidy-up |
 | Q2 | Reusing `--font-display-face` and `--font-body` makes the Fonts row of `costi-design-system.md` §10.2 false. Is that acceptable, with the designer updating the row? | Yes |
 | Q3 | Who owns the §3c doc edits, including P2j-3 (E-1) of the project plan, now that docs are outside this lane? | The designer edits `costi-design-system.md`; the lead edits `ui-foundation.md`, ADR-042's status line and the plan annotations |
+
+## 8. Decisions (lead, 2026-11-18)
+- **Q1:** merge the two kitchen contrast tests into one file holding the union of their assertions, so no pair is lost. The PR body
+  says which file absorbed which.
+- **Q2:** keep `--font-display-face` / `--font-body` (no churn). The designer amends §10.2's Fonts row to the real names.
+- **Q3:** the designer owns every §3c doc edit in one docs PR after P2j merges, keeping the words `data-brand` and `:root:has(` as
+  history. This PR touches no docs except this plan.
+- The 40 ms motion shift (the first visible child rises one stagger slot earlier) is accepted. The PR body notes it for the designer.
