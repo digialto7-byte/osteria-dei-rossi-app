@@ -79,7 +79,7 @@ select ok(col_description('public.stock_movement'::regclass, (select attnum from
           like 'Receipt and opening:%', 'the column comment of stock_movement.effective_on names opening rows');
 set local role authenticated;
 select pg_temp.act_as();
-select is((select string_agg(k, ',' order by k) from jsonb_object_keys((select e from jsonb_array_elements(
+select is((select string_agg(k, ',' order by k collate "C") from jsonb_object_keys((select e from jsonb_array_elements(
              public.stock_reconciliation('1998-12-01', '1998-12-05', '10000000-0000-4000-8000-0000000000a1') -> 'items') e limit 1)) k),
   'afterCountQty,balanced,baseUnit,closingQty,consumptionQty,countAdjustmentsQty,countSessionId,countedAt,countedQty,ingredientId,matchesCount,name,openingQty,otherQty,receiptsQty,transfersInQty,transfersOutQty,wasteQty',
   'the item keys are unchanged (the TS schema, the CSV export and the screen need no change)');
