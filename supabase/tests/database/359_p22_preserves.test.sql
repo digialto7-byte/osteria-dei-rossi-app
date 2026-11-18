@@ -40,6 +40,11 @@ insert into p27_objs values
 -- Step 5 (20261206210200_stock_opening_tables.sql): the operation and draft tables (their columns, constraints, triggers, policies and indexes go with the table names).
 insert into p27_objs values
   ('table', 'stock_opening'), ('table', 'opening_draft_line');
+-- Step 6 (20261206210300_stock_opening_draft.sql): the helpers, the cut-off and the draft procedures.
+insert into p27_objs values
+  ('app_fn', 'require_opening_writer'), ('app_fn', 'opening_max_lines'), ('app_fn', 'opening_location_state'), ('app_fn', 'opening_check_bookable'),
+  ('app_fn', 'opening_check_date'), ('app_fn', 'opening_line_values'), ('app_fn', 'opening_draft_line_json'),
+  ('public_fn', 'opening_draft'), ('public_fn', 'opening_draft_put'), ('public_fn', 'opening_draft_remove'), ('public_fn', 'opening_draft_clear');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

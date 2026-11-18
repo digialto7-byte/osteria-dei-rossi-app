@@ -28,6 +28,24 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: ["public.stock_opening", "public.opening_draft_line"],
     triggers: ["stock_opening_append_only", "stock_opening_no_truncate"],
   },
+  // Step 6 (M4): the helpers, the cut-off and the four draft procedures.
+  "20261206210300_stock_opening_draft.sql": {
+    functions: [
+      "app.require_opening_writer",
+      "app.opening_max_lines",
+      "app.opening_location_state",
+      "app.opening_check_bookable",
+      "app.opening_check_date",
+      "app.opening_line_values",
+      "app.opening_draft_line_json",
+      "public.opening_draft",
+      "public.opening_draft_put",
+      "public.opening_draft_remove",
+      "public.opening_draft_clear",
+    ],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -40,6 +58,8 @@ const PLAN_FUNCTIONS = [
   "app.opening_check_date",
   "app.opening_line_values",
   "app.opening_reversal_reasons",
+  // A read helper of step 6: one draft line as the screen reads it (shared by opening_draft and opening_draft_put).
+  "app.opening_draft_line_json",
   "public.opening_draft",
   "public.opening_draft_put",
   "public.opening_draft_remove",

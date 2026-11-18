@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(30);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -151,8 +151,20 @@ select is((select count(*)::int from public.stock_on_hand(null) where ingredient
 select is(pg_temp.err($$ select * from public.stock_movements('1a000000-0000-4000-8000-000000000001') $$), 'P0002 ingredient_not_found', 'B reads no movement of A''s ingredient through stock_movements (ingredient not found)');
 select is((select count(*)::int from public.ingredient_costs() where ingredient_id in ('1a000000-0000-4000-8000-000000000001', '1a000000-0000-4000-8000-000000000002')), 0, 'B''s ingredient costs list none of A''s ingredients');
 select is((select count(*)::int from public.ingredient_costs() where ingredient_id = '1b000000-0000-4000-8000-000000000001'), 1, 'control: they do list B''s own');
+-- Step 6: the draft procedures cannot be pointed at A.
+select pg_temp.as_b('owner');
+select is((select count(*)::int from jsonb_array_elements(public.opening_draft() -> 'locations') l
+            where l ->> 'locationId' = '10000000-0000-4000-8000-0000000000a1' or l -> 'lines' @> '[{"id": "0d000000-0000-4000-8000-0000000000a1"}]'), 0,
+  'B''s owner: opening_draft() shows none of A''s locations or draft lines');
+select is(pg_temp.err($$ select public.opening_draft_put('[{"id": "0d000000-0000-4000-8000-0000000000b9", "locationId": "10000000-0000-4000-8000-0000000000a1", "ingredientId": "1b000000-0000-4000-8000-000000000001", "qty": 1, "unitCostEur": 1}]') $$),
+  'P0001 location_not_found', 'B''s owner putting a draft line at A''s location: location_not_found');
+select is(pg_temp.err($$ select public.opening_draft_put('[{"id": "0d000000-0000-4000-8000-0000000000a1", "locationId": "10000000-0000-4000-8000-0000000000b1", "ingredientId": "1b000000-0000-4000-8000-000000000001", "qty": 1, "unitCostEur": 1}]') $$)
+       || ' / ' || pg_temp.err($$ select public.opening_draft_remove(array['0d000000-0000-4000-8000-0000000000a1']::uuid[]) $$)
+       || ' / ' || pg_temp.err($$ select public.opening_draft_clear('10000000-0000-4000-8000-0000000000a1') $$),
+  '22023 invalid_request / ok / P0001 location_not_found', 'B cannot take over A''s draft line id, its remove of that id removes nothing (next case), and it cannot clear A''s location');
 reset role;
 select is((select count(*)::int from public.stock_movement where tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'nothing was written to A''s ledger by any of the refused calls');
+select is((select count(*)::int from public.opening_draft_line where tenant_id = '11111111-1111-4111-8111-111111111111'), 1, 'and A''s draft line is still there');
 
 -- 3. Mutation: a policy that lets B read A's ledger turns the first group red. The block is rolled back; the ledger is not touched ----------------------------------------------
 create function pg_temp.mutated_a_rows() returns text language plpgsql as $$
