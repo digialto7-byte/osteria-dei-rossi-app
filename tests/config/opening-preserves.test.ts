@@ -20,6 +20,8 @@ const BEFORE = "20261207100000_organisation.sql";
 const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers: string[] }> = {
   // Step 3 (M1): the enum value only.
   "20261206210000_stock_movement_opening_type.sql": { functions: [], tables: [], triggers: [] },
+  // Step 4 (M2): the shape CHECK stock_movement_opening_ck, no object of its own.
+  "20261206210100_stock_movement_opening_shape.sql": { functions: [], tables: [], triggers: [] },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -175,6 +177,42 @@ describe("opening stock migrations: what they create", () => {
       .map((s) => s.replace(/\s+/g, " ").trim())
       .filter(Boolean);
     expect(statements).toEqual(["alter type public.stock_movement_type add value 'opening'"]);
+  });
+});
+
+describe("opening stock migrations: step 4, the shape CHECK", () => {
+  const sql = () => body("20261206210100_stock_movement_opening_shape.sql");
+
+  it("adds one CHECK to stock_movement and nothing else", () => {
+    const statements = sql()
+      .split(";")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    expect(statements).toHaveLength(1);
+    expect(statements[0]).toMatch(
+      /^alter\s+table\s+public\.stock_movement\s+add\s+constraint\s+stock_movement_opening_ck\s+check\s*\(/i,
+    );
+  });
+
+  it("compares type::text, as 20261026100100 does, so it never uses the new enum value in the same transaction", () => {
+    const check = sql();
+    expect(check).toMatch(/type::text\s*=\s*'opening'/);
+    expect(check).toMatch(/type::text\s*<>\s*'opening'/);
+    expect(check).not.toMatch(/type\s*=\s*'opening'::/);
+  });
+
+  it("states the shape of plan 3.1: unlotted, no reason, a stated cost, carico or mirror", () => {
+    const check = sql().replace(/\s+/g, " ");
+    for (const part of [
+      "raw_lot_id is null",
+      "reason_code is null",
+      "unit_cost is not null and unit_cost >= 0",
+      "reverses_id is null and ref_type = 'opening' and qty > 0",
+      "reverses_id is not null and ref_type = 'reversal' and qty < 0",
+      "coalesce(ref_type, '') <> 'opening'",
+    ]) {
+      expect(check, part).toContain(part);
+    }
   });
 });
 

@@ -33,6 +33,10 @@ insert into p27_objs values
 insert into p27_objs values
   ('column', 'tenant.default_locale'), ('constraint', 'tenant.tenant_default_locale_check'),
   ('public_fn', 'tenant_settings'), ('public_fn', 'set_tenant_settings');
+-- Opening stock (docs/plans/2026-11-18-opening-stock.md section 3.11), re-pinned on purpose by opening stock: its additions since main, in a separate insert placed right after SP1's (this plan merges before the comanda per uscita and P2-4), so a neighbouring milestone's edits do not touch these lines. Each opening-stock migration adds its objects here.
+-- Step 4 (20261206210100_stock_movement_opening_shape.sql): the shape CHECK of an opening ledger row.
+insert into p27_objs values
+  ('constraint', 'stock_movement.stock_movement_opening_ck');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
