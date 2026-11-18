@@ -169,7 +169,11 @@ two-session race cases run unchanged. 363 prints its elapsed ms as a diagnostic 
 **Note, 2026-11-15.** The end-to-end import time also includes `invoice_line`'s two foreign-key checks on `supplier_item`
 (`invoice_line_supplier_item_fk` and `invoice_line_suggested_supplier_item_fk`), run on each of automap's two UPDATEs of each line (rows inserted in the same transaction are re-checked even when the key is unchanged). Their plan is cached on first use, and if
 it was built while `supplier_item` was nearly empty and unanalyzed it scans the whole tenant's catalogue per check; in pgTAP 366 that made the hash-only
-case time out in some fresh-database runs. The test now runs `discard plans` before each timed import, so the bound measures the lookup. In production
+case time out in some runs. In CI's single-database run the state is reached differently: earlier test files' rolled-back inserts,
+followed by an analyze, leave `supplier_item` at `reltuples = 0` with `relpages > 0` (the in-place `pg_class` update survives the rollback),
+so the check is planned on the tenant-only index. The test now runs `analyze public.supplier_item (id)` before each timed import (2026-11-18):
+a true row count for the checks, and no statistics on the lookup's columns, because a full analyze would hide the pre-ADR-044 regression.
+In production
 the risk is low: (1) the statistics of `supplier_item` are table-wide, not per tenant, so a new tenant on a database already in use plans the check
 well; (2) ANALYZE or autoanalyze invalidates the cached foreign-key plan. No product change is needed.
 

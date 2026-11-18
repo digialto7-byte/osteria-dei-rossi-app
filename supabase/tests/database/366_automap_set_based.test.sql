@@ -7,8 +7,13 @@
 -- the code wins over the description, inactive articles and ingredients are skipped, another supplier of the same tenant
 -- is never searched, and neither is another TENANT: tenant B owns an article with the same code and the same description
 -- as tenant A's, and tenant A's lines get tenant A's article by code and by description hash (022 also pins tenant
--- scoping, with an article of another code). Both timed imports follow a `discard plans`, so the bound measures the lookup and
--- not the plan the foreign-key checks cached while supplier_item was tiny. Tenant scoping is detected deterministically by
+-- scoping, with an article of another code). Before each timed import, `analyze public.supplier_item (id)` gives the
+-- foreign-key checks on supplier_item a true row count: after earlier files' rolled-back inserts, an analyze can leave
+-- supplier_item at reltuples 0 with relpages > 0, and the (tenant_id, id) check is then planned on the tenant-only index and
+-- scans the whole tenant per check. Only `id` is analyzed: the lookup's columns (tenant_id, supplier_id, supplier_code,
+-- description_hash, is_active) keep no statistics, so cand keeps its statistics-free plan. A full analyze would give cand a
+-- statistics-driven plan and hide the pre-ADR-044 regression this test exists to catch (it then passes in under a second).
+-- Tenant scoping is detected deterministically by
 -- line 7 (a lookup that forgot the tenant picks tenant B's article, the write then fails its tenant-composite foreign key and the
 -- import is not ok, and the exact article is asserted); lines 5 and 6 are ties between equally ranked articles, so best effort.
 -- Fake data only (checksum-valid fake VAT numbers, 1998 dates).
@@ -171,10 +176,11 @@ insert into pay values ('big', pg_temp.pl(repeat('2', 64), (select jsonb_agg(pg_
   (select jsonb_agg(pg_temp.ln('Riga ' || g, 'C-' || g)) from generate_series(1, 200) g))) from generate_series(1, 10) n)));
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
--- Plan-cache reset: invoice_line's two supplier_item foreign-key checks cache their plans on first use, in section 1, while
--- supplier_item is tiny and unanalyzed; that plan scans every article of the tenant per check. Without the reset the bound
--- would measure that plan-cache history (and the size of the tenant's catalogue) instead of the automap lookup. It adds no statistics.
-discard plans;
+-- A true row count for invoice_line's foreign-key checks on supplier_item, statistics on `id` only (see the header); as the
+-- table owner, before switching role. The lookup's columns stay without statistics.
+reset role;
+analyze public.supplier_item (id);
+set local role authenticated;
 set local statement_timeout = '5s';
 select set_config('p27.catalogue_started', clock_timestamp()::text, true);
 select is(pg_temp.try_import('big'), 'ok', 'ten bodies of 200 lines against an unanalyzed 5 000-article catalogue import under a 5 second statement timeout');
@@ -203,8 +209,10 @@ insert into pay values ('bighash', pg_temp.pl(repeat('3', 64), (select jsonb_agg
   (select jsonb_agg(pg_temp.ln('Voce ' || g, null)) from generate_series(1, 200) g), 'IT22222222220', 'Fornitore Demo 3')) from generate_series(1, 10) n)));
 set local role authenticated;
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
--- Plan-cache reset, as in section 2.
-discard plans;
+-- A true row count for the foreign-key checks, `id` only, as in section 2.
+reset role;
+analyze public.supplier_item (id);
+set local role authenticated;
 set local statement_timeout = '5s';
 select set_config('p27.hash_started', clock_timestamp()::text, true);
 select is(pg_temp.try_import('bighash'), 'ok', 'ten bodies of 200 code-less lines against an unanalyzed 5 000-article catalogue import under a 5 second statement timeout');
