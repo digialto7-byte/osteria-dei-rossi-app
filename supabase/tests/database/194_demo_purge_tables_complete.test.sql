@@ -13,8 +13,8 @@ select is_empty(
         and c.table_name <> all (app.demo_purge_tables())
         -- SP1 (2026-11-18, ADR-018 note): tenant configuration tables are not operational data; a purge keeps them (pgTAP 193 asserts it) and
         -- begin_demo_data must still accept a tenant that has them. An exact list: a new table is NOT exempt unless it is named here on purpose.
-        and c.table_name not in ('tenant_vat_rate') $$,
-  'every public table with a tenant_id column is in the purge list, but the tenant configuration tables (exact list: tenant_vat_rate; step 5 adds tenant_close_code)');
+        and c.table_name not in ('tenant_vat_rate', 'tenant_close_code') $$,
+  'every public table with a tenant_id column is in the purge list, but the tenant configuration tables (exact list: tenant_vat_rate and tenant_close_code)');
 
 select is_empty(
   $$ select n::text from unnest(app.demo_purge_tables()) n

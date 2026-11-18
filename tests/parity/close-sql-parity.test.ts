@@ -18,6 +18,7 @@ const read = (name: string) =>
 const core = read("20261110100000_close_core.sql");
 const bill = read("20261110100100_bill.sql");
 const day = read("20261110100300_day_close.sql");
+const codes = read("20261206200200_tenant_close_codes.sql");
 const found = (name: string, text: string, pattern: RegExp) => {
   const match = pattern.exec(text);
   if (!match) throw new Error(`${name}: not found in the migration`);
@@ -42,6 +43,38 @@ describe("limits match the migrations", () => {
       /payment_type_codes\(\) returns text\[\][\s\S]*?select array\[([^\]]*)\]/,
     );
     expect(words(m[1]!)).toEqual([...PAYMENT_TYPES]);
+  });
+
+  it("the per-tenant seed (SP1 step 5) lists exactly RECEIPT_TYPES and PAYMENT_TYPES, in order: it unnests the catalogue functions with their ordinality", () => {
+    // The seed trigger function and the backfill both read the catalogue, so the order of a new tenant's codes is the order of the constants above.
+    const seed = found(
+      "seed function",
+      codes,
+      /create or replace function app\.seed_tenant_settings\(\)[\s\S]*?\n\$\$;/,
+    )[0];
+    for (const [part, kind, fn] of [
+      [seed, "receipt", "receipt_types"],
+      [seed, "payment", "payment_type_codes"],
+      [codes.slice(codes.indexOf("-- The backfill")), "receipt", "receipt_types"],
+      [codes.slice(codes.indexOf("-- The backfill")), "payment", "payment_type_codes"],
+    ] as const) {
+      expect(part, `${kind} in ${part === seed ? "the seed" : "the backfill"}`).toMatch(
+        new RegExp(
+          `'${kind}',\\s*\\w+\\.code,\\s*\\w+\\.ord::smallint[\\s\\S]*?unnest\\(app\\.${fn}\\(\\)\\) with ordinality`,
+        ),
+      );
+    }
+    expect(seed).not.toMatch(/'(scontrino|fattura|cash|card|other)'/);
+  });
+
+  it("tenant_close_code accepts only the catalogue: its CHECK calls the two catalogue functions", () => {
+    const check = found(
+      "catalogue check",
+      codes,
+      /tenant_close_code_catalogue_ck check \(([\s\S]*?)\),\n/,
+    );
+    expect(check[1]).toContain("code = any (app.receipt_types())");
+    expect(check[1]).toContain("code = any (app.payment_type_codes())");
   });
 
   it("RECEIPT_NUMBER is the check on table_session.receipt_number and the one close_table applies", () => {

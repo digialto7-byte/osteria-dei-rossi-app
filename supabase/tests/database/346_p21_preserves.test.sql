@@ -63,9 +63,11 @@ select is((select count(*)::int from pg_proc p join newfn n on n.proname = p.pro
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname in (select proname from newfn) and proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
-              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names
+              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
+              'tenant_settings', 'set_tenant_settings')), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
           '184,5a2eab03d76e48e89fe269f8609c70bf', 'the public functions other than the thirteen are exactly those of main (catalogue md5)');
-select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)');
+select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
+              'tenant_settings', 'set_tenant_settings')), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace

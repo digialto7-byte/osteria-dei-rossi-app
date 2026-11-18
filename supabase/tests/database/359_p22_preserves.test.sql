@@ -25,6 +25,14 @@ insert into p27_objs values
   ('table', 'tenant_vat_rate'),
   ('trigger', 'menu_item_price.menu_item_price_sale_vat'), ('trigger', 'sale_settings.sale_settings_sale_vat'), ('trigger', 'tenant.tenant_seed_settings'),
   ('app_fn', 'sale_vat_rates'), ('app_fn', 'check_sale_vat_rate'), ('app_fn', 'seed_tenant_settings');
+-- Step 5 (20261206200200_tenant_close_codes.sql): the per-tenant receipt and payment codes (seed_tenant_settings is re-created, already listed above).
+insert into p27_objs values
+  ('table', 'tenant_close_code'),
+  ('app_fn', 'tenant_receipt_types'), ('app_fn', 'tenant_payment_types');
+-- Step 7 (20261206200400_tenant_locale_settings.sql): the tenant's default locale and its settings read and write (check_sale_vat_rate is re-created, already listed above).
+insert into p27_objs values
+  ('column', 'tenant.default_locale'), ('constraint', 'tenant.tenant_default_locale_check'),
+  ('public_fn', 'tenant_settings'), ('public_fn', 'set_tenant_settings');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

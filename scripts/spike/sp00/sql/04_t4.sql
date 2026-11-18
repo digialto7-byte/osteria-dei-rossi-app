@@ -50,8 +50,8 @@ as $$
 declare
   c_excluded constant text[] := array['tenant', 'app_user', 'venue_device', 'device_enrolment', 'auth_attempt', 'staff_session', 'audit_event', 'applied_op'];
   -- Tenant configuration seeded by the tenant's own insert (SP1, trigger tenant_seed_settings): a clone already gets it when its tenant row is inserted,
-  -- so a copy would collide on the primary key and the seeded rows would carry today's dates (self-check D3). SP1 step 5 adds tenant_close_code.
-  c_seeded constant text[] := array['tenant_vat_rate'];
+  -- so a copy would collide on the primary key and the seeded rows would carry today's dates (self-check D3): the sale VAT list (step 3) and the receipt and payment codes (step 5).
+  c_seeded constant text[] := array['tenant_vat_rate', 'tenant_close_code'];
   v_set text[];
   v_ordered text[] := '{}';
   v_left text[];

@@ -27,10 +27,10 @@ select ok((select o from unnest(app.demo_purge_tables()) with ordinality t(n, o)
         < (select min(o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n in ('daily_kpi', 'dashboard_open')), 'and they follow day_close (M21)');
 
 -- What M22 must not touch (md5 of prosrc taken on main 0c73030) -------------------------------------------------------------------------
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'app_vs_register_json' and pronamespace = 'app'::regnamespace), '1,86f8d4a0b351affd4ad62039b1530a5c', 'app.app_vs_register_json: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'app_vs_register_json' and pronamespace = 'app'::regnamespace), '1,8fd33ede37b037d5da0576c7ee7a5c9a', 'app.app_vs_register_json: one definition, unchanged'); -- re-pinned on purpose by SP1 (step 6; was 1,86f8d4a0b351affd4ad62039b1530a5c)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'batch_requirements' and pronamespace = 'app'::regnamespace), '1,8aedb69bd2228232b512c72737038c77', 'app.batch_requirements: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'business_date' and pronamespace = 'app'::regnamespace), '1,091124d73dbb308b0915f7738e72e53c', 'app.business_date: one definition, unchanged');
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_session_at' and pronamespace = 'app'::regnamespace), '1,845becea17ad49fb545ea34367d9a01f', 'app.close_session_at: one definition, unchanged');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'close_session_at' and pronamespace = 'app'::regnamespace), '1,249f1f5a9f900c7752c1388b46eedbbf', 'app.close_session_at: one definition, unchanged'); -- re-pinned on purpose by SP1 (step 6; was 1,845becea17ad49fb545ea34367d9a01f)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fixed_cost_at' and pronamespace = 'app'::regnamespace), '1,c9ab5b744d2fe7ba7103046cfc3fba8a', 'app.fixed_cost_at: one definition, unchanged');
 -- re-pinned on purpose by P2-0b A4 (was 0971d2a494e4c2d2f5603c9e60366ad9)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'freeze_line_cost' and pronamespace = 'app'::regnamespace), '1,2d4d660156f1fe00162eb81bd6bd630c', 'app.freeze_line_cost: one definition, re-pinned on purpose by P2-0b A4');

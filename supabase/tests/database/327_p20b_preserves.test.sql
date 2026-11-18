@@ -17,8 +17,8 @@ select p.sch, p.name, p.want,
   ('public', 'order_view', '1,3cf6534d35ec04025a649aa668449686'), -- re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
   ('public', 'open_table', '1,db9f3287a1a7a398338cbd793355041a'),
   ('public', 'close_table', '1,f9161bb02afe6c8870ef1d89bbeda9d7'),
-  ('app', 'close_session_at', '1,de835f1c09830ee8b23c1e5a4fe07641'),
-  ('app', 'app_vs_register_json', '1,3abf16eeaba926f671a0fb5872dc79f2'),
+  ('app', 'close_session_at', '1,648d20678f5bfa2230fc16dae2c2f96a'), -- re-pinned on purpose by SP1 (step 6: the tenant's receipt and payment lists after the catalogue checks; was de835f1c09830ee8b23c1e5a4fe07641)
+  ('app', 'app_vs_register_json', '1,d11de099acd97026ff10322c635d1445'), -- re-pinned on purpose by SP1 (step 6: the buckets are the tenant's active codes, then a deactivated code the day used; was 3abf16eeaba926f671a0fb5872dc79f2)
   ('public', 'enter_day_close', '1,6075533f69641d9c932290389df8c928'),
   ('app', 'split_cents', '1,d05ade62dbe834bd44f49266e96e4808'),
   ('app', 'bill_split_items', '1,1323afd3c4f53ff05480e1141c8501c6'),
@@ -34,7 +34,7 @@ select p.sch, p.name, p.want,
   ('app', 'post_plate_raw_outflow', '1,db726fcfc59579fa2f327a040601de5b'),
   ('app', 'lock_fire_batches', '1,c8538170fd37474800d1ae278920ba88'),
   ('public', 'set_sale_settings', '1,e79b8120c6d5385ef635d32afb5cd828'),
-  ('public', 'sale_settings_read', '1,08de8612fab4edd737e5039c0ade5bf6'),
+  ('public', 'sale_settings_read', '1,531cb272878c91274d968673b364104b'), -- re-pinned on purpose by SP1 (step 4: 'vatRates' is the tenant's sale list; was 08de8612fab4edd737e5039c0ade5bf6)
   ('app', 'coperto_settings', '1,5eb270334b7d988d7e42dada2559069f'),
   ('public', 'plate_margins_pct', '1,1385b7b4051023745de14f4d395452f5'),
   ('public', 'recipe_cost_at', '1,1dca622a9df20785952878e69351922f')
@@ -124,7 +124,8 @@ select is((select string_agg(jobname, ',' order by jobname collate "C") from cro
 -- The public surface -----------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p
             where p.pronamespace = 'public'::regnamespace and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'weight_settings', 'set_weight_settings', 'finish_pin_change', 'mfa_accounts', 'set_mfa_enforcement', 'mfa_reset_service_begin', 'mfa_reset_service_failed', 'mfa_gate', 'mfa_status', 'mfa_attempt_allowed', 'mfa_record_failure', 'mfa_enrol_check', 'mfa_record_enrolled', 'mfa_unenrol_check', 'mfa_record_unenrolled',
-              'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers')), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names
+              'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
+              'tenant_settings', 'set_tenant_settings')), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')

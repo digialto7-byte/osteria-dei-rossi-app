@@ -224,6 +224,8 @@ so 341 stays unchanged and green (step 7 asserts it).
    - `receiptTypes` / `paymentTypes`: non-empty, no duplicates, each in the catalogue, at most 20. Codes: `receipt_type_invalid` /
      `payment_type_invalid` / `settings_list_empty`. Array order becomes `position`.
 4. `select … from public.tenant where id = v_tenant for no key update` (one writer per tenant, as `set_sale_settings:226`).
+   Step 7 also re-creates `app.check_sale_vat_rate` (step 3's body unchanged) so that, for a statutory rate, it first takes `FOR SHARE` on
+   the same tenant row and then reads the list: a rate being switched off cannot slip into a concurrent menu or coperto write (Q-c; §7).
 5. Compute before and after. If equal, return `{changed: false, settings}` with no write.
 6. Upsert the active flags and positions. Rows are never deleted.
 7. Write one `audit_event` row: entity `tenant`, action `tenant.settings_changed`. `before`/`after` hold only the changed keys
@@ -358,6 +360,7 @@ argument.
 | `346_p21_preserves.test.sql:64–68` | public catalogue md5 and count 197 | same left-outs on both lines | 7 |
 | `229_m19b_preserves.test.sql:72–73` | public names md5 | same left-outs | 7 |
 | `359_p22_preserves.test.sql` `p27_objs` | additions since main | **a separate `insert into p27_objs values …;` placed right after `:21`** (before main's insert at `:22`), so SP2's edits at `:36–50` do not touch adjacent lines. Rows: `table` `tenant_vat_rate`, `tenant_close_code`; `column` `tenant.default_locale`; `constraint` `tenant.tenant_default_locale_check`; `trigger` `menu_item_price.menu_item_price_sale_vat`, `sale_settings.sale_settings_sale_vat`, `tenant.tenant_seed_settings`; `app_fn` `sale_vat_rates`, `check_sale_vat_rate`, `seed_tenant_settings`, `tenant_receipt_types`, `tenant_payment_types`; `public_fn` `tenant_settings`, `set_tenant_settings`. All 359 values stay | 3, 5, 7 |
+| `229_m19b_preserves.test.sql:40`, `240_m22_preserves.test.sql:30, :33`, `286_m25c_preserves.test.sql:11, :23`, `296_reservations_preserves.test.sql:11, :16`, `301_reservations_public_preserves.test.sql:11, :16` | "unchanged" `md5(prosrc)` of `app.close_session_at` and `app.app_vs_register_json` | new values, each commented "re-pinned on purpose by SP1 (step 6; was <old>)" (found by the step-6 build; lead ruling 2026-11-18) | 6 |
 | `365_p27_roles_preserves.test.sql:127` tables | count | 71 → 73 | 3, 5 |
 | same `:130` triggers | count | 127 → 130 | 3 |
 | same `:135` policies | count | 72 → 74 | 3, 5 |
@@ -642,6 +645,11 @@ follow the tenant's list · Replaces: AT1's invoice clause and the "not re-creat
   is their real setup, not demo data (ADR-018 note).
 - **Q-c (2026-11-18):** step 7's `set_tenant_settings` takes the tenant-row lock, so a rate being switched off cannot slip into a concurrent
   `create_menu_item`; a two-session race test comes with it.
+- **Q-c lock modes (2026-11-18, after the step-7 build):** `set_tenant_settings` takes `FOR NO KEY UPDATE` on the tenant row (§3.3 item 4) and
+  the sale VAT trigger takes `FOR SHARE` before it reads the list. The two conflict, so the race stays closed; menu writers (`FOR SHARE`) do not
+  wait for each other, and foreign-key checks against the tenant (`FOR KEY SHARE`) do not wait for a settings change. `FOR UPDATE` was rejected
+  because it would block every such check. Race cases in `scripts/test-db-races.sh`: `sale-vat-off-vs-*`, `update-item-vs-sale-vat-off`,
+  `menu-writers-no-wait`, `settings-vs-fk-insert`.
 - **`GET /api/me` overlap with SP2:** separate top-level keys and separate test files, as in §3.10; SP2 adds its counts on its rebase.
 
 ---
