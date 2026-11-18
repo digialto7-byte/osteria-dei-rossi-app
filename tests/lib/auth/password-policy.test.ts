@@ -152,7 +152,6 @@ describe("checkNewPassword, venue words from the tenant's name", () => {
 
   it("another tenant's words are not refused: 'Osteria2026!sole' passes for a venue with other words", () => {
     expect(reason("Osteria2026!sole", EMAIL, ["Trattoria Da Luigi"])).toBe("ok");
-    expect(reason("Osteria2026!sole", EMAIL, ["Trattoria Da Luigi"])).not.toBe("like_venue");
     expect(reason("Luigi2026!sole", EMAIL, ["Trattoria Da Luigi"])).toBe("like_venue");
   });
 

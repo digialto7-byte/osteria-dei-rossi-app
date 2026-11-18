@@ -242,6 +242,9 @@ describe("POST /api/me/password, the tenant's name", () => {
     client = db({ claims: claimsFor("chef") });
     expect((await post({ newPassword: GOOD })).status).toBe(403);
     expect(tenantReads(client)).toBe(0);
+    client = db({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
+    expect((await post({ newPassword: GOOD })).status).toBe(403);
+    expect(tenantReads(client)).toBe(0);
   });
 });
 
