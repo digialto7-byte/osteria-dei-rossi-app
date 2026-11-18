@@ -7,7 +7,7 @@
 -- original's date (step 9), so they fold the same way and a correction nets inside the carico's period. balanced still holds by construction (the closing quantity sums the same
 -- rows). The JSON keys are unchanged, so the TS schema, the CSV export and the screen need no change. A period with no opening row reads exactly as before.
 -- Every other report keeps ADR-033's created_at rule; O2 keeps opening rows before the location's first closed count, so the AVT never sees one.
--- The comment of stock_movement.effective_on says how opening rows are read.
+-- The comments of stock_movement.effective_on and stock_movement_effective_idx say how opening rows are read.
 
 create or replace function public.stock_reconciliation(p_from date, p_to date, p_location uuid default null) returns jsonb
   language plpgsql
@@ -105,3 +105,5 @@ grant execute on function public.stock_reconciliation(date, date, uuid) to authe
 
 comment on column public.stock_movement.effective_on is
   'Receipt and opening: the date the reports read (receipts: the invoice date, read by stock_reconciliation and app.kpi_purchases; opening rows and their mirrors: the "Data del carico", read by stock_reconciliation). Every other type: the calendar date (venue time zone) of the write, not read by reports, which count those rows by the business day of created_at (app.business_day_start, app.kpi_cutoff_end). Writers must leave created_at at now().';
+comment on index public.stock_movement_effective_idx is
+  'Serves receipts by invoice date (app.kpi_purchases) and opening rows by the "Data del carico" (stock_reconciliation); other rows are read through created_at.';

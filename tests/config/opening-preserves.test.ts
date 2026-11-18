@@ -61,12 +61,14 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     functions: ["app.opening_reversal_reasons", "public.reverse_opening_stock"],
     tables: [],
     triggers: [],
-  }, // Step 10 (M7): the opening-cost fallback, app.ingredient_unit_costs re-created with the same signature.
+  },
+  // Step 10 (M7): the opening-cost fallback, app.ingredient_unit_costs re-created with the same signature.
   "20261206210600_ingredient_cost_opening_fallback.sql": {
     functions: ["app.ingredient_unit_costs"],
     tables: [],
     triggers: [],
-  }, // Step 11 (M8): the reconciliation fold, public.stock_reconciliation re-created with the same signature.
+  },
+  // Step 11 (M8): the reconciliation fold, public.stock_reconciliation re-created with the same signature.
   "20261206210700_reconciliation_opening.sql": {
     functions: ["public.stock_reconciliation"],
     tables: [],

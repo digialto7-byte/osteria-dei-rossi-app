@@ -6,12 +6,13 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local timezone = 'UTC';
-select plan(19);
+select plan(23);
 
-insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
+insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'), ('d0000000-0000-4000-8000-00000000000d', 'waiter-a@example.test');
 insert into public.tenant (id, name, vat_number) values ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000');
 insert into public.app_user (id, tenant_id, auth_id, role, display_name) values
-  ('a1000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-00000000000a', 'owner', 'Titolare Demo');
+  ('a1000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'a0000000-0000-4000-8000-00000000000a', 'owner', 'Titolare Demo'),
+  ('d1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'd0000000-0000-4000-8000-00000000000d', 'waiter', 'Cameriere Demo');
 insert into public.location (id, tenant_id, name) values
   ('10000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', 'Dispensa (demo)'),
   ('10000000-0000-4000-8000-0000000000a2', '11111111-1111-4111-8111-111111111111', 'Frigo 1 (demo)');
@@ -144,6 +145,33 @@ set local role authenticated;
 select pg_temp.act_as();
 select is((select r.total_cost_eur::numeric(12, 2)::text || '|' || r.incomplete from public.recipe_costs() r where r.name = 'Salato (demo)'), '0.40|false',
   'recipe_costs: a plate with 0,5 kg of the salt costs 0,40 and is complete');
+-- A consumption through consume_raw_fefo (no lot: the carico is unlotted) carries 0.80.
+select public.consume_raw_fefo('1a000000-0000-4000-8000-000000000005', 0.5, 'kg', '10000000-0000-4000-8000-0000000000a1', null);
+reset role;
+select is((select string_agg(m.qty::numeric(12, 2)::text || '@' || m.unit_cost::numeric(12, 2)::text || ':' || (m.raw_lot_id is null)::text, ',') from public.stock_movement m
+            where m.ingredient_id = '1a000000-0000-4000-8000-000000000005' and m.type::text = 'consumption' and m.ref_type = 'manual'),
+  '-0.50@0.80:true', 'a consumption posted by consume_raw_fefo after the carico carries 0.80, from the unlotted bucket');
+-- A sale of the plate fired before any invoice of the salt: its cost is frozen at the carico cost (checked again after the invoice, below).
+insert into public.menu_item (id, tenant_id, name, category, course_default, recipe_key, created_by, updated_by) values
+  ('11000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', 'Salato (demo)', 'Secondi', 'secondi', 'ec000000-0000-4000-8000-0000000000e1',
+   'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
+  ('13000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Tavolo 1 (demo)', 1, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
+  select '14000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000001', 'Tavolo 1 (demo)', 2,
+         'a1000000-0000-4000-8000-00000000000a', today, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a' from ctx;
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by) values
+  ('15000000-0000-4000-8000-0000000000f1', '11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-0000000000a1', 'secondi', 2, 9, 10,
+   'menu', now(), 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object('sub', 'd0000000-0000-4000-8000-00000000000d', 'role', 'authenticated',
+  'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'waiter', 'aal', 'aal1')::text, true);
+select public.fire_course('14000000-0000-4000-8000-000000000001', '{"lineIds": ["15000000-0000-4000-8000-0000000000f1"]}'::jsonb);
+reset role;
+create temp table frozen as select c.total_cost, c.unit_cost_at_sale, c.incomplete from public.order_line_cost c where c.order_line_id = '15000000-0000-4000-8000-0000000000f1';
+select is((select total_cost::numeric(12, 2)::text || '|' || incomplete from frozen), '0.80|false', 'a sale of 2 plates fired before any invoice freezes 2 x 0,5 kg x 0,80 = 0,80, complete');
+set local role authenticated;
+select pg_temp.act_as();
 -- count_close stamps the carico cost on its count row (the count also closes Dispensa's carico window, so it comes last).
 select public.count_start('monthly', '10000000-0000-4000-8000-0000000000a1');
 select public.count_record_lines((select id from public.count_session where status = 'open'),
@@ -151,8 +179,14 @@ select public.count_record_lines((select id from public.count_session where stat
 select public.count_close((select id from public.count_session where status = 'open'));
 reset role;
 select is((select string_agg(m.qty::numeric(12, 2)::text || '@' || m.unit_cost::numeric(12, 2)::text, ',') from public.stock_movement m
-            where m.ingredient_id = '1a000000-0000-4000-8000-000000000005' and m.type::text = 'count'), '-1.00@0.80',
-  'count_close stamps 0.80 on its count row (9 kg expected, 8 counted)');
+            where m.ingredient_id = '1a000000-0000-4000-8000-000000000005' and m.type::text = 'count'), '0.50@0.80',
+  'count_close stamps 0.80 on its count row (7,5 kg expected after the waste, the consumption and the sale; 8 counted)');
+-- The salt's first invoice arrives at 2,00: the live cost moves to the invoice price, the frozen sale and the stamped rows do not.
+select pg_temp.price('1a000000-0000-4000-8000-000000000005', 2, (select today from ctx));
+select is(pg_temp.cost('1a000000-0000-4000-8000-000000000005'), '2.0000|2.0000|2.0000|2.0000|1', 'after the salt''s first invoice its cost is the invoice price');
+select is((select (c.total_cost = f.total_cost and c.unit_cost_at_sale = f.unit_cost_at_sale and c.incomplete = f.incomplete)::text
+             from public.order_line_cost c, frozen f where c.order_line_id = '15000000-0000-4000-8000-0000000000f1'), 'true',
+  'and the sale fired before the invoice keeps its frozen cost (order_line_cost unchanged)');
 
 -- 6. Unchanged shape ---------------------------------------------------------------------------------------------------------------------------------------------------------
 select is((select count(*)::int || '|' || bool_and(p.prosecdef)::text || '|' || bool_and(p.proconfig = array['search_path=""'])::text

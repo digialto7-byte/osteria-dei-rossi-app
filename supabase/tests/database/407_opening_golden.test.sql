@@ -295,7 +295,7 @@ select is(pg_temp.scn(array[$s$ set local role authenticated $s$, $s$ select pg_
                                      gen_random_uuid(), '1998-10-15', 'a1000000-0000-4000-8000-00000000000a') $s$,
                          $s$ set local role authenticated $s$, $s$ select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner') $s$],
                    'select pg_temp.avt_lievito_cost()'),
-  'null/0.5500', 'step 10: the AVT unit cost of the invoice-less Lievito is null without a carico and its carico cost (0,55) with one; its quantities are unchanged');
+  'null/0.5500', 'step 10: the AVT unit cost of the invoice-less Lievito is null without a carico and its carico cost (0,55) with one');
 
 -- 2. Mutation: one more received kilo (a receipt of 1 kg at 8,00) moves the purchases pin, so the pin can fail -------------------------------------------------------------
 select isnt(pg_temp.scn(array[$s$ select pg_temp.receive('1e000000-0000-4000-8000-000000000012', 1, 8.00, '1998-11-20 08:00+00') $s$], 'select pg_temp.pin_purchases()'),
