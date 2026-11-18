@@ -21,6 +21,7 @@ import {
   closeOptions,
   EMPTY_CLOSE_FORM,
   queuedCount,
+  withDefaultReceipt,
   type CloseForm,
 } from "@/lib/bill/close-form";
 import { initialSplitForm, splitBodyFrom, type SplitForm } from "@/lib/bill/split-form";
@@ -73,6 +74,9 @@ function OrderScreen({
   const online = useOnline();
   const { me, status: meStatus } = useMe();
   const closeChoices = closeOptions(me);
+  // The document the close sheet preselects: the tenant's first, or none (no settings, or an empty list). Read inline: passing `me` or
+  // closeChoices to a helper here makes the React Compiler skip this component (preserve-manual-memoization).
+  const defaultReceipt = me?.settings.receiptTypes[0] ?? null;
   const [menu, setMenu] = useState<ServiceMenu | null>(null);
   const [view, setView] = useState<OrderView | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
@@ -384,7 +388,7 @@ function OrderScreen({
   async function submitClose() {
     if (!bill) return;
     if (!seen || seen.token !== bill.billToken) return;
-    const body = closeBodyFrom(closeForm, seen.token);
+    const body = closeBodyFrom(withDefaultReceipt(closeForm, defaultReceipt), seen.token);
     if (!body) return;
     setCloseBusy(true);
     setCloseError(null);
@@ -555,7 +559,7 @@ function OrderScreen({
                     setSeen({ token: bill.billToken, total: bill.total });
                     setCloseError(null);
                   }}
-                  form={closeForm}
+                  form={withDefaultReceipt(closeForm, defaultReceipt)}
                   onForm={setCloseForm}
                   block={closeBlock(sync, sessionId, billOffline)}
                   queuedCount={queuedCount(sync, sessionId)}

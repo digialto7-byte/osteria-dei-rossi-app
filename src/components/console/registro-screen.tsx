@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { FactList, FactRow } from "@/components/fact-list";
 import { useConsoleShell } from "@/components/console/console-shell";
 import { RawCode } from "@/components/console/raw-code";
-import { ReadError } from "@/components/console/read-error";
+import { ReadError } from "@/components/read-error";
 import { useConsoleRead } from "@/components/console/use-console-read";
 import {
   Button,

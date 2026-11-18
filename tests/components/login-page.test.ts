@@ -53,11 +53,10 @@ describe("the login page", () => {
     expect(html).toContain("Password dimenticata o non ancora impostata?");
   });
 
-  it("says the session ended after 30 days when sent back by the cap", async () => {
-    expect(await render({ errore: "sessione" })).toContain(
-      "La sessione è scaduta dopo 30 giorni: accedi di nuovo.",
-    );
-    expect(await render()).not.toContain("dopo 30 giorni");
+  // The text goes into the status region after hydration (so it is announced): see session-expired-note.test.ts.
+  it("carries the empty status region for the session notice when sent back by the cap", async () => {
+    expect(await render({ errore: "sessione" })).toMatch(/<p[^>]*role="status"[^>]*><\/p>/);
+    expect(await render()).not.toContain('role="status"');
   });
 
   it("shows the link error for ?errore=link", async () => {

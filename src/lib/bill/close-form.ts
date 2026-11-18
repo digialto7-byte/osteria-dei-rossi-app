@@ -36,6 +36,17 @@ export function closeOptions(
   return { receiptTypes: me.settings.receiptTypes, paymentTypes: me.settings.paymentTypes };
 }
 
+/**
+ * The form the close sheet shows and sends: the user's choices, with the document defaulting to `first`, the first document this tenant
+ * offers (founder, 2026-11-18: "Scontrino should be default when closing tables"; the tenant's order, so a Fattura-first tenant gets
+ * Fattura). The payment never defaults. With no settings or an empty list there is no `first` and nothing is guessed (Rule B). Derived,
+ * not stored, so it holds when /api/me answers after the sheet opened, and a document the user picked always wins.
+ */
+export function withDefaultReceipt(form: CloseForm, first: ReceiptType | null): CloseForm {
+  if (form.receiptType !== null || first === null) return form;
+  return { ...form, receiptType: first };
+}
+
 export type CloseBlock = "offline" | "queued" | null;
 
 const OFFLINE_STATES = new Set(["offline", "backoff", "signedOut"]);
@@ -77,7 +88,7 @@ export function closeButtonLabel(form: CloseForm, locale: Locale = DEFAULT_LOCAL
   return t(hasNumber(form) ? "bill.close.withNumber" : "bill.close.withoutNumber", {}, locale);
 }
 
-/** A document and a payment are chosen (no default), and nothing blocks the close. */
+/** A document and a payment are chosen (see withDefaultReceipt for the document's default), and nothing blocks the close. */
 export function canSubmitClose(form: CloseForm, block: CloseBlock): boolean {
   return form.receiptType !== null && form.paymentType !== null && block === null;
 }

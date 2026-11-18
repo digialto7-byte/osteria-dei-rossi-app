@@ -105,10 +105,10 @@ test.describe("the service worker shell across a change of user on a phone (360 
     await expect(personButton).toBeVisible();
     await personButton.click();
     await waitForHydration(page);
-    await page.getByLabel("PIN", { exact: true }).fill(PIN);
     // The server's `date` header has a resolution of one second.
     const beforePin = Math.floor(Date.now() / 1000) * 1000;
-    await page.getByRole("button", { name: "Entra", exact: true }).click();
+    // The fourth digit is the submit.
+    await page.getByLabel("PIN", { exact: true }).fill(PIN);
     await page.waitForURL((url) => url.pathname === "/tavoli");
     await expect(page.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();
     await page.waitForLoadState("networkidle");

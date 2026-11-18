@@ -10,6 +10,7 @@ import { t } from "@/lib/i18n";
 import { landingFor } from "@/lib/nav/nav-model";
 import {
   deviceScreen,
+  isCompletePin,
   loginFeedback,
   sanitizePin,
   type DeviceReply,
@@ -61,12 +62,12 @@ export function PinFlow({
     if (load.kind === "not_enrolled") onNotEnrolled?.({ revoked });
   }, [load.kind, revoked, onNotEnrolled]);
 
-  async function submit() {
+  async function submit(value: string) {
     if (!person) return;
     setBusy(true);
     const result = await apiJson<PinLoginReply>("/api/auth/pin", {
       method: "POST",
-      body: { userId: person.id, pin },
+      body: { userId: person.id, pin: value },
     });
     setBusy(false);
     setPin("");
@@ -125,8 +126,13 @@ export function PinFlow({
           pin={pin}
           busy={busy}
           message={message}
-          onChange={(value) => setPin(sanitizePin(value))}
-          onSubmit={submit}
+          onChange={(value) => {
+            // The fourth digit is the submit; "Entra" (or Enter) sends the same PIN. `busy` stops a second send.
+            const next = sanitizePin(value);
+            setPin(next);
+            if (isCompletePin(next) && !busy) void submit(next);
+          }}
+          onSubmit={() => void submit(pin)}
           onBack={() => {
             setPerson(null);
             setPin("");

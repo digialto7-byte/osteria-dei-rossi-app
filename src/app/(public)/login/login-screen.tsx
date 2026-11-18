@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useCallback, useState } from "react";
-import { Button, Card, ErrorAlert, linkClass, Muted, SubHeading } from "@/components/ui";
+import { Button, Card, ErrorAlert, linkClass, SubHeading } from "@/components/ui";
+import { SessionExpiredNote } from "@/components/session-expired-note";
 import type { LoginNotice } from "@/lib/auth/login-view";
 import { t } from "@/lib/i18n";
 import { PinFlow } from "../pin/pin-flow";
@@ -65,7 +66,7 @@ export function LoginScreen({
           <p className="text-ink-muted">{t("login.intro")}</p>
         </div>
         {notice === "link" && <ErrorAlert message={t("login.linkError")} />}
-        {notice === "session" && <Muted>{t("login.sessionExpired")}</Muted>}
+        {notice === "session" && <SessionExpiredNote />}
         {revoked && (
           <p role="status" className="text-ink-muted">
             {t("login.deviceRevoked")}

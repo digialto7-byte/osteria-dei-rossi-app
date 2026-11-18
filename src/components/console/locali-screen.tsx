@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useConsoleShell } from "@/components/console/console-shell";
-import { ReadError } from "@/components/console/read-error";
+import { ReadError } from "@/components/read-error";
 import {
   Button,
   Heading,

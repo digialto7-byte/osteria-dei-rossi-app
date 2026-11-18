@@ -533,6 +533,205 @@ describe("search page", () => {
   });
 });
 
+describe("plate search: failed reads are not hidden", () => {
+  const DISHES_ERROR = "Non riesco a leggere i piatti.";
+  const DAY_ERROR = "Non riesco a leggere il giorno di servizio: giorno da controllare.";
+  const count = (prefix: string) => calls.filter((c) => c.startsWith(prefix)).length;
+  beforeEach(() => {
+    routes["/api/trace/lines"] = () => ok(LINE_SEARCH);
+    routes["/api/reports/push-sell-through"] = () => ok({ businessDate: "1998-11-13", pushes: [] });
+  });
+
+  it("says nothing and shows no dish list when the menu is a 403 (the chef's path)", async () => {
+    routes["/api/menu/items"] = () => fail(403, "forbidden");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    const view = await renderSearch();
+    await screen.findByText("Risultati");
+    expect(screen.queryByLabelText("Piatto")).toBeNull();
+    expect(text(view)).not.toContain(DISHES_ERROR);
+  });
+
+  it("shows the error on a menu 500 and still searches all dishes", async () => {
+    routes["/api/menu/items"] = () => fail(500, "server_error");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText("Risultati");
+    expect((await screen.findByRole("alert")).textContent).toBe(DISHES_ERROR);
+    expect(screen.queryByLabelText("Piatto")).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Cerca" }));
+    });
+    expect(calls.filter((c) => c === "/api/trace/lines?date=1998-11-13").length).toBe(2);
+  });
+
+  it("shows the error on a network failure of the menu too", async () => {
+    routes["/api/menu/items"] = () => fail(0, "network");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    expect((await screen.findByRole("alert")).textContent).toBe(DISHES_ERROR);
+  });
+
+  it("reads the menu again on Riprova and then shows the dish list", async () => {
+    routes["/api/menu/items"] = () => fail(500, "server_error");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText(DISHES_ERROR);
+    expect(count("/api/menu/items")).toBe(1);
+    routes["/api/menu/items"] = LISTS["/api/menu/items"];
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    });
+    expect(count("/api/menu/items")).toBe(2);
+    expect(await screen.findByLabelText("Piatto")).toBeTruthy();
+    expect(screen.queryByText(DISHES_ERROR)).toBeNull();
+  });
+
+  it("opens no form and guesses no day when the business day cannot be read; Riprova reads it again", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("1998-11-15T10:00:00.000Z"));
+    try {
+      routes["/api/reports/push-sell-through"] = () => fail(500, "server_error");
+      window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+      const view = await renderSearch();
+      expect((await screen.findByRole("alert")).textContent).toBe(DAY_ERROR);
+      expect(screen.queryByLabelText("Giorno")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Cerca" })).toBeNull();
+      expect(view.container.querySelectorAll('input[type="date"]').length).toBe(0);
+      expect(count("/api/trace/lines")).toBe(0);
+      expect(new URLSearchParams(window.location.search).get("giorno")).toBeNull();
+      routes["/api/reports/push-sell-through"] = () =>
+        ok({ businessDate: "1998-11-13", pushes: [] });
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+      });
+      expect(count("/api/reports/push-sell-through")).toBe(2);
+      expect(((await screen.findByLabelText("Giorno")) as HTMLInputElement).value).toBe(
+        "1998-11-13",
+      );
+      expect(screen.queryByText(DAY_ERROR)).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("treats an unusable business day as a failure", async () => {
+    routes["/api/reports/push-sell-through"] = () => ok({ businessDate: "boh", pushes: [] });
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+    await renderSearch();
+    expect((await screen.findByRole("alert")).textContent).toBe(DAY_ERROR);
+    expect(screen.queryByLabelText("Giorno")).toBeNull();
+  });
+
+  /** Holds the next read of `path` until `release` is called, then answers with `reply`. */
+  const hold = (reply: Reply) => {
+    let release!: () => void;
+    apiJson.mockImplementationOnce(
+      () =>
+        new Promise<Reply>((resolve) => {
+          release = () => resolve(reply);
+        }),
+    );
+    return () => release();
+  };
+
+  it("keeps focus on the day's Riprova through a retry that fails again, and ignores a second click", async () => {
+    routes["/api/reports/push-sell-through"] = () => fail(500, "server_error");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+    await renderSearch();
+    await screen.findByText(DAY_ERROR);
+    const retry = screen.getByRole("button", { name: "Riprova" });
+    retry.focus();
+    const release = hold(fail(500, "server_error"));
+    const before = apiJson.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    // The retry is one read, now held in flight.
+    expect(apiJson.mock.calls.length).toBe(before + 1);
+    const during = apiJson.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    expect(apiJson.mock.calls.length).toBe(during);
+    expect(screen.getByText(DAY_ERROR)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Riprova" })).toBe(retry);
+    expect(retry.getAttribute("aria-disabled")).toBe("true");
+    expect(retry.hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(retry);
+    await act(async () => release());
+    expect(screen.getByRole("button", { name: "Riprova" })).toBe(retry);
+    expect(document.activeElement).toBe(retry);
+    expect(retry.getAttribute("aria-disabled")).toBeNull();
+  });
+
+  it("keeps focus on the dishes' Riprova through a retry that fails again, and ignores a second click", async () => {
+    routes["/api/menu/items"] = () => fail(500, "server_error");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText(DISHES_ERROR);
+    const retry = screen.getByRole("button", { name: "Riprova" });
+    retry.focus();
+    const release = hold(fail(500, "server_error"));
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    const during = apiJson.mock.calls.length;
+    await act(async () => {
+      fireEvent.click(retry);
+    });
+    expect(apiJson.mock.calls.length).toBe(during);
+    expect(screen.getByText(DISHES_ERROR)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Riprova" })).toBe(retry);
+    expect(retry.getAttribute("aria-disabled")).toBe("true");
+    expect(retry.hasAttribute("disabled")).toBe(false);
+    expect(document.activeElement).toBe(retry);
+    await act(async () => release());
+    expect(document.activeElement).toBe(retry);
+    expect(screen.getByText(DISHES_ERROR)).toBeTruthy();
+  });
+
+  it("sends a 403 on the business day to the role's no, with no Riprova", async () => {
+    routes["/api/reports/push-sell-through"] = () => fail(403, "forbidden");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+    const view = await renderSearch();
+    await waitFor(() =>
+      expect(text(view)).toContain("Questa pagina non è disponibile per il tuo ruolo."),
+    );
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
+    expect(screen.queryByText(DAY_ERROR)).toBeNull();
+    expect(count("/api/reports/push-sell-through")).toBe(1);
+  });
+
+  it("says why Riprova cannot work while offline, next to the day error, and an offline click reads nothing", async () => {
+    vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
+    try {
+      routes["/api/reports/push-sell-through"] = () => fail(0, "network");
+      window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+      const view = await renderSearch();
+      await screen.findByText(DAY_ERROR);
+      expect(text(view)).toContain("Serve la connessione per cercare.");
+      const retry = screen.getByRole("button", { name: "Riprova" });
+      const before = apiJson.mock.calls.length;
+      await act(async () => {
+        fireEvent.click(retry);
+      });
+      expect(apiJson.mock.calls.length).toBe(before);
+      expect(retry.getAttribute("aria-disabled")).not.toBe("true");
+    } finally {
+      vi.restoreAllMocks();
+    }
+  });
+
+  it("skips the business-day read when ?giorno= names the day", async () => {
+    routes["/api/reports/push-sell-through"] = () => fail(500, "server_error");
+    window.history.replaceState(null, "", "/tracciabilita?da=piatto&giorno=1998-11-13");
+    await renderSearch();
+    await screen.findByText("Risultati");
+    expect(count("/api/reports/push-sell-through")).toBe(0);
+    expect(screen.queryByText(DAY_ERROR)).toBeNull();
+  });
+});
+
 describe("search page: both tabs stay mounted", () => {
   beforeEach(() => {
     routes["/api/trace/capture"] = () => ok(CAPTURE);

@@ -3009,6 +3009,9 @@ export const it = {
   "trace.capture.line": "Ultimi 30 giorni: {withCode} su {lots} consegne con il lotto.",
   "trace.capture.bySupplier": "Per fornitore",
   "trace.capture.supplierLine": "{name} · {withCode} su {lots}",
+  // (da approvare): a failed read of the dish list, and of the business day, in the plate search.
+  "trace.line.dishesError": "Non riesco a leggere i piatti.",
+  "trace.line.dayError": "Non riesco a leggere il giorno di servizio: giorno da controllare.",
   "trace.line.plate": "Piatto",
   "trace.line.allPlates": "Tutti i piatti",
   "trace.line.empty": "Nessun piatto servito in questo giorno.",

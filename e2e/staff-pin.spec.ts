@@ -50,7 +50,7 @@ const alertWith = (page: Page, text: string | RegExp) =>
   page.locator("main").getByRole("alert").filter({ hasText: text });
 const rowOf = (page: Page, name: string) => page.getByRole("listitem").filter({ hasText: name });
 
-/** Taps a person on the staff screen of /login, types a PIN and presses "Entra". */
+/** Taps a person on the staff screen of /login, types a PIN; the fourth digit submits it. */
 async function enterPin(page: Page, pin: string, person = NAME) {
   const personButton = page.getByRole("button", { name: person });
   const pinField = page.getByLabel("PIN", { exact: true });
@@ -60,7 +60,6 @@ async function enterPin(page: Page, pin: string, person = NAME) {
   if (await personButton.isVisible()) await personButton.click();
   await waitForHydration(page);
   await pinField.fill(pin);
-  await page.getByRole("button", { name: "Entra", exact: true }).click();
 }
 
 test.describe("staff PIN login on a phone (360 px)", () => {
@@ -167,12 +166,10 @@ test.describe("staff PIN login on a phone (360 px)", () => {
     await device.getByRole("button", { name: NAME }).click();
     await waitForHydration(device);
     await device.getByLabel("PIN", { exact: true }).fill("0000");
-    await device.getByRole("button", { name: "Entra", exact: true }).click();
     await expect(alertWith(device, "PIN errato. Tentativi rimasti: 4.")).toBeVisible();
     await expect(device.getByLabel("PIN", { exact: true })).toHaveValue("");
 
     await device.getByLabel("PIN", { exact: true }).fill(GOOD_PIN);
-    await device.getByRole("button", { name: "Entra", exact: true }).click();
     // The waiter lands on the tables (the PIN reply carries the role), not on Oggi.
     await device.waitForURL((url) => url.pathname === "/tavoli");
     await expect(device.getByRole("heading", { name: "Tavoli", exact: true })).toBeVisible();

@@ -19,8 +19,10 @@ type Reply =
   | { ok: false; status: number; error: { code: string; message: string } };
 
 const order: string[] = [];
+const pinBodies: unknown[] = [];
 let pinReply: Reply;
-const apiJson = vi.fn((path: string): Promise<Reply> => {
+let pinGate: Promise<void> | null = null;
+const apiJson = vi.fn((path: string, init?: unknown): Promise<Reply> => {
   if (path === "/api/auth/device") {
     return Promise.resolve({
       ok: true,
@@ -29,13 +31,14 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
     });
   }
   order.push(`post ${path}`);
-  return Promise.resolve(pinReply);
+  pinBodies.push((init as { body?: unknown } | undefined)?.body);
+  return pinGate ? pinGate.then(() => pinReply) : Promise.resolve(pinReply);
 });
 const replace = vi.fn((path: string) => order.push(`replace ${path}`));
 const resetMe = vi.fn(() => order.push("resetMe"));
 vi.mock("@/lib/api/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/client")>()),
-  apiJson: (path: string) => apiJson(path),
+  apiJson: (path: string, init?: unknown) => apiJson(path, init),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 vi.mock("@/components/use-me", () => ({ resetMe: () => resetMe() }));
@@ -44,6 +47,8 @@ import { PinFlow } from "@/app/(public)/pin/pin-flow";
 
 beforeEach(() => {
   order.length = 0;
+  pinBodies.length = 0;
+  pinGate = null;
   replace.mockClear();
   resetMe.mockClear();
 });
@@ -52,8 +57,8 @@ afterEach(cleanup);
 async function enter(name: string) {
   render(createElement(PinFlow));
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(name) }));
+  // The fourth digit is the submit: no click on "Entra".
   fireEvent.change(await screen.findByLabelText("PIN"), { target: { value: "4827" } });
-  fireEvent.click(screen.getByRole("button", { name: "Entra" }));
 }
 
 const loggedIn = (user: object): Reply => ({
@@ -124,5 +129,75 @@ describe("PinFlow, where a person lands", () => {
     await screen.findByRole("alert");
     expect(replace).not.toHaveBeenCalled();
     expect(resetMe).not.toHaveBeenCalled();
+  });
+});
+
+describe("PinFlow, the fourth digit submits", () => {
+  const openPad = async () => {
+    render(createElement(PinFlow));
+    fireEvent.click(await screen.findByRole("button", { name: /Cameriere Demo/ }));
+    return (await screen.findByLabelText("PIN")) as HTMLInputElement;
+  };
+
+  it("typing four digits posts that PIN once, with no click", async () => {
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    for (const value of ["4", "48", "482", "4827"]) fireEvent.change(field, { target: { value } });
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tavoli"));
+    expect(pinBodies).toEqual([{ userId: WAITER.id, pin: "4827" }]);
+  });
+
+  it("three digits do not submit", async () => {
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    fireEvent.change(field, { target: { value: "482" } });
+    await Promise.resolve();
+    expect(pinBodies).toHaveLength(0);
+    expect(field.value).toBe("482");
+  });
+
+  it("a paste of four digits submits once", async () => {
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    fireEvent.paste(field, { clipboardData: { getData: () => "4827" } });
+    fireEvent.change(field, { target: { value: "4827" } });
+    await waitFor(() => expect(replace).toHaveBeenCalledTimes(1));
+    expect(pinBodies).toEqual([{ userId: WAITER.id, pin: "4827" }]);
+  });
+
+  it("Enter right after the auto-submit does not send a second request", async () => {
+    let release!: () => void;
+    pinGate = new Promise<void>((resolve) => (release = resolve));
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    fireEvent.change(field, { target: { value: "4827" } });
+    fireEvent.submit(field.closest("form")!);
+    fireEvent.submit(field.closest("form")!);
+    expect(pinBodies).toHaveLength(1);
+    release();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tavoli"));
+    expect(pinBodies).toHaveLength(1);
+  });
+
+  it("retyping a full PIN while the first is still being checked sends nothing more", async () => {
+    let release!: () => void;
+    pinGate = new Promise<void>((resolve) => (release = resolve));
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    fireEvent.change(field, { target: { value: "4827" } });
+    fireEvent.change(field, { target: { value: "482" } });
+    fireEvent.change(field, { target: { value: "4828" } });
+    expect(pinBodies).toEqual([{ userId: WAITER.id, pin: "4827" }]);
+    release();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tavoli"));
+    expect(pinBodies).toHaveLength(1);
+  });
+
+  it("a wrong PIN clears the field and shows the alert", async () => {
+    pinReply = { ok: false, status: 401, error: { code: "invalid_pin", message: "PIN errato." } };
+    const field = await openPad();
+    fireEvent.change(field, { target: { value: "0000" } });
+    await screen.findByRole("alert");
+    expect(field.value).toBe("");
   });
 });

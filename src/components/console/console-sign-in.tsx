@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useId, useState, type FormEvent } from "react";
+import { SessionExpiredNote } from "@/components/session-expired-note";
 import { useHydrated } from "@/components/use-hydrated";
-import { Button, Card, ErrorAlert, Field, Heading, Muted, TextInput } from "@/components/ui";
+import { Button, Card, ErrorAlert, Field, Heading, TextInput } from "@/components/ui";
 import { apiJson } from "@/lib/api/client";
 import { safeNextPath } from "@/lib/api/safe-next";
 import { passwordFieldType, toggleLabelKey, type LoginNotice } from "@/lib/auth/login-view";
@@ -57,7 +58,7 @@ export function ConsoleSignIn({ notice }: { notice: LoginNotice | null }) {
     <Card edge className="mt-4 flex flex-col gap-5 px-5 pt-7 pb-6">
       <Heading>{t("console.signIn.title")}</Heading>
       <p className="text-ink">{t("console.signIn.intro")}</p>
-      {notice === "session" && <Muted>{t("login.sessionExpired")}</Muted>}
+      {notice === "session" && <SessionExpiredNote />}
       <form
         method="post"
         data-hydrated={hydrated ? "true" : undefined}
