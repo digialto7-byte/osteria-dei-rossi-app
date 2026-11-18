@@ -16,13 +16,13 @@ export function FixedCostCard({ status }: { status: FixedCostStatus }) {
       <SubHeading>{t("costs.fixed.title")}</SubHeading>
       {view.kind === "allocated" ? (
         <FactList>
-          <FactRow label={t("costs.fixed.month")} testId="fixed-month">
+          <FactRow label={t("costs.fixed.month")} figure testId="fixed-month">
             {view.month}
           </FactRow>
-          <FactRow label={t("costs.fixed.sold")} testId="fixed-sold">
+          <FactRow label={t("costs.fixed.sold")} figure testId="fixed-sold">
             {view.sold}
           </FactRow>
-          <FactRow label={t("costs.fixed.perPlate")} testId="fixed-per-plate">
+          <FactRow label={t("costs.fixed.perPlate")} figure testId="fixed-per-plate">
             <strong>{view.perPlate}</strong>
           </FactRow>
         </FactList>
@@ -32,7 +32,7 @@ export function FixedCostCard({ status }: { status: FixedCostStatus }) {
           {view.kind === "no_sales" ? (
             <>
               <FactList>
-                <FactRow label={t("costs.fixed.month")} testId="fixed-month">
+                <FactRow label={t("costs.fixed.month")} figure testId="fixed-month">
                   {view.month}
                 </FactRow>
               </FactList>

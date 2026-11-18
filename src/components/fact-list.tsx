@@ -12,15 +12,20 @@ export function FactList({ children, testId }: { children: ReactNode; testId?: s
   );
 }
 
-/** A label and its value in a `FactList`. The value is a figure (`num`) that wraps; `end` right-aligns it, for a column of amounts. */
+/**
+ * A label and its value in a `FactList`. The value is `num` and may break anywhere, so a long name or code never overflows.
+ * `figure` is for an amount, date or count: it is never broken inside (the label wraps instead). `end` right-aligns, for a column of amounts.
+ */
 export function FactRow({
   label,
   end = false,
+  figure = false,
   testId,
   children,
 }: {
   label: string;
   end?: boolean;
+  figure?: boolean;
   testId?: string;
   children: ReactNode;
 }) {
@@ -29,7 +34,7 @@ export function FactRow({
       <dt className="text-ink-muted">{label}</dt>
       <dd
         data-testid={testId}
-        className={`num [overflow-wrap:anywhere]${end ? " text-right" : ""}`}
+        className={`num${figure ? "" : " [overflow-wrap:anywhere]"}${end ? " text-right" : ""}`}
       >
         {children}
       </dd>
@@ -42,14 +47,16 @@ export function FactDetail({
   label,
   value,
   testId,
+  figure = false,
 }: {
   label: string;
   value: string | null;
   testId: string;
+  figure?: boolean;
 }) {
   if (value === null || value === "") return null;
   return (
-    <FactRow label={label} testId={testId}>
+    <FactRow label={label} testId={testId} figure={figure}>
       {value}
     </FactRow>
   );

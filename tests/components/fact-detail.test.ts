@@ -34,7 +34,7 @@ describe("FactDetail", () => {
 });
 
 describe("the old hairline fact sheet", () => {
-  it("is gone: fatture/detail.tsx (Detail, DETAIL_LIST_CLASS) has no importer and no file", () => {
+  it("fatture/detail.tsx (Detail, DETAIL_LIST_CLASS) no longer exists", () => {
     expect(existsSync(join(process.cwd(), "src/app/(owner)/fatture/detail.tsx"))).toBe(false);
   });
 });

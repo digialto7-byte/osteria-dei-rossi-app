@@ -21,7 +21,7 @@ export function StatementView({ statement }: { statement: SupplierStatement }) {
       <Card className="flex flex-col gap-3">
         <FactList>
           {totalsRows(statement.totals).map((row) => (
-            <FactRow key={row.id} label={row.label} testId={`statement-${row.id}`} end>
+            <FactRow key={row.id} label={row.label} testId={`statement-${row.id}`} end figure>
               {row.id === "balance" ? <strong>{row.value}</strong> : row.value}
             </FactRow>
           ))}

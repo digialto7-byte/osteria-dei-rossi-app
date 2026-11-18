@@ -46,16 +46,19 @@ export function RecipeFacts({
           label={t("recipes.fact.version")}
           value={recipeMeta(recipe.version, recipe.validFrom)}
           testId="fact-version"
+          figure
         />
         <FactDetail
           label={t(recipe.type === "batch" ? "recipes.fact.output" : "recipes.fact.outputSub")}
           value={recipe.outputQty !== null && unit ? lineQuantity(recipe.outputQty, unit) : null}
           testId="fact-output"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.portions")}
           value={count(recipe.portionsPerBatch)}
           testId="fact-portions"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.portionSize")}
@@ -63,26 +66,31 @@ export function RecipeFacts({
             recipe.portionSize !== null && unit ? lineQuantity(recipe.portionSize, unit) : null
           }
           testId="fact-portion-size"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.shelfLife")}
           value={recipe.shelfLifeHours === null ? null : hoursText(recipe.shelfLifeHours)}
           testId="fact-shelf-life"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.prepTime")}
           value={recipe.prepTimeMin === null ? null : minutesText(recipe.prepTimeMin)}
           testId="fact-prep-time"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.minPortions")}
           value={count(recipe.minPortions)}
           testId="fact-min-portions"
+          figure
         />
         <FactDetail
           label={t("recipes.fact.targetPortions")}
           value={count(recipe.targetPortions)}
           testId="fact-target-portions"
+          figure
         />
         {recipe.pricing && (
           <>
@@ -92,6 +100,7 @@ export function RecipeFacts({
                 recipe.pricing.salePrice === null ? DASH : formatEuro(recipe.pricing.salePrice)
               }
               testId="fact-sale-price"
+              figure
             />
             <FactDetail
               label={t("recipes.fact.targetGp")}
@@ -99,6 +108,7 @@ export function RecipeFacts({
                 recipe.pricing.targetGpPct === null ? DASH : percentText(recipe.pricing.targetGpPct)
               }
               testId="fact-target-gp"
+              figure
             />
           </>
         )}
