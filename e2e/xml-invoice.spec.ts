@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type Page } from "@playwright/test";
 import { businessDateOf } from "./helpers/business-date";
 import {
@@ -116,6 +117,17 @@ test("owner uploads an .xml, reads what the file said, copies the lot, creates t
   expect(stored.status()).toBe(200);
   expectAttachmentHeaders(stored.headers(), "IT00000000000_00001.xml");
   expect(await stored.body()).toEqual(file.buffer);
+  // And through the browser's own download, the user's path: the saved file is the uploaded one, byte for byte, under its own name.
+  // The saved copy is deleted before the checks, so no download is left for the context teardown.
+  const [saved] = await Promise.all([
+    page.waitForEvent("download", { timeout: 15_000 }),
+    download.click(),
+  ]);
+  const savedBytes = readFileSync((await saved.path())!);
+  await saved.delete();
+  expect(saved.suggestedFilename()).toBe("IT00000000000_00001.xml");
+  expect(savedBytes.length).toBe(file.buffer.length);
+  expect(savedBytes.equals(file.buffer)).toBe(true);
 
   // The lines carry what the file said: the first code (the one Costì uses to recognise the item), and the supplier's LOTTO value.
   await expect(page.getByText("Righe dal file XML")).toBeVisible();
