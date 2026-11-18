@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { wasteCostsResponse } from "@/server/stock/output";
+import { movementsResponse, wasteCostsResponse } from "@/server/stock/output";
 
 const ING = "1a000000-0000-4000-8000-00000000001a";
 const KEY = "ec000000-0000-4000-8000-0000000000e1";
@@ -98,5 +98,55 @@ describe("wasteCostsResponse (raw and batch waste, M15)", () => {
         ],
       }),
     ).toThrow();
+  });
+});
+
+describe("movementsResponse and the opening movement type (opening stock step 12)", () => {
+  const op = (type: string) => ({
+    operationId: "0e000000-0000-4000-8000-000000000001",
+    handleId: "0a000000-0000-4000-8000-000000000001",
+    type,
+    refType: "opening",
+    reasonCode: null,
+    isReversal: false,
+    reversedByOperationId: null,
+    reversible: false,
+    qty: 25,
+    unit: "kg",
+    lines: [
+      {
+        movementId: "0a000000-0000-4000-8000-000000000001",
+        locationId: "10000000-0000-4000-8000-0000000000a1",
+        locationName: "Dispensa (demo)",
+        rawLotId: null,
+        lotCode: null,
+        qty: 25,
+      },
+    ],
+    effectiveOn: "2026-12-01",
+    createdAt: "2026-12-05T10:00:00Z",
+    byName: "Titolare Demo",
+    byMe: true,
+  });
+
+  it("accepts an operation of type opening", () => {
+    expect(
+      movementsResponse.safeParse({ operations: [op("opening")], nextCursor: null }).success,
+    ).toBe(true);
+  });
+
+  it("still refuses an unknown type", () => {
+    expect(
+      movementsResponse.safeParse({ operations: [op("gift")], nextCursor: null }).success,
+    ).toBe(false);
+  });
+
+  it("still refuses an undeclared key (a cost slipping in)", () => {
+    expect(
+      movementsResponse.safeParse({
+        operations: [{ ...op("opening"), unitCostEur: 0.8 }],
+        nextCursor: null,
+      }).success,
+    ).toBe(false);
   });
 });

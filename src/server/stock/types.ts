@@ -1,6 +1,7 @@
 import type { StockReasonCode } from "./reasons";
 
-export type StockMovementType = "receipt" | "consumption" | "waste" | "transfer" | "count";
+export type StockMovementType =
+  "receipt" | "consumption" | "waste" | "transfer" | "count" | "opening";
 export type BaseUnit = "kg" | "l" | "pz";
 export type ExpiryState = "none" | "expired" | "due_soon" | "ok";
 

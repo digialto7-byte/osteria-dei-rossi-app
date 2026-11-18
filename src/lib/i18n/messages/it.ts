@@ -631,6 +631,7 @@ export const it = {
   "stock.type.transfer": "Spostamento",
   "stock.type.count": "Conteggio",
   "stock.type.reversal": "Annullamento",
+  "stock.type.opening": "Carico iniziale",
   "stockError.lot_empty": "Il lotto scelto è vuoto in questa ubicazione.",
   "stockError.insufficient_stock":
     "In magazzino risulta meno di quanto vuoi spostare: fai prima un conteggio.",

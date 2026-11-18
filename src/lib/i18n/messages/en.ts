@@ -623,6 +623,7 @@ export const en: Record<MessageKey, string> = {
   "stock.type.transfer": "Transfer",
   "stock.type.count": "Count",
   "stock.type.reversal": "Reversal",
+  "stock.type.opening": "Opening stock",
   "stockError.lot_empty": "The chosen lot is empty in this location.",
   "stockError.insufficient_stock": "The records show less than you want to move: do a count first.",
   "stockError.already_reversed": "This movement has already been reversed.",
