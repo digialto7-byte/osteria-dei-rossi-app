@@ -11,6 +11,9 @@ const PERF_DIR = /[\\/]e2e[\\/]perf[\\/]/;
 const SIMULATION_DIR = /[\\/]e2e[\\/]simulation[\\/]/;
 // The four ordinary projects skip both folders (one combined pattern): perf runs from its own workflow, the simulation from `service-sim`.
 const NOT_ORDINARY = /[\\/]e2e[\\/](perf|simulation)[\\/]/;
+// Every Chromium project runs the full Chromium build in new headless mode, not the default chromium_headless_shell, which segfaulted
+// in BrowserContext.close after a long browser life (#140, #169; lead 2026-11-18). tests/config/e2e-chromium-channel.test.ts pins it.
+const CHROMIUM = { channel: "chromium" } as const;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -26,7 +29,7 @@ export default defineConfig({
     {
       name: "phone",
       testIgnore: NOT_ORDINARY,
-      use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
+      use: { ...devices["Pixel 7"], ...CHROMIUM, viewport: { width: 360, height: 740 } },
     },
     // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. M19 adds the firing spec
     // (send and void on the same screen). Only those specs: the rest of the suite stays on Chromium to keep the CI minutes
@@ -52,7 +55,7 @@ export default defineConfig({
       name: "laptop",
       testMatch: /kitchen\.spec\.ts$/,
       testIgnore: NOT_ORDINARY,
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1280, height: 800 } },
+      use: { ...devices["Desktop Chrome"], ...CHROMIUM, viewport: { width: 1280, height: 800 } },
     },
     // M22: the dashboard's "Ieri" tile on a simulated Slow 4G connection, against the STAGING app. Only e2e/perf/, only Chromium (the
     // network throttle is a DevTools command), and only from the perf-dashboard-4g workflow: the spec skips itself without that
@@ -60,7 +63,7 @@ export default defineConfig({
     {
       name: "perf-4g",
       testMatch: PERF_DIR,
-      use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
+      use: { ...devices["Pixel 7"], ...CHROMIUM, viewport: { width: 360, height: 740 } },
     },
     // M25 step 17 (AT1): the service simulation, one long Chromium test at phone size (waiter B goes offline with the service worker in
     // control, so service workers stay on). Only e2e/simulation/. It runs in the CI shards with everything else, and alone with
@@ -68,7 +71,7 @@ export default defineConfig({
     {
       name: "service-sim",
       testMatch: SIMULATION_DIR,
-      use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
+      use: { ...devices["Pixel 7"], ...CHROMIUM, viewport: { width: 360, height: 740 } },
     },
   ],
   webServer: {
