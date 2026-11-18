@@ -93,6 +93,9 @@ it) another time zone. Supplier-invoice checks stay statutory, and Osteria Dei R
 **Out of scope**
 - A settings screen (SP7 wizard, or V2). Changing `tenant.timezone` from the app (Q2). Currencies other than EUR, and countries other than
   Italy (FD19).
+  - For SP7's settings screen (lead, PR #192, 2026-11-18): when a rate is switched off, the screen lists what still uses it (coperto, N
+    dishes) with links to change them. A switched-off rate keeps working on what already uses it until that is edited (Q12), and the stored
+    coperto rate keeps applying to new tables; SP1 refuses nothing and only documents it (`docs/runbook.md` "Venue settings").
 - Receipt or payment codes outside today's catalogue (Q6), and custom labels (SP9 terminology).
 - Courses, counter service, units (SP8). Venue name and theme from `/api/me` (SP9). The manifest's `lang` (product surface; Q5).
 - Any change to `src/server/staff-auth/**`, `public/sw.js`, `app.tenant_id()`, `app.role()`, `app.app_user_id()`, the access-token hook,
