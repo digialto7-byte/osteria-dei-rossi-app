@@ -253,7 +253,7 @@ export function RequestForm({ slug, locale }: { slug: string; locale: Locale }) 
       {languageSwitch}
       <div className="flex flex-col gap-2">
         <Heading>{page.venueName}</Heading>
-        <Muted>{tt("publicReservation.title")}</Muted>
+        <p className="text-ink">{tt("publicReservation.title")}</p>
         <Muted>{tt("publicReservation.intro")}</Muted>
       </div>
 
