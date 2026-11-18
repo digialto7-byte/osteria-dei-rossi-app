@@ -295,7 +295,9 @@ export function LedgerRow({
     ) : (
       <>
         <span className="flex min-w-0 flex-col">
-          <span className="font-bold [overflow-wrap:anywhere]">{title}</span>
+          <span data-ledger-title="" className="font-bold [overflow-wrap:anywhere]">
+            {title}
+          </span>
           {meta !== undefined && (
             <span data-ledger-meta="" className="text-ink-muted [overflow-wrap:anywhere]">
               {meta}

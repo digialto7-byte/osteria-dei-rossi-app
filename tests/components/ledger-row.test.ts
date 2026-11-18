@@ -26,6 +26,12 @@ describe("LedgerRow with title, meta and trailing", () => {
     expect(screen.getByText("Scade tra 3 giorni").className).toContain("text-ink-muted");
   });
 
+  it("marks the title with data-ledger-title, so tests can read it without walking the markup", () => {
+    inList(createElement(LedgerRow, { title: "Fornitore Uno", meta: "Scade tra 3 giorni" }));
+    const title = screen.getByRole("listitem").querySelector("[data-ledger-title]");
+    expect(title?.textContent).toBe("Fornitore Uno");
+  });
+
   it("a row without meta or trailing renders neither", () => {
     inList(createElement(LedgerRow, { title: "Solo titolo" }));
     const row = screen.getByRole("listitem");

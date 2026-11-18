@@ -241,7 +241,7 @@ describe("content", () => {
       expect(row).toContain("min-h-tap");
       // The LedgerRow structure: title (bold), meta (muted), trailing slot with the amount (numeric, bold), in this order.
       const title = row.indexOf(
-        `<span class="font-bold [overflow-wrap:anywhere]">${item.supplierName}</span>`,
+        `<span data-ledger-title="" class="font-bold [overflow-wrap:anywhere]">${item.supplierName}</span>`,
       );
       const meta = row.indexOf('data-ledger-meta=""');
       const trailing = row.indexOf('data-ledger-trailing=""');
