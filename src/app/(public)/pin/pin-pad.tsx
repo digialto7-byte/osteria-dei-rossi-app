@@ -41,7 +41,7 @@ export function PinPad({
           name="pin"
           type="password"
           inputMode="numeric"
-          autoComplete="off"
+          autoComplete="current-password"
           maxLength={4}
           pattern="[0-9]{4}"
           value={pin}

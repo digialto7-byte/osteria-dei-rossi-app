@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
-import { cleanup, render as mount, screen } from "@testing-library/react";
+import { cleanup, createEvent, fireEvent, render as mount, screen } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { PinPad } from "@/app/(public)/pin/pin-pad";
@@ -27,7 +27,7 @@ describe("PinPad", () => {
     const input = /<input[^>]*>/.exec(html)![0];
     expect(input).toContain('type="password"');
     expect(input).toContain('inputMode="numeric"');
-    expect(input).toContain('autoComplete="off"');
+    expect(input).toContain('autoComplete="current-password"');
     expect(input).toContain('maxLength="4"');
     expect(input).toContain('pattern="[0-9]{4}"');
     expect(html).toMatch(/<span[^>]*>PIN<\/span>/);
@@ -66,6 +66,15 @@ describe("PinPad", () => {
   });
   it("the submit button is disabled in the server render, even with four digits", () => {
     expect(render({ pin: "4827" })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
+  });
+  // WCAG 2.2 SC 3.3.8: the secret can be pasted or filled by a password manager.
+  it("does not block paste", () => {
+    mounted();
+    const field = screen.getByLabelText("PIN");
+    const paste = createEvent.paste(field, { clipboardData: { getData: () => "4827" } });
+    fireEvent(field, paste);
+    expect(paste.defaultPrevented).toBe(false);
+    expect(field.getAttribute("autocomplete")).toBe("current-password");
   });
   it("shows a message as an alert", () => {
     expect(render({ message: "PIN errato. Tentativi rimasti: 2." })).toMatch(
