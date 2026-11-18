@@ -439,6 +439,39 @@ shows the line must go before merging). Use `"**"`, never `"*"`: `*` does not ma
 Dependencies: the `checks` job runs `scripts/audit-check.ts`; a high or critical advisory fails CI unless
 `docs/go-live/audit-exceptions.json` excepts it with a reason and a review date. (test: tests/scripts/audit-check.test.ts)
 
+## Venue settings
+
+A venue's language and its lists of sale VAT rates, receipt types and payment types are changed through one route. There is no screen yet
+(SP7's wizard will use it), so DigiAlto does it for the owner, or the owner does it with their own session. The design is in
+`docs/adr/adr-046-per-tenant-sale-lists.md`.
+
+**How to change a list.** `PATCH /api/settings/venue`, JSON body, owner or admin only (a chef or waiter gets 403; the database repeats the check).
+(test: tests/app/api/settings-venue.test.ts)
+- Keys: `locale` (`it` or `en`), `saleVatRates` (numbers from 0, 4, 5, 10, 22), `receiptTypes` (`scontrino`, `fattura`),
+  `paymentTypes` (`cash`, `card`, `other`). Send only the keys to change, at least one. A list is the complete new list: what is left out is
+  switched off, and the array order is the order on screen.
+- Answers: 200 with `changed` and the settings. Sending the same values again is 200 with `changed: false` and writes nothing.
+  (test: supabase/tests/database/395_sp1_tenant_settings.test.sql)
+- 400: an unknown key, or no key, or a wrong type. 415: not a JSON body. 401: not signed in. 403: not owner or admin, or the second step
+  (`mfa_required`) is missing. 422: a value the database refuses, with one of these codes: `locale_invalid`, `vat_rate_invalid` (a rate not in
+  the statutory list), `receipt_type_invalid`, `payment_type_invalid` (a code outside the catalogue), `settings_list_empty` (an empty list: keep at
+  least one entry). Nothing is written on a refusal. Each change writes one `tenant.settings_changed` audit row.
+
+**What removing a VAT rate does.** The rate is switched off for this venue (`is_active = false`), never deleted. Switching it on again is the
+same call with the rate back in the list.
+- Open table sessions keep the coperto rate they were opened with and still close.
+  (test: supabase/tests/database/391_sp1_sale_vat.test.sql)
+- Existing menu prices at that rate stay valid and keep selling. A new price version at the same rate as the dish's current one is accepted;
+  a new dish, a new coperto rate, or a price at a rate other than the current one is refused with `vat_rate_invalid` (422). The menu form
+  shows the stored rate as the current option, so saving a dish unchanged keeps it.
+  (test: supabase/tests/database/391_sp1_sale_vat.test.sql)
+- Supplier invoices are not affected: they are checked against the statutory list.
+- To move prices off the removed rate, edit each dish to a rate in the new list.
+
+**What removing a receipt or payment type does.** A table that is closed afterwards with that code is refused (`receipt_type_invalid` or
+`payment_type_invalid`) and stays open; tables already closed with it keep it, and the day report still shows it for that day.
+(test: supabase/tests/database/394_sp1_close_codes_procs.test.sql)
+
 ## Go-live day
 
 The go-live gate is 12 January. Before it, with the founder:

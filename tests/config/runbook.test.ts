@@ -19,6 +19,7 @@ const HEADINGS = [
   "Two-step verification (TOTP)",
   "Backups and restore",
   "Releases",
+  "Venue settings",
   "Go-live day",
 ];
 
