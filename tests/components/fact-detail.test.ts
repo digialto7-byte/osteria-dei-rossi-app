@@ -1,6 +1,8 @@
 // @vitest-environment jsdom
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { FactDetail, FactList } from "@/components/fact-list";
 
@@ -28,5 +30,11 @@ describe("FactDetail", () => {
     const body = render(value);
     expect(body.querySelector("dt")).toBeNull();
     expect(body.querySelector("dd")).toBeNull();
+  });
+});
+
+describe("the old hairline fact sheet", () => {
+  it("is gone: fatture/detail.tsx (Detail, DETAIL_LIST_CLASS) has no importer and no file", () => {
+    expect(existsSync(join(process.cwd(), "src/app/(owner)/fatture/detail.tsx"))).toBe(false);
   });
 });
