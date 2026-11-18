@@ -259,7 +259,9 @@ export type ErrorCode =
   | "form_expired"
   | "form_invalid"
   | "link_invalid"
-  | "cancel_closed";
+  | "cancel_closed"
+  | "locale_invalid"
+  | "settings_list_empty";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;
