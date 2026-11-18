@@ -886,7 +886,9 @@ Replaces: the file names of the unmerged migration steps (3, 4, 5, 7, 8, 13, 17,
 |---|---|---|---|
 | V5.1 | Rename the unmerged files to the first free slot the lead assigns after main's newest, keeping their order and suffixes | those files; the newest-migration pins; `uscite-preserves.test.ts` | `uscite-preserves`: the unmerged files sort after every file on `main`; merged ones keep their names; `supabase db push --dry-run` on staging lists only our files |
 
-**V6 — A send with nothing cooking calls its lowest uscita** · Trigger: Q5 answered "yes" (a dessert ordered after everything was
+**V6 — A send with nothing waiting calls its lowest uscita** · **Adopted by the lead (Q5, 2026-11-18), folded into step 5 and step 20.** The
+lead's rule: the call happens when **no uscita of the table is waiting** (every earlier uscita has been called), whether or not its dishes
+are done; it replaces the "every non-held line is done" condition of V6.1 below. Trigger as first written: Q5 answered "yes" (a dessert ordered after everything was
 served should go at once) · Replaces: the hold rule of step 5 for that case, and step 20's bar logic.
 
 | # | Step | Files | Test |
@@ -929,20 +931,29 @@ served should go at once) · Replaces: the hold rule of step 5 for that case, an
 
 | # | For | Question | Recommended default (applies unless answered) |
 |---|---|---|---|
-| Q1 (= Q-U1) | Founder via lead | A dish of an uscita still "in attesa" is voided: back into stock as "Non preparato", or waste as today? | **Back into stock** (lead default): reversals only, no waste, no new stock code. V1 otherwise |
-| Q2 (= Q-U2) | Lead | Drinks are "subito" by default, with the editor's Uscita control as the escape hatch? | Yes: the server accepts any uscita for any course; drinks default to 0. V2 otherwise |
-| Q3 | Lead, then founder | Deplete at the send (A) or at the call (B)? | **A** (§3.2): cost at sale, last portions protected, shortages early, the fewest pins. V3 otherwise |
-| Q4 | Founder via lead | May a table close while an uscita still waits? | **No:** `uscita_waiting`; call or void "Non preparato" first. V4 otherwise |
-| Q5 | Lead | A send made when nothing is cooking or waiting (a dessert after everything was served): does its new uscita still wait for "Via"? | Yes, as the spec says (§2.3); the waiter taps "Via". V6 otherwise |
+| Q1 (= Q-U1) | Founder via lead | A dish of an uscita still "in attesa" is voided: back into stock as "Non preparato", or waste as today? | **Ruled (lead, 2026-11-18):** back into stock ("Non preparato"): reversals only, no waste, no new stock code. The founder has the default and has not objected; ADR-049 records it |
+| Q2 (= Q-U2) | Lead | Drinks are "subito" by default, with the editor's Uscita control as the escape hatch? | **Ruled (lead, 2026-11-18):** yes. The server accepts any uscita for any course; drinks default to 0 |
+| Q3 | Lead, then founder | Deplete at the send (A) or at the call (B)? | **Ruled (lead, 2026-11-18):** **A**, deplete at the send (§3.2) |
+| Q4 | Founder via lead | May a table close while an uscita still waits? | **Ruled (lead, 2026-11-18):** no. `uscita_waiting`; its message tells the waiter to call the uscita or void "Non preparato" first |
+| Q5 | Lead | A send made when nothing is cooking or waiting (a dessert after everything was served): does its new uscita still wait for "Via"? | **Ruled (lead, 2026-11-18):** **changed to V6.** If no uscita of the table is waiting when a send happens (everything earlier has been called), the lowest new uscita is called automatically at the send: a dessert at the end goes straight to the kitchen and nobody has to remember "Via". Only a later uscita behind a still-waiting one waits. Folded into step 5 (no separate migration; see V6) and pinned in pgTAP `421` and in e2e step 22, both cases. The designer updates spec §2.3 |
 | Q6 (= Q-U3) | Lead | The kitchen-side "Via" | **Ruled (lead, 2026-11-18): after P0** → PR5 (steps 24–25) |
 | Q7 | Lead | Migration range, pgTAP numbers and merge order | **Ruled (lead, 2026-11-18):** `20261206220000…` (`220000`–`220900`), pgTAP from `417` (`417`–`430`); merge order opening stock → comanda uscite → P2-4 → SP2. PR5's M9 is renamed when it comes (V5) |
-| Q8 | Lead | ADR number and status | ADR-049, "proposed" (SP1 took 046, P2-4 047, opening stock 048 per its plan's Q11); a dated note in ADR-019 |
-| Q9 | Lead | When can `segue` (column mirror, legacy keys, the v1 sync shape, `fire` without `hold` meaning "call") be removed? | After go-live, once the lead judges that no old bundle or old queued op can remain (for example 30 days after go-live); its own cleanup PR, not in this plan |
-| Q10 (= Q-U5) | Founder | Wording: "uscita", "segue", "Via la 2ª", "in attesa", "da chiamare", "Non preparato", "Chiamata in coda", the conflict texts, `uscita_waiting`'s message | The copywriter drafts; the founder approves; all "(da approvare)" until then |
-| Q11 | Lead | Who may call before PR5? | Owner, admin, waiter (the table operators), as for fire |
+| Q8 | Lead | ADR number and status | **Ruled (lead, 2026-11-18):** ADR-049, "proposed", plus the dated note in ADR-019 |
+| Q9 | Lead | When can `segue` (column mirror, legacy keys, the v1 sync shape, `fire` without `hold` meaning "call") be removed? | **Ruled (lead, 2026-11-18):** after go-live, at least 30 days on, in its own cleanup PR (not in this plan) |
+| Q10 (= Q-U5) | Founder | Wording: "uscita", "segue", "Via la 2ª", "in attesa", "da chiamare", "Non preparato", "Chiamata in coda", the conflict texts, `uscita_waiting`'s message | **Ruled (lead, 2026-11-18):** copy "(da approvare)": the copywriter drafts, the founder approves |
+| Q11 | Lead | Who may call before PR5? | **Ruled (lead, 2026-11-18):** owner, admin, waiter |
 | Q12 (= Q-U4) | Lead | When to ship | **Ruled (lead, 2026-11-18): before go-live**, deployed outside service, PR3 and PR4 in the same window |
 
 ---
+
+**Lead review, 2026-11-18 (PR #205): plan accepted.** Every row above reads "Ruled". The sync strict-parse fix (step 10) stays in PR 2,
+so it lands before any line-shape change. Build order: opening stock PR 1 → comanda PR 1 (G/X) → the two series alternate as each PR goes
+green; one review round per PR; the lead reads every migration.
+
+**V6 in step 5 (pgTAP `421`, both cases):** (a) a table whose 1ª has been called (or sent with nothing waiting) sends a dessert at uscita
+3 → the send inserts `uscita_call (3, 'fire_now')`, `held` is empty, the kitchen board shows it at once; (b) a table whose 2ª is still
+waiting sends a dessert at uscita 3 → no call row for 3, `held` lists it behind the 2ª. **Step 22 (e2e):** the same two cases at 360 px.
+**Step 20:** the bar offers no "Via" after a send answered with `held: []`.
 
 ## 8. Sources
 
