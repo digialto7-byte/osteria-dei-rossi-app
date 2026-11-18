@@ -48,6 +48,9 @@ insert into p27_objs values
 -- Step 7 (20261206210400_post_opening_stock.sql): the confirm and the two reads of the screen.
 insert into p27_objs values
   ('public_fn', 'post_opening_stock'), ('public_fn', 'opening_history'), ('public_fn', 'opening_stock_summary');
+-- Step 9 (20261206210500_reverse_opening_stock.sql): the correction by reversal.
+insert into p27_objs values
+  ('app_fn', 'opening_reversal_reasons'), ('public_fn', 'reverse_opening_stock');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

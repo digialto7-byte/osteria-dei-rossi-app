@@ -30,7 +30,10 @@ const ROOT = new URL("../../", import.meta.url);
 // Opening stock step 5 (20261206210200_stock_opening_tables.sql), re-pinned on purpose by opening stock (step 5; was 20261206210100_stock_movement_opening_shape.sql): the stock_opening and opening_draft_line tables, the audit values and the purge list.
 // Opening stock step 6 (20261206210300_stock_opening_draft.sql), re-pinned on purpose by opening stock (step 6; was 20261206210200_stock_opening_tables.sql): the helpers, the cut-off and the draft procedures.
 // Opening stock step 7 (20261206210400_post_opening_stock.sql), re-pinned on purpose by opening stock (step 7; was 20261206210300_stock_opening_draft.sql): post_opening_stock, opening_history and opening_stock_summary.
-const LAST_MIGRATION = "20261206210400_post_opening_stock.sql";
+// Opening stock step 9 (20261206210500_reverse_opening_stock.sql), re-pinned on purpose by opening stock (step 9; was 20261206210400_post_opening_stock.sql): reverse_opening_stock and the reason list.
+// Opening stock step 10 (20261206210600_ingredient_cost_opening_fallback.sql), re-pinned on purpose by opening stock (step 10; was 20261206210500_reverse_opening_stock.sql): the opening-cost fallback in app.ingredient_unit_costs.
+// Opening stock step 11 (20261206210700_reconciliation_opening.sql), re-pinned on purpose by opening stock (step 11; was 20261206210600_ingredient_cost_opening_fallback.sql): the reconciliation folds opening rows into openingQty.
+const LAST_MIGRATION = "20261206210700_reconciliation_opening.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 
