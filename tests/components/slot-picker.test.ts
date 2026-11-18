@@ -100,4 +100,26 @@ describe("SlotPicker", () => {
     });
     expect(ref.current).toBe(screen.getByRole("tab", { name: "Cena" }));
   });
+
+  // Designer check on P2i: the times keep their accessible name «Orario» inside the tabpanel the open tab controls.
+  it("the times are a group named «Orario» inside the tabpanel", () => {
+    show();
+    const panel = screen.getByRole("tabpanel");
+    const group = within(panel).getByRole("group", { name: "Orario" });
+    expect(within(group).getByRole("button", { name: "19:30" })).toBeTruthy();
+  });
+
+  // §10.3: a selection is filled in ink, not the green of the action; the only green on the page is the submit button.
+  it("the picked time is filled in ink, not the primary green; the others stay secondary", () => {
+    show({ chosen: { serviceKey: "cena", time: "19:30" } });
+    const picked = screen.getByRole("button", { name: "19:30" });
+    expect(picked.getAttribute("aria-pressed")).toBe("true");
+    expect(picked.className).toContain("bg-ink");
+    expect(picked.className).toContain("text-paper");
+    expect(picked.className).not.toContain("bg-accent");
+    const other = screen.getByRole("button", { name: /19:00/ });
+    expect(other.getAttribute("aria-pressed")).toBe("false");
+    expect(other.className).toContain("bg-surface");
+    expect(other.className).not.toContain("bg-ink");
+  });
 });

@@ -130,7 +130,7 @@ export function Checkbox({
   );
 }
 
-type Variant = "primary" | "secondary" | "quiet" | "danger";
+type Variant = "primary" | "secondary" | "selected" | "quiet" | "danger";
 const VARIANTS: Record<Variant, string> = {
   primary:
     "bg-accent text-on-accent font-bold tracking-[0.01em] " +
@@ -138,6 +138,9 @@ const VARIANTS: Record<Variant, string> = {
   // `data-on="true"` (a toggle that is on, e.g. "Conto richiesto") keeps the sunk fill; no other button sets it.
   secondary:
     "border-[1.5px] border-ink bg-surface text-ink font-bold hover:bg-sunk data-[on=true]:bg-sunk",
+  // A picked option in a set of buttons (aria-pressed): filled in ink, not the action green (costi-design-system §10.3). Same border and
+  // size as secondary, so picking does not move anything.
+  selected: "border-[1.5px] border-ink bg-ink text-paper font-bold",
   quiet: "text-accent-ink font-bold underline-offset-4 hover:bg-sunk hover:underline",
   // danger text on danger-bg is a tested contrast pair; a destructive action that is still reversible-looking (Rimuovi).
   danger: "border-[1.5px] border-danger bg-danger-bg text-danger font-bold",
