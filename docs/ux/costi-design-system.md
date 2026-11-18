@@ -1,7 +1,8 @@
 # Costì design system (the whole app)
 
-- **Status:** founder decision 2026-11-14 (via the lead): **one Costì design system for the whole app**; §1, §9–§11 rewritten for it ·
-  **Author:** UX/UI designer · **Date:** 2026-11-14
+- **Status:** founder decision 2026-11-14 (via the lead): **one Costì design system for the whole app**; §1, §9–§11 rewritten for it.
+  **Built:** §11 is complete since P2j (#181, 2026-11-18): Costì is the `:root` theme and the osteria theme is gone ·
+  **Author:** UX/UI designer · **Date:** 2026-11-14, updated 2026-11-18
 - **Sources (the only ones used):** DigiAlto-Ops `knowledge/agency/products/costi/brand.md` (approved 2026-11-13), ADR-042,
   `docs/design/ui-foundation.md` §1–§7 and §11, `docs/plans/2026-11-13-costi-product-brand.md`, `docs/plans/2026-11-13-ux-strategy.md` §6.
 - **Authority.** The token **values** live in code (`PRODUCT_THEMES` in `src/lib/design/tokens.ts`) and in `ui-foundation.md` §11, which a
@@ -30,8 +31,9 @@ venue look inside the app) and strategy decision **D2** (osteria-only palette, `
 actions, focus and status colours, and the same components. The only thing that changes from venue to venue is the band (colour, name or
 logo) and the thin accent rule under it (§9). Staff who work in two venues, and DigiAlto supporting many, see one app.
 
-**Retired:** the osteria theme (`THEMES` in `tokens.ts`: cream paper, black ink, Bodoni Moda, Figtree) once §11's last step ships; until
-then it stays only on the screens not yet re-skinned.
+**Retired (P2j, #181, 2026-11-18):** the osteria theme (`THEMES`, `BRAND` and `DERIVED` in `tokens.ts`: cream paper, black ink, Bodoni
+Moda, Figtree) and its fonts are deleted; every screen, the 404 included, wears Costì. The osteria's approved green `#1C4130` lives on
+only as the accent of its venue layer (§9). Guest e-mails moved to Costì values in #183 (system font stack, Charcoal ink, Forest links).
 
 ## 2. Colour: roles and rules
 
@@ -46,13 +48,13 @@ Values: `ui-foundation.md` §11. Here are the **roles** a designer chooses from,
 | Secondary text | `ink-muted` | derived | derived | Hints, meta; never for the only copy of a fact |
 | Hairline | `rule` | derived | derived | Decorative only |
 | Input border, required boundary | `rule-strong` | derived | derived | ≥ 3:1 on page and card |
-| Header band | `band` / `band-ink` | Forest / Off-white | same | Band stays Forest in both modes |
+| Header band | `band` / `band-ink` | Forest / Off-white, or the venue's accent (§9) | same | The band keeps its colour in both modes |
 | Primary action | `accent` / `on-accent` | Forest / Off-white | Sage / Charcoal | **One per screen** |
 | Link, quiet button | `accent-ink` | Forest | Sage | Underlined, 44 px tall |
 | Focus ring | `focus` | Forest | Sage | 3 px + 2 px offset, never removed |
 | Accent line, mark, icon detail | `gold` (= Coral) | Coral | Coral | **Never text, never a required boundary** |
 | Badge fill | `highlight` / `on-highlight` | Coral / Charcoal | same | The only text allowed on Coral is Charcoal (5.75) |
-| Status | `success`, `warning`, `danger`, `info` + `-bg` | product tokens, same as the venue | | Always with a word, never colour alone |
+| Status | `success`, `warning`, `danger`, `info` + `-bg` | semantic tones (values in `ui-foundation.md` §11) | | Always with a word, never colour alone |
 
 **Coral, in one paragraph.** Coral is the brand's spark, used sparingly: the 2 px rule under the band, the accent above the ì, small
 graphic details (the pattern stroke, an icon detail ≥ 3:1 against its background, which is true only on Forest at 3.82 and never on
@@ -135,20 +137,25 @@ than the logo files; HACCP, traceability or lot-tracking promises (Phase 2, not 
 
 - File: [**"Costì — design system"**](https://www.figma.com/design/4QuajvzZM0J4lSBCOm5Q02) (created 2026-11-14). The Starter plan allows 3 pages,
   so the planned six are folded into three: **Library** (frames `Cover`, `Foundations`, `Components · Costì light`) · **Product screens
-  (Costì)** · **Venue screens (osteria theme)**. `Archive` is not needed yet.
+  (Costì)** · **Venue screens (osteria theme)**, the last one to be renamed "Venue screens" and its frames re-bound to Costì with the
+  venue collection (below) when Figma calls return. `Archive` is not needed yet.
 - **Variables.** The Starter plan allows **one mode per collection**, so the four looks are four collections with the same 25 names
   (`color/paper` … `color/info-bg`, Web code syntax `var(--color-…)`): `color · Costì light`, `color · Costì dark`, `color · Osteria light`,
   `color · Osteria dark`; plus `size` (gutter, rhythm, field gap, label gap, radii, `size/tap` 44, column 448, focus stroke 3). Values copied
-  from §11 and `THEMES`. On a Professional plan these fold back into one collection with four modes, as §6 intended; nothing else changes.
-- **Text styles** `costi/*` (Montserrat 600, Inter 400/700) and `osteria/*` (Bodoni Moda 600, Figtree 400/700), the §3 ramp; effect style
-  `elevation/card`.
+  from §11 and the then-existing `THEMES`; the two Osteria collections are **retired** with the theme (§10.1). On a Professional plan these fold back into one collection with four modes, as §6 intended; nothing else changes.
+- **Text styles** `costi/*` (Montserrat 600, Inter 400/700), the §3 ramp; effect style `elevation/card`. The `osteria/*` styles (Bodoni
+  Moda 600, Figtree 400/700) are retired with the theme and go to `Archive` or are deleted on the next Figma pass.
 - **Components** are bound to `Costì light`. A screen in another look uses the same instances re-bound to that look's collection and text
   styles (the designer's script does it), which mirrors the scope attribute in code. Built: Button (4 variants × 5 states), LinkButton,
   TextLink, Badge (6 tones), Heading, SubHeading, Card (plain, Coral edge), Field (5 states, hint on/off), Checkbox, ErrorAlert, SuccessNote,
   WarningNote, InfoNotice, PinPad (idle, filled, error, sending), HeaderBand (product, venue), ProductLogo (placeholder, light and reversed),
   NavPill, BottomTabs, Tabs, LedgerRow (optional badge), BackLink, DayPicker, FactRow.
-- **Out of date in Figma:** the `HeaderBand · product` component still shows the venue's name; it changes to "Costì" when Figma
-  calls are available again (founder decision 2026-11-14, §1).
+- **Out of date in Figma (the designer's list for the next pass, when Figma calls are available again):**
+  - `HeaderBand · product` still shows the venue's name; it changes to "Costì" (founder decision 2026-11-14, §1);
+  - `Button` needs its 5th variant `selected` (ink fill, paper text, the secondary's 1.5 px border, bold) × 5 states (#179);
+  - `LedgerRow`'s property "Show badge" becomes "Show trailing" (§10.4);
+  - `Tabs` becomes the built `SegmentedControl` and `FactRow` loses its hairline and bold value (§11a);
+  - the Osteria collections become one `venue · Osteria Dei Rossi` collection (§10.1).
 - **Not yet in Figma:** dark previews of the components (§6 asks for both), the product screens (sign-in, device) and the remaining venue
   screens; blocked by the Starter plan's monthly MCP call limit (2026-11-14).
 - Screens are named `<route> · <state> · <look>`, at 360 px wide (phone), with a caption above each frame naming its spec section.
@@ -172,7 +179,7 @@ not radii or spacing.
   refusal code (`band_ink_contrast`, `rule_contrast`), with a unit test for each rule. No new token name: the layer re-values two existing
   ones. The osteria's values are a fixture of that test.
 - **Where it is set:** by the owner in the onboarding wizard (A2/SP7) or DigiAlto in the console (later); until SP9, tenant #1's values are
-  one constant (`VENUE_LAYER_DEFAULT`) in `tokens.ts`.
+  one constant (`VENUE_LAYER_DEFAULT`) in `venue-layer.ts`.
 - **Guests:** `/prenota` shows the venue layer and no Costì name or logo.
 
 ## 10. Code mapping (Figma → code, 1:1)
@@ -185,8 +192,8 @@ existing `COLOR_TOKENS` list; no name is added or renamed.
 
 | Figma collection (Starter: one mode each) | Code |
 |---|---|
-| `color · Costì light` | `PRODUCT_THEMES.light` → the `:root` light values (after §11 step 9; before it, the `data-brand="costi"` block) |
-| `color · Costì dark` | `PRODUCT_THEMES.dark` → the `prefers-color-scheme: dark` block |
+| `color · Costì light` | `PRODUCT_THEMES.light` → the `:root` light values (`@theme` in `globals.css`, since §11 step 9; before it, the `data-brand="costi"` block) |
+| `color · Costì dark` | `PRODUCT_THEMES.dark` → the screen-only `prefers-color-scheme: dark` `:root` block |
 | `color · Osteria light` / `color · Osteria dark` | **retired** (old theme). In Figma they become one small collection `venue · Osteria Dei Rossi` with `band`, `band-ink`, `rule` only (updated when Figma calls return) |
 
 ### 10.2 Size variables, text styles, effect
@@ -207,51 +214,51 @@ existing `COLOR_TOKENS` list; no name is added or renamed.
 | `costi/label` 16/22 · `costi/label-sm` 15/20 | `font-bold text-base` · `font-bold text-[0.9375rem]` (Inter 700) |
 | `costi/meta` 14/20 | `text-sm text-ink-muted` |
 | `costi/num` | `.num` (`tabular-nums`) |
-| `osteria/*` text styles | **retired** with the osteria theme |
+| `osteria/*` text styles | **retired** with the osteria theme (P2j, #181) |
 | `elevation/card` | `Card`'s shadow classes (code is the reference; Figma approximates it) |
-| Fonts | `--font-display` → Montserrat 600 (`--font-product-display`), `--font-sans` → Inter (`--font-product-body`); Bodoni Moda and Figtree files deleted at §11 step 9 |
+| Fonts | `font-display` → `--font-display` → `var(--font-display-face)` = Montserrat 600; `font-sans` → `--font-sans` → `var(--font-body)` = Inter 400/700. Both set by `next/font/local` in `layout.tsx` and preloaded; the stacks end in `ui-sans-serif, system-ui, sans-serif`. Bodoni Moda and Figtree files deleted at §11 step 9 (#181) |
 
 ### 10.3 Components (25 in the Figma library)
 
 | Figma component | Code | Status |
 |---|---|---|
-| Button (5 × 5) | `Button` (`ui.tsx`), `comfort` prop for tap-comfort | exists; `selected` added in #179 (Figma: 5th variant still to draw) |
+| Button (5 × 5) | `Button` (`ui.tsx`), `comfort` prop for tap-comfort | exists; `selected` added in #179 (Figma: 5th variant still to draw, §8) |
 | LinkButton | `primaryLinkClass` (`ui.tsx`) | exists |
 | TextLink | `linkClass` (`ui.tsx`) | exists |
-| Badge (6 tones) | `Badge` (`ui.tsx`) + `RecommendedBadge` (`brand.tsx`) for `highlight` | exists; `highlight` → **new tone** in `Badge` (fold `RecommendedBadge` into it) |
+| Badge (6 tones) | `Badge` (`ui.tsx`), tone `highlight` | exists (P2a: `RecommendedBadge` folded in) |
 | Heading · SubHeading | `Heading`, `SubHeading` (`ui.tsx`) | exists |
-| Card (plain, Coral edge) | `Card` (`ui.tsx`); Coral edge = the sign-in card's class | exists; Coral edge → **new** `Card` prop `edge` |
+| Card (plain, Coral edge) | `Card` (`ui.tsx`), prop `edge` | exists (P2a) |
 | Field (5 states, hint) | `Field` + `TextInput` / `Select` (`ui.tsx`) | exists |
 | Checkbox | `Checkbox` (`ui.tsx`) | exists |
 | ErrorAlert · SuccessNote · WarningNote | `ErrorAlert`, `SuccessNote`, `warningNoteClass` (`ui.tsx`) | exists |
-| InfoNotice | — | **new** (`NOTE` + `info` / `info-bg`, `role="status"`) |
+| InfoNotice | `InfoNotice` (`ui.tsx`) | exists (P2a) |
 | PinPad (4 states) | `src/app/(public)/pin/pin-pad.tsx` | exists |
 | HeaderBand · product | `HeaderBand` (`header-band.tsx`) + `ProductBrandLink` (`brand.tsx`) | exists |
-| HeaderBand · venue | `HeaderBand` + `BrandLink` / `BrandTitle` (`brand.tsx`) | exists; logo slot and accent from the venue layer → **change** (§9) |
+| HeaderBand · venue | `HeaderBand` + `BrandLink` / `BrandTitle` (`brand.tsx`), `venue` prop | exists; logo slot and accent from the venue layer (P2a) |
 | ProductLogo · light · reversed | `ProductLogo` (`product-scope.tsx`) | exists (placeholder art) |
-| — (not in Figma) | `BrandMark` (`brand.tsx`, the osteria's gold diamond in the band) | **retired**: the venue logo slot (§9) replaces it |
+| — (not in Figma) | `BrandMark` (the osteria's gold diamond in the band) | **retired** (P2a): the venue logo slot (§9) replaces it |
 | NavPill | `pillClass` (`nav/nav-classes.ts`) via `SectionNavView` | exists |
 | BottomTabs | `BottomTabsView` (`nav/bottom-tabs.tsx`), `tabClass` | exists |
-| Tabs (segmented) | `course-tabs.tsx` and the comanda's view tabs (inline) | **new** shared `SegmentedControl` (W-a ink fill, `role="tablist"`) |
-| LedgerRow | `LedgerList` + `LedgerRow` (`ui.tsx`) | exists; title/meta/trailing-badge layout → **new** props |
+| Tabs (segmented) | `SegmentedControl` (`segmented-control.tsx`) | exists: ink fill, `role="tablist"`, roving tabindex with manual activation (#156), optional `selectedRef` (#178) |
+| LedgerRow | `LedgerList` + `LedgerRow` (`ui.tsx`), props `title` / `meta` / `trailing` / `href` | exists (#149; `badge` renamed `trailing` in #159) |
 | BackLink | `BackLink` (`back-link.tsx`) | exists |
-| DayPicker | `src/app/(owner)/chiusura/day-picker.tsx` | exists; **move** to `src/components` (P2-2 reuses it) |
-| FactRow | — (each page writes its own `dl`) | **new** `FactList` / `FactRow` |
+| DayPicker | `src/components/day-picker.tsx` | exists (moved in #149) |
+| FactRow | `FactList` / `FactRow` / `FactDetail` (`fact-list.tsx`), props `end`, `figure`, `testId` | exists; every hand-written `dl` replaced by step 7 (#169) |
 
 ### 10.4 Emphasis and slots (designer, 2026-11-15, with the lead on #153)
 
 - **`<strong>` for the figure a row or card exists to show**: the Chiusura difference, the report per-service figures, ingredient
   on-hand, count net, waste total, and the Home payables amount. `font-bold` is only for styling a label (titles, service names).
-  The P2f figures and the payables amount move to `<strong>` in the alignment pass.
+  The P2f figures and the payables amount moved to `<strong>` in the alignment pass (#159).
 - **LedgerRow's end slot is `trailing`**, not `badge`: it holds amounts as often as badges. The code is renamed in the alignment
-  pass; the Figma property "Show badge" becomes "Show trailing" when Figma is available again.
+  pass (#159, done); the Figma property "Show badge" becomes "Show trailing" when Figma is available again.
 - **Figures are Inter 700 with tabular figures** (`num`), even when large (the Chiusura difference at 30 px). Montserrat stays for
   headings only (§3).
 
 ### 10.5 Print (designer, 2026-11-15)
 
 Paper is printed in black, not in the screen palette. The monthly pack `/report/mese` goes to the accountant, often on a mono
-laser, where Charcoal #1F2933 is halftoned and small figures print fuzzy. Rule (`@media print`, alignment pass):
+laser, where Charcoal #1F2933 is halftoned and small figures print fuzzy. Rule (`@media print`, built in #159 and #167):
 
 | Screen token | Print value |
 |---|---|
@@ -265,27 +272,26 @@ laser, where Charcoal #1F2933 is halftoned and small figures print fuzzy. Rule (
 
 ## 11. Re-skin order
 
-**How:** the switch already exists. A page takes the Costì values when a `data-brand="costi"` element is on it (`globals.css`,
-`:root:has([data-brand="costi"])`). Split `ProductScope` into **`CostiTheme`** (the attribute only) and `ProductLogo`, and add `CostiTheme`
-to one route group's layout per step, with the venue layer (§9) applied to the band. Each step is one small PR: layout change, fixes for
-that group's screens (mainly Bodoni-sized headings and hard-coded cream or black), and screenshots at 360 × 740 light and dark plus the
-1280 px layout where one exists.
+**Done (2026-11-18).** Every step below has shipped; P2j (#181) ended it by making Costì the `:root` theme. The record of how it went:
+a page took the Costì values while a `data-brand="costi"` element was on it (`globals.css`, `:root:has([data-brand="costi"])`), and each
+step added the hidden `CostiTheme` marker to one route group's layout, with the venue layer (§9) on the band, guarded by
+`costi-theme-order.test.ts`. Step 9 deleted the marker, the `:has()` blocks, that guard and the osteria theme.
 
 | Step | Screens | Why this place |
 |---|---|---|
-| 0 | `venueLayer()` + `VENUE_LAYER_DEFAULT`, `CostiTheme`, new components of §10.3 (InfoNotice, SegmentedControl, FactRow, Badge `highlight`, Card `edge`) | Everything the steps below need |
-| 1 | **Sala**: `/tavoli`, `/tavoli/comanda`, conto | Most used (every waiter, every service); P3 just shipped there |
-| 2 | **Cucina**: `/cucina` (kitchen board, incl. high contrast), `/produzione`, `/riordino`, `/margini` | Used all service; re-run the high-contrast pairs (`HIGH_CONTRAST_PAIRS`) against Costì values |
-| 3 | **Home** (owner and chef), `/spingere` | First screen of every day |
-| 4 | **Fatture**: list, upload, revisione | Weekly, money; P2-7 lands here |
-| 5 | **Magazzino**, conteggi, `/tracciabilita` | Daily for the chef; P2-2 lands here |
-| 6 | **Chiusura**, **Prenotazioni** (staff side), **Report** | Daily close and bookings |
-| 7 | Gestione and Anagrafica (ricette, costi, fornitori, ingredienti, personale, impostazioni), **Registro** | Less frequent, many forms |
-| 8 | Guest `/prenota/<slug>` and guest e-mails (venue layer, no Costì name) | Guests last: least staff impact, needs SP9 for other venues |
-| 9 | Make Costì the `:root` default; delete `THEMES`, the osteria `globals.css` blocks, Bodoni Moda and Figtree files and their tests; `CostiTheme` becomes a no-op and is removed | One theme left |
+| 0 (P2a, #120) | `venueLayer()` + `VENUE_LAYER_DEFAULT`, `CostiTheme`, new components of §10.3 (InfoNotice, SegmentedControl, FactRow, Badge `highlight`, Card `edge`) | Everything the steps below need |
+| 1 (P2b) | **Sala**: `/tavoli`, `/tavoli/comanda`, conto | Most used (every waiter, every service); P3 just shipped there |
+| 2 (P2c) | **Cucina**: `/cucina` (kitchen board, incl. high contrast), `/produzione`, `/riordino`, `/margini` | Used all service; re-run the high-contrast pairs (`HIGH_CONTRAST_PAIRS`) against Costì values |
+| 3 (P2d) | **Home** (owner and chef), `/spingere` | First screen of every day |
+| 4 (P2e, #149) | **Fatture**: list, upload, revisione | Weekly, money; P2-7 lands here |
+| 5 (P2f, #151) | **Magazzino**, conteggi, `/tracciabilita` | Daily for the chef; P2-2 lands here |
+| 6 (P2g, #153) | **Chiusura**, **Prenotazioni** (staff side), **Report** | Daily close and bookings |
+| 7 (P2h, #169) | Gestione and Anagrafica (ricette, costi, fornitori, ingredienti, personale, impostazioni), **Registro** | Less frequent, many forms |
+| 8 (P2i, #178, #179; e-mails #183) | Guest `/prenota/<slug>` and guest e-mails (venue layer, no Costì name) | Guests last: least staff impact, needs SP9 for other venues |
+| 9 (P2j, #181) | Make Costì the `:root` default; delete `THEMES`, the osteria `globals.css` blocks, Bodoni Moda and Figtree files and their tests; `CostiTheme` becomes a no-op and is removed | One theme left |
 
-**Guards per step:** the existing contrast tests run on `PRODUCT_THEMES` (already green); a source test lists the route groups not yet
-re-skinned and shrinks with each step (so nobody re-skins out of order by accident); the waiter payload and P3 e2e stay green; no new
+**Guards per step (while it ran):** the existing contrast tests run on `PRODUCT_THEMES`; a source test listed the route groups not yet
+re-skinned and shrank with each step (deleted at step 9, replaced by `one-theme.test.ts`); the waiter payload and P3 e2e stay green; no new
 token names (§10.1).
 
 ## 11a. Check of P2a against this spec (designer, 2026-11-14; PR #120)
@@ -302,13 +308,13 @@ founder.
 | §9 logo keeps ≥ 3:1 against the band | not checked yet | none now: needs SP9's upload; note for SP9 |
 | §1 sign-in and console: Costì band, no venue layer; guests: venue layer, no Costì | `PublicBand`; sign-in `themeColor` Forest; `ConsoleBand` on the console (the constant «Costì · Console», no venue prop); console layout `themeColor` Forest | ✓ |
 | §1 every venue screen gets the venue band | shell, 404 and `/prenota` pass `VENUE_LAYER_DEFAULT`; browser bar follows it | ✓ |
-| §9 rule under the band is Costì Coral | `border-gold`: Coral on Costì pages, still the osteria gold on routes not yet re-skinned | expected until each §11 step |
+| §9 rule under the band is Costì Coral | `border-gold`: Coral on Costì pages, still the osteria gold on routes not yet re-skinned | expected until each §11 step; ✓ everywhere since #181 |
 | §10.3 InfoNotice, Badge `highlight`, Card `edge`, FactList/FactRow, SegmentedControl; BrandMark and RecommendedBadge retired | all built; CourseTabs replaced by SegmentedControl | ✓ |
-| §10.3 DayPicker moved to `src/components`; LedgerRow title/meta/badge props | not in P2a | open: due before steps 5–6 (P2-2 uses both) |
+| §10.3 DayPicker moved to `src/components`; LedgerRow title/meta/badge props | not in P2a | open then; ✓ in #149 (and `badge` → `trailing` in #159) |
 | §10.2 tab labels `costi/label-sm` 15 px | `tabClass` now `text-[0.9375rem]` | ✓ |
-| §11 one route group per step, guarded | `CostiTheme` (hidden marker) and `costi-theme-order.test.ts`, steps 1–9 as §11 (step 3 adds `altro`, `avvisi`; step 4 adds `pagamenti`) | ✓ |
+| §11 one route group per step, guarded | `CostiTheme` (hidden marker) and `costi-theme-order.test.ts`, steps 1–9 as §11 (step 3 adds `altro`, `avvisi`; step 4 adds `pagamenti`) | ✓; both removed at step 9 (#181), as planned |
 
-**Figma is now behind the code (designer's action, when Figma calls return):** the `Tabs` component (sunk track, surface selected) becomes
+**Figma is now behind the code (designer's action, when Figma calls return; the full list is in §8):** the `Tabs` component (sunk track, surface selected) becomes
 the built `SegmentedControl` (separate bordered buttons, selected = ink fill, wraps); `FactRow` loses its hairline and bold value to match
 `FactList`; the osteria colour collections become `venue · Osteria Dei Rossi` (§10.1).
 
