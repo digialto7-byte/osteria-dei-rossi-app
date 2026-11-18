@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(37);
+select plan(38);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -207,6 +207,16 @@ end
 $$;
 select is(pg_temp.mutated_a_rows(), '2/0/0', 'mutation: with a policy that lets B read A, B''s owner reads A''s two movements, so the first group''s "0/0/0" would fail');
 select is((select count(*)::int from pg_policy where polname = 'x_mutation_b_reads_a'), 0, 'and the mutation is gone');
+
+-- Step 11: B's reconciliation never includes A's carico (A's opening operation row is a fixture; here A's ledger gains an opening row of 3 kg at A's Dispensa).
+insert into public.stock_movement (tenant_id, ingredient_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
+  values ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-0000000000a1', 'opening', 3, 0.8, 'opening',
+          '0e000000-0000-4000-8000-0000000000a1', '1998-11-02', 'a1000000-0000-4000-8000-00000000000a');
+set local role authenticated;
+select pg_temp.as_b('owner');
+select is((select count(*)::int from jsonb_array_elements(public.stock_reconciliation('1998-11-01', '1998-11-30', '10000000-0000-4000-8000-0000000000b1') -> 'items') e
+            where e ->> 'ingredientId' like '1a%'), 0, 'B''s reconciliation of its own location lists none of A''s ingredients (A''s carico included)');
+reset role;
 
 select * from finish();
 rollback;
