@@ -37,6 +37,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  "20261206200400_tenant_locale_settings.sql": {
+    functions: ["app.check_sale_vat_rate", "public.tenant_settings", "public.set_tenant_settings"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -229,6 +234,66 @@ describe("SP1 migrations: step 5, the close codes", () => {
     const sql = body(file);
     expect(sql).toMatch(/on\s+delete\s+set\s+null\s+\(updated_by\)/i);
     expect(sql).not.toMatch(/demo_purge_tables/i);
+  });
+});
+
+describe("SP1 migrations: step 7, the tenant-row lock (lead decision Q-c)", () => {
+  const file = "20261206200400_tenant_locale_settings.sql";
+
+  /** The text of one function in the file, from its create to its closing $$. */
+  const functionBody = (name: string) => {
+    const sql = body(file);
+    const start = sql.search(new RegExp(`function\\s+${name.replace(".", "\\.")}\\(`, "i"));
+    expect(start, name).toBeGreaterThanOrEqual(0);
+    const end = sql.indexOf("\n$$;", start);
+    return sql.slice(start, end);
+  };
+
+  it("set_tenant_settings takes the tenant row FOR NO KEY UPDATE (never FOR UPDATE) before it reads the lists", () => {
+    const fn = functionBody("public.set_tenant_settings");
+    const lock = fn.search(
+      /perform\s+1\s+from\s+public\.tenant\s+t\s+where\s+t\.id\s*=\s*v_tenant\s+for\s+no\s+key\s+update\s*;/i,
+    );
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeLessThan(fn.indexOf("app.sale_vat_rates(v_tenant)"));
+    expect(lock).toBeLessThan(fn.search(/insert\s+into\s+public\.tenant_vat_rate/i));
+    expect(fn).not.toMatch(/where\s+t\.id\s*=\s*v_tenant\s+for\s+update/i);
+  });
+
+  it("the sale VAT trigger takes FOR SHARE on the same row, as its own statement before it reads the list", () => {
+    const fn = functionBody("app.check_sale_vat_rate");
+    const lock = fn.search(
+      /perform\s+1\s+from\s+public\.tenant\s+t\s+where\s+t\.id\s*=\s*new\.tenant_id\s+for\s+share\s*;/i,
+    );
+    expect(lock).toBeGreaterThanOrEqual(0);
+    expect(lock).toBeLessThan(fn.indexOf("app.sale_vat_rates(new.tenant_id)"));
+    expect(fn).not.toMatch(/for\s+key\s+share|for\s+(no\s+key\s+)?update/i);
+  });
+
+  it("the race script has the cases that prove the lock, and a case that shows the writers do not serialise", () => {
+    const script = readFileSync(join(process.cwd(), "scripts/test-db-races.sh"), "utf8");
+    for (const c of [
+      "sale-vat-off-vs-price-insert",
+      "sale-vat-off-vs-update-item",
+      "sale-vat-off-vs-set-coperto",
+      "update-item-vs-sale-vat-off",
+      "menu-writers-no-wait",
+      "settings-vs-fk-insert",
+    ]) {
+      expect(script, c).toContain(`CASE=${c}`);
+    }
+  });
+
+  it("set_tenant_settings never deletes a row and writes no free text to the audit row", () => {
+    const fn = functionBody("public.set_tenant_settings");
+    expect(fn).not.toMatch(/\bdelete\b/i);
+    expect(fn).toMatch(/'tenant\.settings_changed'/);
+  });
+
+  it("the grants: both new public functions execute for authenticated only", () => {
+    expect(body(file)).toMatch(
+      /grant\s+execute\s+on\s+function\s+public\.tenant_settings\(\),\s*public\.set_tenant_settings\(jsonb\)\s+to\s+authenticated\s*;/i,
+    );
   });
 });
 

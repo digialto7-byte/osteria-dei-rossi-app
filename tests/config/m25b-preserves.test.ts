@@ -183,6 +183,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206200200_tenant_close_codes.sql",
   // SP1 step 6 (20261206200300_close_with_tenant_codes.sql), re-pinned on purpose by SP1: app.close_session_at and app.app_vs_register_json re-created on the tenant's receipt and payment lists, no new object.
   "20261206200300_close_with_tenant_codes.sql",
+  // SP1 step 7 (20261206200400_tenant_locale_settings.sql), re-pinned on purpose by SP1: tenant.default_locale, public.tenant_settings and public.set_tenant_settings, and app.check_sale_vat_rate re-created with the tenant-row lock; no new table.
+  "20261206200400_tenant_locale_settings.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

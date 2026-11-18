@@ -2791,6 +2791,117 @@ check "pin_change_vs_old_pin_login: 50 attempts and 100 reset rows" \
 check "pin_change_vs_old_pin_login: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
+# SP1 step 7 (lead decision Q-c and its lock-mode ruling, 2026-11-18; migration 20261206200400): the tenant-row lock. public.set_tenant_settings takes FOR NO KEY UPDATE on the
+# tenant row before it reads or changes the sale VAT list; the sale VAT trigger (app.check_sale_vat_rate) takes FOR SHARE on the same row before it reads the list. Fixture, in each case's own copy:
+# tenant A (five sale rates) with two menu items I1 and I2, each priced at 10 %.
+#   sale-vat-off-vs-price-insert:  the owner switches 4 % off the sale list (parked before commit; it holds the tenant row FOR NO KEY UPDATE); a direct price insert at 4 % (as table
+#                                  owner, so only the trigger stands in the way) waits on the tenant row inside the trigger, then meets the new list: vat_rate_invalid, no
+#                                  price at 4 %. Without the trigger's lock the check reads the old list, the insert then waits on the foreign-key check and commits a price at a
+#                                  switched-off rate (checked once with a mutated copy of the migration, MIGRATIONS_DIR).
+#   sale-vat-off-vs-update-item:   the same through public.update_menu_item (price 3, vatRate 4): the second waits, then fails with vat_rate_invalid; the item keeps its 10 % price.
+#   sale-vat-off-vs-set-coperto:   the same through public.set_sale_settings (coperto at 4 %): refused, no settings row. set_sale_settings takes the tenant row
+#                                  FOR NO KEY UPDATE itself, so this case holds without the trigger's lock too (it checks the outcome, not the trigger).
+#   update-item-vs-sale-vat-off:   the other order: update_menu_item at 4 % is parked (it holds FOR SHARE on the tenant row); the owner's switch-off waits for it, then commits. The
+#                                  price at 4 % was written while 4 % was offered, so it stays; the list loses 4 %. Both commit, no deadlock.
+#   menu-writers-no-wait:          two menu writers do not serialise on the lock: update_menu_item of I1 to 22 % is parked (a rate change, so the trigger holds FOR SHARE);
+#                                  update_menu_item of I2 to 22 % (also a rate change) must NOT wait (FOR SHARE does not conflict with FOR SHARE): both commit.
+#   settings-vs-fk-insert:         a settings change does not hold up the rest of the tenant: the switch-off is parked (FOR NO KEY UPDATE on the tenant row); an insert into
+#                                  dining_table, whose foreign-key check takes FOR KEY SHARE on the tenant row, must NOT wait. With FOR UPDATE it would.
+sv_setup() {
+  query "insert into public.menu_item (id, tenant_id, name, category, course_default, position, created_by, updated_by) values
+      ('5a1a0000-0000-4000-8000-000000000001', '$TENANT_A', 'Pane SV1 (demo)', 'Contorni', 'antipasti', 1, '$OWNER_USER', '$OWNER_USER'),
+      ('5a1a0000-0000-4000-8000-000000000002', '$TENANT_A', 'Pane SV2 (demo)', 'Contorni', 'antipasti', 2, '$OWNER_USER', '$OWNER_USER');
+    insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values
+      ('$TENANT_A', '5a1a0000-0000-4000-8000-000000000001', 2, 10, '2026-10-01T00:00Z', '$OWNER_USER'),
+      ('$TENANT_A', '5a1a0000-0000-4000-8000-000000000002', 2, 10, '2026-10-01T00:00Z', '$OWNER_USER')" >/dev/null
+}
+SV_I1=5a1a0000-0000-4000-8000-000000000001
+SV_I2=5a1a0000-0000-4000-8000-000000000002
+SV_OFF="select public.set_tenant_settings('{\"saleVatRates\":[0,5,10,22]}'::jsonb);"
+sv_rates() { query "select array_to_string(app.sale_vat_rates('$TENANT_A'), ',')"; }
+sv_at4() { query "select count(*) from public.menu_item_price where tenant_id = '$TENANT_A' and vat_rate = 4"; }
+
+CASE=sale-vat-off-vs-price-insert
+fresh_db sale_vat_off_vs_price_insert
+sv_setup
+two_sessions_as "$OWNER" "$SV_OFF" "" "insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, valid_from, created_by) values ('$TENANT_A', '$SV_I1', 3, 4, now(), '$OWNER_USER');"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "sale-vat-off-vs-price-insert: the switch-off commits" "$rc1" 0
+check "sale-vat-off-vs-price-insert: the price insert waited for it" "$s2_blocked" 1
+check "sale-vat-off-vs-price-insert: on a row lock (the tenant row), not an advisory lock" "$s2_advisory" 0
+check "sale-vat-off-vs-price-insert: then it fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "sale-vat-off-vs-price-insert: with vat_rate_invalid" "$(failed_with "$WORK/s2.out" vat_rate_invalid)" yes
+check "sale-vat-off-vs-price-insert: no price at 4 % exists" "$(sv_at4)" 0
+check "sale-vat-off-vs-price-insert: the list is 0,5,10,22" "$(sv_rates)" "0,5,10,22"
+check "sale-vat-off-vs-price-insert: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=sale-vat-off-vs-update-item
+fresh_db sale_vat_off_vs_update_item
+sv_setup
+two_sessions_as "$OWNER" "$SV_OFF" "$OWNER" "select public.update_menu_item('$SV_I1', '{\"price\":3,\"vatRate\":4}'::jsonb);"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "sale-vat-off-vs-update-item: the switch-off commits" "$rc1" 0
+check "sale-vat-off-vs-update-item: update_menu_item waited for it" "$s2_blocked" 1
+check "sale-vat-off-vs-update-item: then it fails" "$([ "$rc2" != 0 ] && echo failed || echo succeeded)" failed
+check "sale-vat-off-vs-update-item: with vat_rate_invalid" "$(failed_with "$WORK/s2.out" vat_rate_invalid)" yes
+check "sale-vat-off-vs-update-item: no price at 4 % exists" "$(sv_at4)" 0
+check "sale-vat-off-vs-update-item: the item keeps its single 10 % price" "$(query "select count(*) from public.menu_item_price where menu_item_id = '$SV_I1' and vat_rate = 10")" 1
+check "sale-vat-off-vs-update-item: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=sale-vat-off-vs-set-coperto
+fresh_db sale_vat_off_vs_set_coperto
+sv_setup
+two_sessions_as "$OWNER" "$SV_OFF" "$OWNER" "select public.set_sale_settings('{\"copertoAmount\":2,\"copertoVatRate\":4}'::jsonb);"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "sale-vat-off-vs-set-coperto: the switch-off commits" "$rc1" 0
+check "sale-vat-off-vs-set-coperto: set_sale_settings waited for it" "$s2_blocked" 1
+check "sale-vat-off-vs-set-coperto: then it fails with vat_rate_invalid" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" vat_rate_invalid || echo no)" yes
+check "sale-vat-off-vs-set-coperto: no settings row was written" "$(query "select count(*) from public.sale_settings where tenant_id = '$TENANT_A'")" 0
+check "sale-vat-off-vs-set-coperto: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=update-item-vs-sale-vat-off
+fresh_db update_item_vs_sale_vat_off
+sv_setup
+two_sessions_as "$OWNER" "select public.update_menu_item('$SV_I1', '{\"price\":3,\"vatRate\":4}'::jsonb);" "$OWNER" "$SV_OFF"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+[ "$rc2" = 0 ] || cat "$WORK/s2.out" >&2
+check "update-item-vs-sale-vat-off: the price update at 4 % commits" "$rc1" 0
+check "update-item-vs-sale-vat-off: the switch-off waited for it (FOR NO KEY UPDATE against FOR SHARE)" "$s2_blocked" 1
+check "update-item-vs-sale-vat-off: then it commits too" "$rc2" 0
+check "update-item-vs-sale-vat-off: the price written while 4 % was offered stays" "$(sv_at4)" 1
+check "update-item-vs-sale-vat-off: the list is 0,5,10,22" "$(sv_rates)" "0,5,10,22"
+check "update-item-vs-sale-vat-off: one settings audit row" "$(query "select count(*) from public.audit_event where action = 'tenant.settings_changed'")" 1
+check "update-item-vs-sale-vat-off: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=menu-writers-no-wait
+fresh_db menu_writers_no_wait
+sv_setup
+two_sessions_as "$OWNER" "select public.update_menu_item('$SV_I1', '{\"vatRate\":22}'::jsonb);" "$OWNER" "select public.update_menu_item('$SV_I2', '{\"vatRate\":22}'::jsonb);"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+[ "$rc2" = 0 ] || cat "$WORK/s2.out" >&2
+check "menu-writers-no-wait: the first update commits" "$rc1" 0
+check "menu-writers-no-wait: the second did not wait (FOR SHARE locks do not conflict)" "$s2_blocked" 0
+check "menu-writers-no-wait: the second commits" "$rc2" 0
+check "menu-writers-no-wait: I1 and I2 are now at 22 %" "$(query "select count(*) from public.menu_item_price where menu_item_id in ('$SV_I1', '$SV_I2') and vat_rate = 22")" 2
+check "menu-writers-no-wait: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=settings-vs-fk-insert
+fresh_db settings_vs_fk_insert
+sv_setup
+two_sessions_as "$OWNER" "$SV_OFF" "" "insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values ('5a1a0000-0000-4000-8000-0000000000d1', '$TENANT_A', 'Tavolo SV (demo)', 9, '$OWNER_USER', '$OWNER_USER');"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+[ "$rc2" = 0 ] || cat "$WORK/s2.out" >&2
+check "settings-vs-fk-insert: the switch-off commits" "$rc1" 0
+check "settings-vs-fk-insert: the insert did not wait (FOR KEY SHARE does not conflict with FOR NO KEY UPDATE)" "$s2_blocked" 0
+check "settings-vs-fk-insert: the insert commits" "$rc2" 0
+check "settings-vs-fk-insert: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then
   echo "$failures race check(s) failed" >&2
