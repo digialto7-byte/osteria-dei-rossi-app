@@ -257,8 +257,8 @@ test.describe("the public booking page on a phone (360 px)", () => {
     await expect(page.getByRole("link", { name: "Italiano", exact: true })).toBeVisible();
     // Costì plan, decision VD: guests book the osteria, so the tab says the venue's name, not the product's.
     await expect(page).toHaveTitle("Osteria Dei Rossi");
-    // The venue's page keeps the osteria look: the product tokens apply on the sign-in and device pages only.
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
+    // P2i (step 8): the guest page wears the Costì values (Off-white), with the venue's name and no Costì name.
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
   });
 
   // QW1: "/" sends a signed-out guest to the staff sign-in, so the booking page's band shows the name with no link to it.

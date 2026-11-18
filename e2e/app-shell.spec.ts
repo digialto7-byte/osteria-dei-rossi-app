@@ -55,9 +55,9 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
-  // The two themes coexist until P2j. From P2h (step 7) every signed-in screen wears Costì, Ricette included; the guest booking page
-  // (step 8) is the one screen still in the osteria cream.
-  test("a signed-in step-7 screen (Ricette) wears Costì; the guest booking page keeps the osteria cream", async ({
+  // The two themes coexist until P2j. From P2h (step 7) every signed-in screen wears Costì, Ricette included, and from P2i (step 8) so does
+  // the guest booking page. The one cream screen left is the 404 (step 9), which product-brand.spec.ts pins.
+  test("a signed-in step-7 screen (Ricette) and the guest booking page both wear Costì", async ({
     page,
   }) => {
     await signInWithMagicLink(page, createOwner());
@@ -66,7 +66,7 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
     await page.goto("/prenota/osteria-demo-nessuna");
     await expect(page.locator("main")).toHaveCount(1);
-    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
   });
 
   // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink. The rule under the band
