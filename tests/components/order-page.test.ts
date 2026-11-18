@@ -1431,15 +1431,38 @@ describe("Comanda page: the Conto tab (M21)", () => {
       expect(closeButton("Chiudi tavolo").disabled).toBe(false);
     });
 
-    it("the close sheet has no default document or payment", async () => {
+    // Founder, 2026-11-18: "Scontrino should be default when closing tables." The document defaults to the tenant's first; the payment
+    // never defaults.
+    it("the close sheet preselects the tenant's first document (Scontrino here) and no payment", async () => {
       await openBill();
       fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
-      for (const name of ["Scontrino", "Fattura", "Contanti", "Carta", "Altro"]) {
+      expect(
+        (await screen.findByRole("radio", { name: "Scontrino" })) as HTMLInputElement,
+      ).toHaveProperty("checked", true);
+      for (const name of ["Fattura", "Contanti", "Carta", "Altro"]) {
         expect((await screen.findByRole("radio", { name })) as HTMLInputElement).toHaveProperty(
           "checked",
           false,
         );
       }
+    });
+
+    it("a tenant that lists Fattura first gets Fattura preselected", async () => {
+      meReply = Promise.resolve(
+        ok({
+          user: { id: DEMO.id, displayName: DEMO.displayName, role: "waiter" },
+          tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+          settings: { ...ME_SETTINGS, receiptTypes: ["fattura", "scontrino"] },
+        }),
+      );
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      expect(
+        (await screen.findByRole("radio", { name: "Fattura" })) as HTMLInputElement,
+      ).toHaveProperty("checked", true);
+      expect((screen.getByRole("radio", { name: "Scontrino" }) as HTMLInputElement).checked).toBe(
+        false,
+      );
     });
   });
 
