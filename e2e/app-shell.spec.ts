@@ -55,11 +55,17 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
-  // The two themes coexist until P2j: a screen of a later step (Ricette, step 7) still wears the osteria cream.
-  test("a signed-in screen of a later step (Ricette) keeps the osteria cream", async ({ page }) => {
+  // The two themes coexist until P2j. From P2h (step 7) every signed-in screen wears Costì, Ricette included; the guest booking page
+  // (step 8) is the one screen still in the osteria cream.
+  test("a signed-in step-7 screen (Ricette) wears Costì; the guest booking page keeps the osteria cream", async ({
+    page,
+  }) => {
     await signInWithMagicLink(page, createOwner());
     await page.goto("/ricette");
     await expect(page.locator("main").getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
+    await page.goto("/prenota/osteria-demo-nessuna");
+    await expect(page.locator("main")).toHaveCount(1);
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 250, 223)");
   });
 
