@@ -2,6 +2,8 @@
 -- service-role wrappers. The table is outside `public` (a run spans tenants and has none) and no API
 -- role can read or write it; only the definer functions touch it.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(35);
 

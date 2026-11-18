@@ -4,6 +4,8 @@
 -- per run (ok false, retention_failed when a tenant failed; the others are still done). pg_cron runs it daily at 03:20 UTC. app.job_health_checks names it when it has had no
 -- successful run for 48 hours (own-history rule) or when it is not scheduled. p_now is fixed. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(53);
 -- Hold off pg_cron's own job_run inserts until this file rolls back (the health checks below read the log).

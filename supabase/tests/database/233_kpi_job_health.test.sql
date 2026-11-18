@@ -2,6 +2,8 @@
 -- run in the last 60 minutes (own-history rule: a job with no earlier finished run is never stale), and it is "unscheduled" when its cron job is missing or
 -- inactive. The other jobs' rules are those of 117, which stays green. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(11);
 -- Hold off pg_cron's own job_run inserts (kpi-rollup, alert-rules) until this file rolls back: with fixtures in 1998

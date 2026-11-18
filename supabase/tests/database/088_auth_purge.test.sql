@@ -2,6 +2,8 @@
 -- Attempts and sessions are kept 30 days, unused codes 30 days past expiry, the enrolment IP log 1 day. This is
 -- retention, not ledger editing: no API role can delete these rows, and the purge only deletes rows past retention.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(27);
 

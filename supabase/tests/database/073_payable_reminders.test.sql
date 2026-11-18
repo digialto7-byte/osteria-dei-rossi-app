@@ -5,6 +5,8 @@
 -- Fixture, tenant A: P (due 1998-12-10, paid on 12-05), Q (control, same date, stays open), S (scheduled)
 -- and T (disputed); R is approved late (inserted after 12-10). The DST payables X1..X3 come last.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(40);
 

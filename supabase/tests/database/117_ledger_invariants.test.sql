@@ -3,6 +3,8 @@
 -- consistent on every check; app.job_run rows are inserted with chosen times. Each inconsistency is seeded in a
 -- savepoint and rolled back afterwards. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(50);
 -- Hold off pg_cron's own job_run inserts (kpi-rollup, alert-rules) until this file rolls back: with fixtures in 1998

@@ -3,6 +3,8 @@
 --   tenant A: the combined fixture at D = 1998-11-02 (AT4); tenant B: D = 1998-11-01 (a normal Sunday);
 --   tenant C: D = 1998-10-25 (the 25-hour day, AT6); tenant P: the synthetic performance fixture.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(48);
 
