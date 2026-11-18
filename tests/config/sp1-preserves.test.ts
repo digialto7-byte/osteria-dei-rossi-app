@@ -27,6 +27,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  "20261206200200_tenant_close_codes.sql": {
+    functions: ["app.tenant_receipt_types", "app.tenant_payment_types", "app.seed_tenant_settings"],
+    tables: ["public.tenant_close_code"],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -179,6 +184,46 @@ describe("SP1 migrations: what they create", () => {
       /revoke\s+insert,\s*update,\s*delete,\s*truncate\s+on\s+public\.tenant_vat_rate\s+from\s+service_role/i,
     );
     expect(sql).not.toMatch(/grant\s+(insert|update|delete|truncate|all)\b/i);
+  });
+});
+
+describe("SP1 migrations: step 5, the close codes", () => {
+  const file = "20261206200200_tenant_close_codes.sql";
+
+  it("backfills every existing tenant per kind in one idempotent statement from the catalogue", () => {
+    const sql = body(file);
+    for (const [kind, fn] of [
+      ["receipt", "receipt_types"],
+      ["payment", "payment_type_codes"],
+    ] as const) {
+      expect(sql).toMatch(
+        new RegExp(
+          `insert\\s+into\\s+public\\.tenant_close_code\\s*\\(tenant_id,\\s*kind,\\s*code,\\s*position\\)\\s*select\\s+t\\.id,\\s*'${kind}',[^;]*from\\s+public\\.tenant\\s+t\\s+cross\\s+join\\s+unnest\\(app\\.${fn}\\(\\)\\)[^;]*on\\s+conflict\\s+do\\s+nothing;`,
+          "i",
+        ),
+      );
+    }
+  });
+
+  it("leaves the table closed: RLS on, one select policy, no write grant", () => {
+    const sql = body(file);
+    expect(sql).toMatch(
+      /alter\s+table\s+public\.tenant_close_code\s+enable\s+row\s+level\s+security/i,
+    );
+    expect(sql.match(/create\s+policy/gi)).toHaveLength(1);
+    expect(sql).toMatch(
+      /create\s+policy\s+tenant_close_code_select\s+on\s+public\.tenant_close_code\s+for\s+select\b/i,
+    );
+    expect(sql).toMatch(
+      /revoke\s+insert,\s*update,\s*delete,\s*truncate\s+on\s+public\.tenant_close_code\s+from\s+service_role/i,
+    );
+    expect(sql).not.toMatch(/grant\s+(insert|update|delete|truncate|all)\b/i);
+  });
+
+  it("keeps the configuration out of the demo purge and its author key on delete set null", () => {
+    const sql = body(file);
+    expect(sql).toMatch(/on\s+delete\s+set\s+null\s+\(updated_by\)/i);
+    expect(sql).not.toMatch(/demo_purge_tables/i);
   });
 });
 

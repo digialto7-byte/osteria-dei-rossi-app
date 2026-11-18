@@ -179,6 +179,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206200000_tenant_sale_vat.sql",
   // SP1 step 4 (20261206200100_sale_vat_reads.sql), re-pinned on purpose by SP1: three sale-side reads re-created on the tenant's sale VAT list (default_vat_rate, menu_items_manage, sale_settings_read), no new object.
   "20261206200100_sale_vat_reads.sql",
+  // SP1 step 5 (20261206200200_tenant_close_codes.sql), re-pinned on purpose by SP1: tenant_close_code (one table, two app helpers, seed_tenant_settings re-created, a backfill).
+  "20261206200200_tenant_close_codes.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

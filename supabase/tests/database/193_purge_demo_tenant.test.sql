@@ -6,7 +6,7 @@
 -- device and audit row; R1 and R2 keep every table's rows, byte for byte (md5 of the rows), and stay append-only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(92);
+select plan(95);
 
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
@@ -287,6 +287,9 @@ update public.tenant set settings = settings || '{"demo_cost_rule": 7}'::jsonb w
 -- SP1: the demo owner edits the sale VAT list (as set_tenant_settings will, from step 7), so a kept configuration row names a demo user.
 update public.tenant_vat_rate set is_active = false, updated_by = (select id from demo_owner), updated_at = '1998-02-02T09:00:00Z'
  where tenant_id = (select d from ctx) and rate = 4;
+-- SP1 step 5: the same for a receipt code (the demo owner switches fattura off), so a kept close-code row names a demo user too.
+update public.tenant_close_code set is_active = false, updated_by = (select id from demo_owner), updated_at = '1998-02-02T09:00:00Z'
+ where tenant_id = (select d from ctx) and kind = 'receipt' and code = 'fattura';
 
 select pg_temp.mkall(d, 'D', (select id from demo_owner)) from ctx;
 -- A real user the REAL owner adds AFTER the marker, with a login session on the real (old) device: not a demo user, so it and its
@@ -388,6 +391,13 @@ select is((select string_agg(rate::text || ':' || is_active::text || ':' || coal
   'SP1: the rate the demo owner switched off stays off, and loses only its author (on delete set null), so the purge did not abort');
 select is((select count(*)::int from public.tenant_vat_rate r where r.tenant_id = (select d from ctx) and r.updated_by is not null
             and not exists (select 1 from public.app_user u where u.tenant_id = r.tenant_id and u.id = r.updated_by)), 0, 'SP1: no kept rate names a deleted user');
+-- SP1 step 5 (Q-b): tenant_close_code is configuration too. The reset keeps D's five rows, the code the demo owner switched off stays off and loses only its author.
+select is((select count(*)::int from public.tenant_close_code where tenant_id = (select d from ctx)), 5, 'SP1: the purge leaves the tenant''s five tenant_close_code rows (configuration, not operational data)');
+select is((select string_agg(kind || ':' || code || ':' || is_active::text || ':' || coalesce(updated_by::text, '-'), ',' order by kind, code) from public.tenant_close_code
+            where tenant_id = (select d from ctx) and (updated_by is not null or not is_active)), 'receipt:fattura:false:-',
+  'SP1: the receipt code the demo owner switched off stays off, and loses only its author (on delete set null), so the purge did not abort');
+select is((select count(*)::int from public.tenant_close_code c where c.tenant_id = (select d from ctx) and c.updated_by is not null
+            and not exists (select 1 from public.app_user u where u.tenant_id = c.tenant_id and u.id = c.updated_by)), 0, 'SP1: no kept close code names a deleted user');
 select set_config('request.jwt.claims', '', true);
 
 select is((select j ->> 'tenantId' from res where label = 'app'), (select d::text from ctx), 'the result names the tenant');
