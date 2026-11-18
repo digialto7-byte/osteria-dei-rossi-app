@@ -19,7 +19,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // Opening stock step 4 (20261206210100_stock_movement_opening_shape.sql), re-pinned on purpose by opening stock (step 4; was 20261206210000_stock_movement_opening_type.sql): one CHECK on stock_movement (stock_movement_opening_ck), no other object.
 // Opening stock step 5 (20261206210200_stock_opening_tables.sql), re-pinned on purpose by opening stock (step 5; was 20261206210100_stock_movement_opening_shape.sql): the stock_opening and opening_draft_line tables, the audit values and the purge list.
 // Opening stock step 6 (20261206210300_stock_opening_draft.sql), re-pinned on purpose by opening stock (step 6; was 20261206210200_stock_opening_tables.sql): the helpers, the cut-off and the draft procedures.
-const NEWEST_MIGRATION = "20261206210300_stock_opening_draft.sql";
+// Opening stock step 7 (20261206210400_post_opening_stock.sql), re-pinned on purpose by opening stock (step 7; was 20261206210300_stock_opening_draft.sql): post_opening_stock, opening_history and opening_stock_summary.
+const NEWEST_MIGRATION = "20261206210400_post_opening_stock.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {

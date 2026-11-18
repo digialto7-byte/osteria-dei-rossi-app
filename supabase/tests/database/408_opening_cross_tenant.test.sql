@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(30);
+select plan(35);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -162,8 +162,18 @@ select is(pg_temp.err($$ select public.opening_draft_put('[{"id": "0d000000-0000
        || ' / ' || pg_temp.err($$ select public.opening_draft_remove(array['0d000000-0000-4000-8000-0000000000a1']::uuid[]) $$)
        || ' / ' || pg_temp.err($$ select public.opening_draft_clear('10000000-0000-4000-8000-0000000000a1') $$),
   '22023 invalid_request / ok / P0001 location_not_found', 'B cannot take over A''s draft line id, its remove of that id removes nothing (next case), and it cannot clear A''s location');
+-- Step 7: the confirm and the reads cannot be pointed at A.
+select is(pg_temp.err($$ select public.post_opening_stock('10000000-0000-4000-8000-0000000000a1', '1998-11-02', 'e0000000-0000-4000-8000-0000000000b9',
+    '[{"id": "0d000000-0000-4000-8000-0000000000a1", "ingredientId": "1a000000-0000-4000-8000-000000000002", "qty": 3, "unitCostEur": 0.8}]') $$),
+  'P0001 location_not_found', 'B''s owner confirming A''s draft at A''s location: location_not_found');
+select is(pg_temp.err($$ select public.post_opening_stock('10000000-0000-4000-8000-0000000000b1', '1998-11-02', 'e0000000-0000-4000-8000-0000000000a1',
+    '[{"id": "0d000000-0000-4000-8000-0000000000b9", "ingredientId": "1b000000-0000-4000-8000-000000000002", "qty": 3, "unitCostEur": 0.8}]') $$),
+  'P0001 opening_draft_changed', 'B reusing A''s request id at B''s location is not a replay of A''s operation (B''s own, empty draft answers)');
+select is(pg_temp.err($$ select public.opening_history('10000000-0000-4000-8000-0000000000a1') $$), 'P0001 location_not_found', 'B''s history of A''s location: location_not_found');
+select is(public.opening_stock_summary(), '{"booked": false, "draftLines": 0}'::jsonb, 'B''s summary counts none of A''s operations or draft lines');
 reset role;
 select is((select count(*)::int from public.stock_movement where tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'nothing was written to A''s ledger by any of the refused calls');
+select is((select count(*)::int from public.stock_opening), 1, 'and no operation was booked by B (A''s one fixture row only)');
 select is((select count(*)::int from public.opening_draft_line where tenant_id = '11111111-1111-4111-8111-111111111111'), 1, 'and A''s draft line is still there');
 
 -- 3. Mutation: a policy that lets B read A's ledger turns the first group red. The block is rolled back; the ledger is not touched ----------------------------------------------

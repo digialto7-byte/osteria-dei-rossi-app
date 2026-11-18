@@ -193,6 +193,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206210200_stock_opening_tables.sql",
   // Opening stock step 6 (20261206210300_stock_opening_draft.sql), re-pinned on purpose by opening stock (step 6; was the list ending at 20261206210200_stock_opening_tables.sql): the helpers, the cut-off and the draft procedures.
   "20261206210300_stock_opening_draft.sql",
+  // Opening stock step 7 (20261206210400_post_opening_stock.sql), re-pinned on purpose by opening stock (step 7; was the list ending at 20261206210300_stock_opening_draft.sql): post_opening_stock, opening_history and opening_stock_summary.
+  "20261206210400_post_opening_stock.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

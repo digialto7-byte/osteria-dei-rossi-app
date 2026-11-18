@@ -46,6 +46,12 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  // Step 7 (M5): the confirm, the history and the summary.
+  "20261206210400_post_opening_stock.sql": {
+    functions: ["public.post_opening_stock", "public.opening_history", "public.opening_stock_summary"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
