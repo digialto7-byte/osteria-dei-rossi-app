@@ -32,6 +32,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: ["public.tenant_close_code"],
     triggers: [],
   },
+  "20261206200300_close_with_tenant_codes.sql": {
+    functions: ["app.close_session_at", "app.app_vs_register_json"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 

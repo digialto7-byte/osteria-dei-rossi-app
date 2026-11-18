@@ -181,6 +181,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206200100_sale_vat_reads.sql",
   // SP1 step 5 (20261206200200_tenant_close_codes.sql), re-pinned on purpose by SP1: tenant_close_code (one table, two app helpers, seed_tenant_settings re-created, a backfill).
   "20261206200200_tenant_close_codes.sql",
+  // SP1 step 6 (20261206200300_close_with_tenant_codes.sql), re-pinned on purpose by SP1: app.close_session_at and app.app_vs_register_json re-created on the tenant's receipt and payment lists, no new object.
+  "20261206200300_close_with_tenant_codes.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
