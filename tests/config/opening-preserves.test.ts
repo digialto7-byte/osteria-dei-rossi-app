@@ -48,7 +48,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
   },
   // Step 7 (M5): the confirm, the history and the summary.
   "20261206210400_post_opening_stock.sql": {
-    functions: ["public.post_opening_stock", "public.opening_history", "public.opening_stock_summary"],
+    functions: [
+      "public.post_opening_stock",
+      "public.opening_history",
+      "public.opening_stock_summary",
+    ],
     tables: [],
     triggers: [],
   },
@@ -269,10 +273,12 @@ describe("opening stock migrations: the scanners", () => {
   it("self-test: the cascade rule catches a drop ... cascade and lets an on delete cascade foreign key through", () => {
     expect("drop table public.x cascade;").toMatch(DROP_CASCADE);
     expect("drop function app.f(uuid)\n  cascade;").toMatch(DROP_CASCADE);
-    expect("create table t (a uuid references u (id) on delete cascade);").not.toMatch(DROP_CASCADE);
-    expect("alter table t drop constraint c; alter table t add constraint d foreign key (a) references u (id) on delete cascade;").not.toMatch(
+    expect("create table t (a uuid references u (id) on delete cascade);").not.toMatch(
       DROP_CASCADE,
     );
+    expect(
+      "alter table t drop constraint c; alter table t add constraint d foreign key (a) references u (id) on delete cascade;",
+    ).not.toMatch(DROP_CASCADE);
   });
 
   it("self-test: the ledger rule catches an update, a delete and a truncate, and lets a draft-table delete through", () => {
