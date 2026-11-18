@@ -56,6 +56,12 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  // Step 9 (M6): the correction by reversal.
+  "20261206210500_reverse_opening_stock.sql": {
+    functions: ["app.opening_reversal_reasons", "public.reverse_opening_stock"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 

@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(35);
+select plan(36);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -171,6 +171,8 @@ select is(pg_temp.err($$ select public.post_opening_stock('10000000-0000-4000-80
   'P0001 opening_draft_changed', 'B reusing A''s request id at B''s location is not a replay of A''s operation (B''s own, empty draft answers)');
 select is(pg_temp.err($$ select public.opening_history('10000000-0000-4000-8000-0000000000a1') $$), 'P0001 location_not_found', 'B''s history of A''s location: location_not_found');
 select is(public.opening_stock_summary(), '{"booked": false, "draftLines": 0}'::jsonb, 'B''s summary counts none of A''s operations or draft lines');
+-- Step 9: B cannot reverse A's operation.
+select is(pg_temp.err($$ select public.reverse_opening_stock('0e000000-0000-4000-8000-0000000000a1', 'qty_wrong') $$), 'P0002 opening_not_found', 'B reversing A''s operation: opening_not_found');
 reset role;
 select is((select count(*)::int from public.stock_movement where tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'nothing was written to A''s ledger by any of the refused calls');
 select is((select count(*)::int from public.stock_opening), 1, 'and no operation was booked by B (A''s one fixture row only)');
