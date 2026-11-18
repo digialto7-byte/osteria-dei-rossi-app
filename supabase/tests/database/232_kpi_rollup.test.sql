@@ -2,6 +2,8 @@
 -- 10-minute grace has passed; it is idempotent, writes one row per date (also on both DST nights), isolates a failing tenant and is scheduled
 -- every 15 minutes in SQL. Every instant is passed as p_at; the fixture is the one of 231. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(50);
 

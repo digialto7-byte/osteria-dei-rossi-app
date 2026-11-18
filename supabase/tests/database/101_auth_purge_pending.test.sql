@@ -2,6 +2,8 @@
 -- never finished it) is a security-log row of personal data like any other, so the purge removes it after 30
 -- days too (project Q14). Recent pending attempts stay: they still serve the in-flight limit for 30 seconds.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(8);
 

@@ -3,6 +3,8 @@
 -- rolling back to a savepoint, so the failure is recorded. No route call and no network: AT3 (what remains
 -- of it). The failure tests replace the body inside this transaction; the rollback restores it.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(32);
 

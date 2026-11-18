@@ -3,6 +3,8 @@
 -- reservation_mail_finish records the outcome: sent, or a retry after 1, 5, 15 and 60 minutes, or failed for good at the fifth attempt (or at once for a rejected mail). A row whose
 -- contact is gone is skipped without a send. The pg_cron job reservation-mail runs every minute only when work is due. p_now is fixed on the twins. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(70);
 

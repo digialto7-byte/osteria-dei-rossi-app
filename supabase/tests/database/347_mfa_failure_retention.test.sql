@@ -2,6 +2,8 @@
 -- app.run_mfa_failure_retention(p_now), the daily job mfa-failure-retention, in the reservation-retention pattern: one job_run row per run, a failing tenant is skipped,
 -- the health checks name the job when it is stale or unscheduled. The permanent audit kinds are never touched. p_now is fixed. Fake data only.
 begin;
+-- A scheduled pg_cron job on the local stack can commit an app.job_run row mid-test; this lock makes it wait for the rollback (tests/guards/pgtap-job-run-lock.test.ts).
+lock table app.job_run in share row exclusive mode;
 create extension if not exists pgtap with schema extensions;
 select plan(33);
 -- Hold off pg_cron's own job_run inserts until this file rolls back (the health checks below read the log).
