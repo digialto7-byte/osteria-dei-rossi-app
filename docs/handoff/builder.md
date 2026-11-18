@@ -64,7 +64,7 @@ Conventions:
 - **Light run.** A draft PR runs only "Lint, types, unit tests". This job also runs `npm run build`, so the build is checked here even
   when it can't run locally.
 - **Heavy run.** It runs once the PR is ready, on every later push, and on every push to `main`. Its jobs:
-  - two shards of "Database (pgTAP) and E2E (Playwright)": `supabase test db` on PG17, then the Playwright projects `phone`,
+  - three shards of "Database (pgTAP) and E2E (Playwright)" (shard 1 also runs `supabase test db` on PG17 and the integration suite), each running a third of the Playwright projects `phone`,
     `phone-webkit`, `laptop`, `perf-4g` and `service-sim`;
   - "Database (two-session races)";
   - "T1 spike, staff PIN auth on the local stack (AT8)".
