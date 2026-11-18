@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, type KeyboardEvent } from "react";
+import { useRef, type KeyboardEvent, type Ref } from "react";
 
 export interface Segment<K extends string> {
   key: K;
@@ -10,6 +10,11 @@ export interface Segment<K extends string> {
   id?: string;
   /** The id of the panel the tab controls. */
   controls?: string;
+}
+
+function assign(ref: Ref<HTMLButtonElement> | undefined, node: HTMLButtonElement | null) {
+  if (typeof ref === "function") ref(node);
+  else if (ref) ref.current = node;
 }
 
 /**
@@ -28,6 +33,7 @@ export function SegmentedControl<K extends string>({
   onSelect,
   comfort = false,
   className = "",
+  selectedRef,
 }: {
   label: string;
   segments: Segment<K>[];
@@ -35,6 +41,8 @@ export function SegmentedControl<K extends string>({
   onSelect: (key: K) => void;
   comfort?: boolean;
   className?: string;
+  /** Attached to the selected tab's button, for a form that moves focus there. */
+  selectedRef?: Ref<HTMLButtonElement>;
 }) {
   const tabs = useRef<(HTMLButtonElement | null)[]>([]);
   // The tab stop is derived, so it is right whenever `selected` or the list changes; with no match the first tab is the stop.
@@ -75,6 +83,7 @@ export function SegmentedControl<K extends string>({
             key={segment.key}
             ref={(node) => {
               tabs.current[index] = node;
+              if (on) assign(selectedRef, node);
             }}
             type="button"
             role="tab"
