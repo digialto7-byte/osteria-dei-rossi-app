@@ -10,14 +10,31 @@ const migrations = readdirSync(dir)
   .filter((f) => f.endsWith(".sql"))
   .map((f) => ({ file: f, sql: readFileSync(new URL(f, dir), "utf8") }));
 
-const quoted = (list: string) => [...list.matchAll(/'([a-z][a-z-]*)'/g)].map((x) => x[1]!);
+// A job name: lower-case letters, digits, "-" and "_" (wider than today's names, so a future "kpi-rollup-v2" or "foo_bar" is still seen).
+const NAME = "[a-z0-9][a-z0-9_-]*";
+const quoted = (list: string) =>
+  [...list.matchAll(new RegExp(`'(${NAME})'`, "g"))].map((x) => x[1]!);
 
-/** Every job name a migration can make a job-health check report: cron.schedule names, the job_run check list and the job_unscheduled list. */
+/**
+ * Every job name a migration can make a job-health check report: cron.schedule names, the job_run job list (named constraint or the
+ * first inline check), the job_unscheduled list and the job_stale literals.
+ */
 function jobNames(sql: string): string[] {
   const names: string[] = [];
-  for (const m of sql.matchAll(/cron\.schedule\(\s*'([a-z][a-z-]*)'/g)) names.push(m[1]!);
+  for (const m of sql.matchAll(new RegExp(`cron\\.schedule\\(\\s*'(${NAME})'`, "g")))
+    names.push(m[1]!);
   for (const m of sql.matchAll(/job_run_job_check\s+check\s*\(\s*job\s+in\s*\(([^)]*)\)/g)) {
     names.push(...quoted(m[1]!));
+  }
+  for (const m of sql.matchAll(
+    /\bjob\s+text\s+not\s+null\s+check\s*\(\s*job\s+in\s*\(([^)]*)\)/g,
+  )) {
+    names.push(...quoted(m[1]!));
+  }
+  for (const m of sql.matchAll(
+    new RegExp(`'job_stale'::text,\\s*\\d+,\\s*'\\{\\}'::uuid\\[\\],\\s*'(${NAME})'::text`, "g"),
+  )) {
+    names.push(m[1]!);
   }
   for (const m of sql.matchAll(/'job_unscheduled'[\s\S]*?unnest\(array\[([^\]]*)\]\)/g)) {
     names.push(...quoted(m[1]!));
@@ -38,12 +55,27 @@ describe("DRIFT_JOB_KEYS match the scheduled jobs of the migrations", () => {
         "select 'job_unscheduled'::text, 1, '{}'::uuid[], j.name from unnest(array['c-job', 'd-job']) j (name)",
       ),
     ).toEqual(["c-job", "d-job"]);
+    expect(jobNames("job text not null check (job in ('e-job', 'f_job2')),")).toEqual([
+      "e-job",
+      "f_job2",
+    ]);
+    expect(
+      jobNames("return query select 'job_stale'::text, 1, '{}'::uuid[], 'g-job-v2'::text;"),
+    ).toEqual(["g-job-v2"]);
   });
 
   it("the migrations name jobs at all (the scan is not silently empty)", () => {
     const all = new Set(migrations.flatMap((m) => jobNames(m.sql)));
     expect(all.has("alert-rules")).toBe(true);
     expect(all.has("kpi-rollup")).toBe(true);
+  });
+
+  it("the newest job_run_job_check definition is read, so a changed shape cannot slip past", () => {
+    const newest = migrations.filter((m) => /job_run_job_check/.test(m.sql)).at(-1)!;
+    const listed = [
+      ...newest.sql.matchAll(/job_run_job_check\s+check\s*\(\s*job\s+in\s*\(([^)]*)\)/g),
+    ].flatMap((m) => quoted(m[1]!));
+    expect(listed.length, newest.file).toBeGreaterThan(0);
   });
 
   it("every job a migration names is in DRIFT_JOB_KEYS", () => {
