@@ -184,6 +184,15 @@ describe("checkNewPassword, venue words from the tenant's name", () => {
     expect(reason("una frase con bar e dei", EMAIL, ["Dei Bar"])).toBe("ok");
   });
 
+  it("a join shorter than four letters is not refused: 'B&B Rossi' does not refuse \"bb\"", () => {
+    expect(reason("abbastanza lunga 2026", EMAIL, ["B&B Rossi"])).toBe("ok");
+  });
+
+  it("a join of four or more letters is still refused, even of short words: 'Da Ro' refuses \"daro\"", () => {
+    expect(reason("daro2026!sole", EMAIL, ["Da Ro"])).toBe("like_venue");
+    expect(reason("Il BBRossi 2026", EMAIL, ["B&B Rossi"])).toBe("like_venue");
+  });
+
   it("checks every name it is given", () => {
     expect(reason("Marinella2026!x", EMAIL, ["Osteria Dei Rossi", "Da Marinella"])).toBe(
       "like_venue",

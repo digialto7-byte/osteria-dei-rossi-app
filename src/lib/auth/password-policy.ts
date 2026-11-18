@@ -48,14 +48,18 @@ const MIN_VENUE_WORD = 4;
 /**
  * What a password may not contain, from one business name (SP1 plan §3.6 H32): every word of 4 or more letters (refused as a whole
  * word), the joins of every run of 2 or more consecutive words, and the first and last significant word joined in both orders (refused
- * anywhere in the letters of the password).
+ * anywhere in the letters of the password). A join shorter than 4 letters is not refused, the same floor as a word (lead, #187):
+ * 'B&B Rossi' would otherwise refuse "bb" anywhere.
  */
 function venueTerms(name: string): { words: Set<string>; joins: Set<string> } {
   const all = wordsOf(normaliseForVenue(name));
   const significant = all.filter((word) => [...word].length >= MIN_VENUE_WORD);
   const joins = new Set<string>();
   for (let start = 0; start < all.length; start++) {
-    for (let end = start + 2; end <= all.length; end++) joins.add(all.slice(start, end).join(""));
+    for (let end = start + 2; end <= all.length; end++) {
+      const join = all.slice(start, end).join("");
+      if ([...join].length >= MIN_VENUE_WORD) joins.add(join);
+    }
   }
   if (significant.length >= 2) {
     const first = significant[0]!;
