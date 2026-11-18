@@ -183,6 +183,7 @@ describe("costLineText", () => {
     lineCostEur: 50,
     incomplete: false,
     reason: null,
+    costSource: "invoice",
     ...over,
   });
 
@@ -280,6 +281,7 @@ describe("ingredient words", () => {
     maxEur: 11,
     purchasesUsed: 3,
     lastPurchaseOn: "2026-10-20",
+    costSource: "invoice",
   };
 
   it("words the cost in use and the purchases", () => {

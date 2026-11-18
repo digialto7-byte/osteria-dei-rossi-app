@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unwrapCost } from "./errors";
+import { costSourceOf, type IngredientCostRow } from "./ingredients";
 import { nameLookup } from "./names";
 import { mapPlateRow, type PlateCostRow } from "./plates";
 import type { CostLine, PlateCost, RecipeCost } from "./types";
@@ -44,6 +45,14 @@ export async function getRecipeCost(
   const doc = unwrapCost<CostDocument>(
     await supabase.rpc("recipe_cost_at", { p_key: key, p_date: at }),
   );
+  // One extra read with the same date: where each ingredient line's unit cost comes from (spec §7.7).
+  const sources = new Map(
+    (
+      unwrapCost<IngredientCostRow[] | null>(
+        await supabase.rpc("ingredient_costs", { p_date: at }),
+      ) ?? []
+    ).map((row) => [row.ingredient_id, costSourceOf(row.unit_cost_eur, row.purchases_used)]),
+  );
   const missing = await nameLookup(supabase, [
     doc.missingIngredientIds,
     doc.plate?.missingIngredientIds,
@@ -61,7 +70,10 @@ export async function getRecipeCost(
     incomplete: doc.incomplete,
     reasons: doc.reasons ?? [],
     missingIngredients: missing(doc.missingIngredientIds),
-    lines: (doc.lines ?? []) as CostLine[],
+    lines: ((doc.lines ?? []) as Omit<CostLine, "costSource">[]).map((line) => ({
+      ...line,
+      costSource: line.target.kind === "ingredient" ? (sources.get(line.target.id) ?? null) : null,
+    })),
     plate: doc.plate
       ? mapPlateRow(plateRowOf(doc.plate), missing(doc.plate.missingIngredientIds))
       : null,

@@ -46,6 +46,7 @@ export const BEEF: IngredientCost = {
   maxEur: 11,
   purchasesUsed: 3,
   lastPurchaseOn: "2026-10-20",
+  costSource: "invoice",
 };
 
 export const LINE: CostLine = {
@@ -58,6 +59,7 @@ export const LINE: CostLine = {
   lineCostEur: 50,
   incomplete: false,
   reason: null,
+  costSource: "invoice",
 };
 
 export const PERIOD: FixedCostPeriod = {
