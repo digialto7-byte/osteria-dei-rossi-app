@@ -42,9 +42,16 @@ export function venueSettingsApplied(): boolean {
   return current !== null;
 }
 
+// The document's language follows the tenant's locale once the settings are applied (H13). The root layout renders the
+// first-paint language, so a reset puts that one back.
+function setDocumentLang(locale: string): void {
+  if (typeof document !== "undefined") document.documentElement.lang = locale;
+}
+
 export function applyVenueSettings(settings: VenueSettings): void {
   if (!inBrowser) return;
   current = settings;
+  setDocumentLang(settings.locale);
   try {
     storage()?.setItem(STORAGE_KEY, JSON.stringify(settings));
   } catch (error) {
@@ -55,6 +62,7 @@ export function applyVenueSettings(settings: VenueSettings): void {
 
 export function resetVenueSettings(): void {
   current = null;
+  setDocumentLang(FIRST_PAINT_VENUE_SETTINGS.locale);
   try {
     storage()?.removeItem(STORAGE_KEY);
   } catch (error) {

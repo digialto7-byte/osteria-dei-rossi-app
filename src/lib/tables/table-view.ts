@@ -1,10 +1,11 @@
 import type { BadgeTone } from "@/components/ui";
+import { currentVenueSettings } from "@/lib/venue/current";
 import { isMessageKey, t, tn } from "@/lib/i18n";
 import type { SessionHeader } from "@/lib/orders/session-header";
 import { unsentCountOf } from "@/lib/tables/unsent-count";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatEuro } from "@/lib/money/format";
-import { formatTime, VENUE_TIME_ZONE } from "@/lib/time/format";
+import { formatTime } from "@/lib/time/format";
 import type { ShownTile, ShownTileSession } from "@/lib/sync/overlay-tables";
 import { venueDate } from "@/lib/time/venue-date";
 import { MAX_TABLE_COVERS } from "@/server/tables/constants";
@@ -48,18 +49,20 @@ export function coversLine(covers: number, locale: Locale = DEFAULT_LOCALE): str
   return tn("tables.covers", covers, locale);
 }
 
-const dateFormatters = new Map<Locale, Intl.DateTimeFormat>();
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
 
 // "25/10": day and month in venue time.
 function dayMonth(instant: Date, locale: Locale): string {
-  let formatter = dateFormatters.get(locale);
+  const zone = currentVenueSettings().timeZone;
+  const key = `${locale}|${zone}`;
+  let formatter = dateFormatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       day: "2-digit",
       month: "2-digit",
     });
-    dateFormatters.set(locale, formatter);
+    dateFormatters.set(key, formatter);
   }
   const parts = formatter.formatToParts(instant);
   const part = (type: Intl.DateTimeFormatPartTypes) =>
