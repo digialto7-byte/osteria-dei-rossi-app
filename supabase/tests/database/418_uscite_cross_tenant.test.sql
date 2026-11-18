@@ -12,8 +12,10 @@
 -- The proof that the checks can fail is the mutation block at the end: a temporary policy letting B read A's order_line, and the leak count
 -- must leave 0. Fake data only. The board reads "today's business day", so the lines are fired at the start of that day, never after now.
 begin;
+-- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
+set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(16);
+select plan(18);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -124,6 +126,11 @@ select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-
   $$ select public.void_line('35000000-0000-4000-8000-000000000001', '{"reason": "comp", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
   'P0002 line_not_found', 'X: void_line as B''s waiter on A''s line is P0002 line_not_found');
 select is((select state from public.order_line where id = '35000000-0000-4000-8000-000000000001'), 'fired', 'X: A''s fired line is still fired');
+-- Control: the same call by B's waiter on B's own fired line works, so the P0002 above comes from tenant isolation and not from a broken path.
+select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
+  $$ select public.void_line('45000000-0000-4000-8000-000000000001', '{"reason": "comp", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
+  'ok', 'control: void_line as B''s waiter on B''s own line works');
+select is((select state from public.order_line where id = '45000000-0000-4000-8000-000000000001'), 'voided', 'control: and B''s line is voided');
 select is((select count(*)::int from public.order_line where tenant_id = '11111111-1111-4111-8111-111111111111' and voided_at is not null), 0, 'X: nothing of A''s was voided');
 
 -- The kitchen board: A's chef sees A's ticket; B's chef sees B's ticket and nothing of A's.

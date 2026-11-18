@@ -5,7 +5,7 @@
 -- such as order_line.uscita cannot move a pin by existing). It passes on main by design, and must stay green and UNCHANGED through step 25:
 -- the only claim it makes is that comanda-per-uscita changes nothing for a closed session and nothing about the ledgers of a fixture that
 -- has no uscita. The fixture is inserted after the migrations ran, so M5's one-time migration of open sessions never touches it.
---   Closed sessions: S1 (scontrino, card): lines in four courses (antipasti, primi, secondi, bevande), one stew line fired by "Invia a
+--   Closed sessions: S1 (scontrino, card): lines in four courses (antipasti, primi, secondi, dolci, bevande), one stew line fired by "Invia a
 --   seguire" (segue true), one stew line voided after fire (returned: reversal + waste), one raw-ingredient line voided after fire
 --   (returned: stock reversal + waste), one draft voided entry_removed; done and closed kitchen events. S2 (fattura, cash): two fired lines.
 --   Open session S3: drafts with segue false and true, a fired antipasto, a fired segue secondo, a fired drink, a closed ticket.
@@ -14,6 +14,8 @@
 --   batch_movement, order_line_cost and kitchen_event rows; public.trace_order_line of one closed line as owner; ledger_checks_body empty.
 -- The proof that the pins can fail is the mutation block at the end: one closed line's qty changes (as table owner) and its md5 differs.
 begin;
+-- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
+set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
 select plan(21);
 
@@ -192,11 +194,11 @@ insert into public.kitchen_event (id, tenant_id, subject, action, cause, order_l
 
 -- Sanity on the fixture, so a failing pin below has a readable cause.
 select is((select count(*)::int from public.order_line where tenant_id = '11111111-1111-4111-8111-111111111111'), 14, 'fixture: fourteen order lines');
-select is((select string_agg(state || ':' || count, ',' order by state) from (select state, count(*) from public.order_line group by state) s), 'draft:2,fired:9,voided:3',
+select is((select string_agg(state || ':' || count, ',' order by state) from (select state, count(*) from public.order_line where tenant_id = '11111111-1111-4111-8111-111111111111' group by state) s), 'draft:2,fired:9,voided:3',
   'fixture: two drafts, nine fired, three voided (two returned after fire, one draft removed)');
-select is((select count(*)::int from public.table_session where closed_at is not null), 2, 'fixture: two closed sessions and one open');
-select is((select count(*)::int from public.order_line_cost), 11, 'fixture: eleven frozen costs, one per fired line and per returned line');
-select is((select count(*)::int from public.order_line l where l.fired_at is not null and not exists (select 1 from public.order_line_cost c where c.order_line_id = l.id)), 0,
+select is((select count(*)::int from public.table_session where tenant_id = '11111111-1111-4111-8111-111111111111' and closed_at is not null), 2, 'fixture: two closed sessions and one open');
+select is((select count(*)::int from public.order_line_cost where tenant_id = '11111111-1111-4111-8111-111111111111'), 11, 'fixture: eleven frozen costs, one per fired line and per returned line');
+select is((select count(*)::int from public.order_line l where l.tenant_id = '11111111-1111-4111-8111-111111111111' and l.fired_at is not null and not exists (select 1 from public.order_line_cost c where c.order_line_id = l.id)), 0,
   'fixture: every fired line has its frozen cost');
 
 create temp table g (k text primary key, j jsonb not null);
