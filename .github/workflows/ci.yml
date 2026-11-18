@@ -3,13 +3,16 @@ name: CI
 # CI budget (founder, 2026-10-24): a draft pull request runs only the `checks` job. The heavy jobs
 # (pgTAP + Playwright, races, the T1 spike) run once the pull request is ready for review, on every
 # later push to it, and on every push to main, so deploy-staging still follows a green main.
-# Docs-only pull requests run nothing.
+# Docs-only pull requests run nothing, except a change to docs/go-live/audit-exceptions.json, which gates the audit check
+# (patterns apply in order; the last positive one includes that file again).
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths-ignore:
-      - "docs/**"
-      - "**/*.md"
+    paths:
+      - "**"
+      - "!docs/**"
+      - "!**/*.md"
+      - "docs/go-live/audit-exceptions.json"
   push:
     branches: [main]
 
