@@ -60,3 +60,10 @@
   - a need for emailed or scheduled PDFs (M36);
   - an export larger than the JSON route can answer within Vercel's response limit;
   - a chef or accountant role that needs exports (M36, M44).
+
+### Amendment, 2026-11-15: print is black ink on white
+
+Decision 5 says the monthly pack prints "in the light palette". That is superseded: printed pages follow the print rules in
+`docs/ux/costi-design-system.md` §10.5 (black ink on white, not the screen palette), which is the single source for the print values.
+The browser's "Save as PDF" flow, A4 and the hidden navigation are unchanged. To be implemented in code by the design alignment pass,
+#159 (open at the time of writing); until it lands, `src/app/globals.css` still prints the light palette.

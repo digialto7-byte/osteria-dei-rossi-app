@@ -27,7 +27,8 @@ test("dashboard on Slow 4G: cold and warm loads until the Ieri tile is visible",
     stagingAppHost: process.env.STAGING_APP_HOST ?? "",
   });
   const storageState = process.env.PERF_4G_STORAGE_STATE!;
-  const browser = await chromium.launch();
+  // The full Chromium build, as every Chromium project (playwright.config.ts; headless_shell segfaulted in context close).
+  const browser = await chromium.launch({ channel: "chromium" });
 
   async function load(warmContext: Awaited<ReturnType<typeof browser.newContext>> | null) {
     let context = warmContext;

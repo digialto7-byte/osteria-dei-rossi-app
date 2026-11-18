@@ -27,9 +27,15 @@ describe("CI budget", () => {
     expect(ci).toMatch(/^ {2}push:\n {4}branches: \[main\]$/m);
   });
 
-  it("skips docs-only pull requests, but never pushes to main", () => {
+  // The audit exceptions live under docs/ but gate the audit check (scripts/audit-check.ts in the checks job): a pull request that
+  // changes only that file must still run CI (lead, 2026-11-18, after #170 ran no checks). GitHub evaluates `paths` patterns in
+  // order and a later positive pattern includes a path again, so the exact list and its order are the check.
+  it("skips docs-only pull requests except the audit exceptions file, but never pushes to main", () => {
     const pr = ci.slice(ci.indexOf("  pull_request:"), ci.indexOf("  push:"));
-    expect(pr).toContain('paths-ignore:\n      - "docs/**"\n      - "**/*.md"');
+    expect(pr).toContain(
+      'paths:\n      - "**"\n      - "!docs/**"\n      - "!**/*.md"\n      - "docs/go-live/audit-exceptions.json"\n',
+    );
+    expect(pr).not.toContain("paths-ignore");
     const push = ci.slice(ci.indexOf("  push:"), ci.indexOf("\npermissions:"));
     expect(push).not.toContain("paths");
   });
