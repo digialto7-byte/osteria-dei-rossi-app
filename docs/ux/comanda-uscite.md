@@ -90,9 +90,12 @@ row chip is the follow-up (§9).
 
 The sticky bar has **one primary**, chosen in this order:
 
-1. **"Invia comanda · n"** (da approvare) when there are drafts. It sends **every** draft at once:
-   - the 1ª uscita (and any uscita already called) is made now;
-   - every later uscita reaches the kitchen **in attesa**;
+1. **"Invia comanda · n"** (da approvare) when there are drafts. It sends **every** draft at once (lead ruling, 2026-11-18, builder 1's
+   plan Q5):
+   - dishes added to an uscita already **in cucina** are made now (an "aggiunta", §3);
+   - if **no uscita of the table is waiting**, the **lowest new uscita is called automatically** at the send and made now: on the first send
+     that is the 1ª; later, it is the next one, so a late dessert goes straight to the kitchen with no "Via";
+   - every other new uscita, and any uscita **behind one still waiting**, reaches the kitchen **in attesa**;
    - Bevande are made now.
 2. Else **"Via la 2ª"** (da approvare; the number is the lowest uscita in attesa) when one is waiting.
 3. Else no primary: the bar shows only the summary.
@@ -116,6 +119,9 @@ States of an uscita row (da approvare): "da inviare" (drafts), "in coda" (the se
 - After a send, the **current uscita** becomes the lowest one still **in attesa**; if none waits, a new empty uscita "(n+1)ª" is current.
   The waiter can tap another heading, including an uscita already in cucina.
 - A dish added to an uscita **in attesa** joins it: it is sent with the next "Invia comanda" and waits with it.
+- A dish added to a **new** uscita (the dessert) is made at the next "Invia comanda" **if nothing else waits** (§2.3: called automatically);
+  if an earlier uscita still waits, the new one waits behind it. The bar's label says which: "Invia comanda · 1" either way, and after the
+  send the row reads "3ª uscita · in cucina" or "· in attesa".
 - A dish added to an uscita **in cucina** (the forgotten bread of the 1ª) is sent with the next "Invia comanda" and made at once; the kitchen
   sees it as an addition to that uscita (§3).
 - The bar's primary is "Invia comanda · n" whenever drafts exist, even if an uscita is waiting: sending comes before calling.
@@ -147,6 +153,30 @@ Table of four: one antipasto A, one primo B, then two secondi. Menu on the Antip
 0 when the dishes are in "Da proporre"). Today the same table costs the dish taps plus: open each secondo's editor and toggle Segue (2 × 2),
 "Invia antipasti", "Invia primi", "Invia a seguire" (3): 7 taps of structure against 2. A literal "3 taps in total" is not possible for
 four dishes; **3 taps of structure** (segue, send, call) is what this spec guarantees, whatever the size of the table.
+
+### 2.7 Closing the table while an uscita waits
+
+Closing a table is **refused while an uscita is in attesa** (server code `uscita_waiting`; lead ruling, 2026-11-18): the dishes are paid for
+and the kitchen holds them, so the table cannot just disappear. The close sheet (Conto tab, "Chiudi tavolo") says why and offers the two
+ways out, instead of a bare error:
+
+```
+Chiudi tavolo
+La 2ª uscita è ancora in attesa: 2 piatti.            the reason, in ink (da approvare)
+Chiamala o stornala prima di chiudere il tavolo.
+[ Chiama la 2ª ]                                       secondary: calls it ("Via la 2ª"), then the sheet waits for it
+[ Storna come non preparati ]                          danger: voids every line of the 2ª with reason "Non preparato"
+[ Annulla ]                                            quiet
+```
+
+- **"Chiama la 2ª"** is the same call as "Via la 2ª"; the sheet then shows the table as not yet closable until nothing waits, and the normal
+  close comes back.
+- **"Storna come non preparati"** opens the existing void step for all the uscita's lines at once, with the reason fixed to "Non preparato"
+  (Q-U1: their stock is **reversed**, not wasted) and the sentence "I piatti tornano in magazzino e non vanno sul conto." (da approvare).
+  After it, the close proceeds as usual.
+- More than one uscita waiting: the sheet names the lowest ("La 2ª uscita è ancora in attesa…") and handles them one at a time.
+- Offline: closing already needs the server; the sheet says so as today. If a close was refused with `uscita_waiting` after a replay, the
+  notice uses the same sentence.
 
 ## 3. The kitchen board (`/cucina`)
 
@@ -239,6 +269,8 @@ The phone keeps working without a connection (M20); the same rules apply to usci
 | 1ª done, 2ª waiting | "1ª uscita · pronta" | 1ª in Chiuse oggi when closed | "1ª pronta · **2ª da chiamare**" |
 | Call queued offline | "Chiamata in coda" | still in attesa | unchanged |
 | Line voided in an uscita in attesa | struck through in the folded row | removed from the folded list | count updated |
+| Close with an uscita in attesa | Close sheet: the reason + "Chiama la 2ª" / "Storna come non preparati" (§2.7) | unchanged | unchanged |
+| Dessert sent when nothing waits | "3ª uscita · in cucina" at once, no "Via" | its own ticket | "Ultima uscita in cucina" |
 | Voided in an uscita in cucina | as today (struck, "Stornato · motivo") | as today | — |
 
 All targets ≥ 44 px (tap-comfort 52 px for the dish buttons and the bar, P3 W4); one primary per screen; every state in words.
@@ -249,10 +281,11 @@ Listed so the plan can start; the names are suggestions, the plan decides.
 
 1. **Lines carry an uscita.** `order_lines` gains an uscita number (1–9; drinks: none / "subito"). `course` stays (menu category, reports,
    kitchen sorting). `segue` is retired: an open session's lines migrate as segue false → 1, segue true → 2.
-2. **One send.** The fire procedure takes the drafts of the whole sheet in one transaction: lines of called uscite (and the 1ª, and drinks)
-   are fired as now; lines of later uscite are fired **held**. Stock and frozen costs at fire are unchanged (fire = sale).
+2. **One send.** The fire procedure takes the drafts of the whole sheet in one transaction: lines of called uscite, drinks and, when nothing
+   waits, the lowest new uscita are fired as now; every other new uscita is fired **held**. Stock and frozen costs at fire are unchanged (fire = sale).
 3. **The call.** A new append-only record "uscita called" (session, uscita, at, by), written by its own procedure (single transaction, audit
-   row, idempotent on replay). The 1ª is called implicitly at its first fire.
+   row, idempotent on replay). When no uscita of the table waits, the send calls the lowest new uscita implicitly (the 1ª on the first
+   send; a late dessert later), per the lead's ruling on builder 1's Q5.
 4. **Kitchen tickets.** The ticket key becomes (session, fired_at, uscita); held lines are readable by the board (for the folded "in attesa"
    list) but cannot be marked done until called.
 5. **Tables read.** `/api/tables` returns, per open session, the uscite summary the tile needs (highest in cucina, lowest in attesa, whether
@@ -264,6 +297,8 @@ Listed so the plan can start; the names are suggestions, the plan decides.
    **reverses** the depletion (a reversal row, never a delete) with the reason "Non preparato" (da approvare), and the dialog says so. This
    is a stock rule, so it is the lead's and the founder's call (Q-U1; **decided: reversal, "Non preparato"**).
 8. **Reports** keep using `course`; nothing changes there.
+9. **Closing** is refused while an uscita waits (`uscita_waiting`); the close sheet words it and offers the call or a "Non preparato" void of
+   that uscita's lines (§2.7).
 
 ## 9. Open questions
 
@@ -282,6 +317,10 @@ Listed so the plan can start; the names are suggestions, the plan decides.
 - "Via la 2ª" turns the 2ª into its own ticket; the tile goes from "1ª in cucina · 2ª in attesa" to "Ultima uscita in cucina".
 - A dish added to the 1ª after it was sent appears as "1ª uscita · aggiunta" on the board.
 - Drinks are never in attesa.
+- With the 1ª and 2ª already in cucina, a dessert added to a new 3ª and sent goes straight to the kitchen (no "Via"); with the 2ª still in
+  attesa, the same dessert waits behind it.
+- "Chiudi tavolo" with an uscita in attesa shows the reason and both ways out; "Storna come non preparati" reverses their stock and the table
+  then closes.
 - Offline: "Invia comanda" and "Via la 2ª" queue, show "in coda" / "Chiamata in coda", and replay once each, in order.
 - No per-category send button, no "Segue" toggle and no "Invia a seguire" remain in the comanda.
 - One primary on `/tavoli/comanda` in every state; every heading and button ≥ 44 px; no state shown by colour alone.
