@@ -68,6 +68,7 @@ function as(
     results: { alert: alerts },
     rpc: {
       today_counts: counts ?? [ok(role === "chef" ? CHEF_COUNTS : OWNER_COUNTS)],
+      opening_stock_summary: [ok({ booked: false, draftLines: 0 })],
     },
   });
 }
@@ -138,6 +139,7 @@ describe("GET /api/today: shapes", () => {
       { key: "locations", done: true, href: "/anagrafiche/ubicazioni" },
       { key: "suppliers", done: false, href: "/anagrafiche/fornitori" },
       { key: "ingredients", done: false, href: "/anagrafiche/ingredienti" },
+      { key: "openingStock", done: false, href: "/magazzino/avvio" },
       { key: "invoice", done: false, href: "/fatture" },
       { key: "staff", done: true, href: "/personale" },
       { key: "device", done: false, href: "/dispositivi" },
@@ -157,7 +159,7 @@ describe("GET /api/today: shapes", () => {
       "batchesUseBy",
       "countOpen",
     ]);
-    expect(body.setup).toHaveLength(8);
+    expect(body.setup).toHaveLength(9);
     expect(client.from).not.toHaveBeenCalledWith("alert");
   });
 

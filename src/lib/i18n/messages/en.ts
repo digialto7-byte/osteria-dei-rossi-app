@@ -97,6 +97,7 @@ export const en: Record<MessageKey, string> = {
   "today.hint.waste": "Pick the ingredient in stock.",
   "today.hint.staffMeals": "The rules and the confirmation of meals.",
   "today.firstSteps": "First steps",
+  "today.step.openingStock": "Load the opening stock",
   "today.step.invoice": "Upload the first invoice",
   "today.step.staff": "Add the staff",
   "today.step.floor": "Set up tables and menu",

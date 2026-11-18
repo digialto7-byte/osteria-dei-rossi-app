@@ -116,6 +116,8 @@ const FIRST_STEPS: FirstStep[] = [
   { labelKey: "nav.locations", href: "/anagrafiche/ubicazioni" },
   { labelKey: "nav.suppliers", href: "/anagrafiche/fornitori" },
   { labelKey: "nav.ingredients", href: "/anagrafiche/ingredienti" },
+  // Opening stock step 17: the carico iniziale comes after the ingredients and before the first invoice.
+  { labelKey: "today.step.openingStock", href: "/magazzino/avvio" },
   { labelKey: "today.step.invoice", href: "/fatture" },
   { labelKey: "today.step.staff", href: "/personale" },
   { labelKey: "today.step.floor", href: "/tavoli" },
@@ -179,6 +181,7 @@ const STEP_KEYS: Record<string, readonly SetupKey[]> = {
   "/anagrafiche/ubicazioni": ["locations"],
   "/anagrafiche/fornitori": ["suppliers"],
   "/anagrafiche/ingredienti": ["ingredients"],
+  "/magazzino/avvio": ["openingStock"],
   "/fatture": ["invoice"],
   "/personale": ["staff", "device"],
   "/tavoli": ["tables", "menu"],

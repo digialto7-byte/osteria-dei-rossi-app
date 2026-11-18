@@ -3,6 +3,7 @@ import { ApiError } from "@/lib/api/errors";
 import type { AppRole } from "@/lib/api/with-api";
 import { reportError } from "@/lib/observability/report";
 import { visibleTo, type AlertRow } from "@/server/alerts/list";
+import { summaryResponse } from "@/server/opening/output";
 import { TODAY_ALERT_CAP } from "./constants";
 import {
   chefCountsSchema,
@@ -49,6 +50,42 @@ function setupSteps(s: ManagerCounts["setup"]): SetupStep[] {
     { key: "tables", done: s.hasTables, href: "/tavoli/impostazioni" },
     { key: "menu", done: s.hasMenuItems, href: "/menu" },
   ];
+}
+
+const OPENING_STEP_HREF = "/magazzino/avvio";
+
+/**
+ * Whether the venue has a confirmed, non-reversed carico (opening stock step 17), for the owner's and admin's set-up list. Never called for
+ * the chef. A failed or malformed read fails the caller's summary with the caller's own error (Rule B: never `done: false` by default); 42501
+ * is a 403, like the summary reads themselves.
+ */
+export async function readOpeningBooked(
+  supabase: SupabaseClient,
+  fail: () => ApiError,
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("opening_stock_summary", {});
+  if (error) {
+    if (error.code === "42501") {
+      throw new ApiError(403, "forbidden", "Operazione non consentita per il tuo ruolo.");
+    }
+    reportError(new Error(`opening_stock_summary failed: ${error.code ?? "no_code"}`));
+    throw fail();
+  }
+  const parsed = summaryResponse.safeParse(data);
+  if (!parsed.success) {
+    reportError(new Error("opening_stock_summary document rejected"));
+    throw fail();
+  }
+  return parsed.data.booked;
+}
+
+/** The set-up list with the openingStock step right after ingredients ("Carica il magazzino iniziale" follows "Ingredienti"). */
+export function withOpeningStep(summary: TodaySummary, booked: boolean): TodaySummary {
+  if (summary.setup === null) return summary;
+  const setup = summary.setup.filter((s) => s.key !== "openingStock");
+  const at = setup.findIndex((s) => s.key === "ingredients") + 1;
+  setup.splice(at, 0, { key: "openingStock", done: booked, href: OPENING_STEP_HREF });
+  return { ...summary, setup };
 }
 
 /**
@@ -126,9 +163,10 @@ export async function todaySummary(supabase: SupabaseClient, role: AppRole): Pro
 
   const counts = managerCountsSchema.safeParse(data);
   if (!counts.success) throw unavailable();
-  return buildTodaySummary(
+  const summary = buildTodaySummary(
     counts.data,
     role === "owner" ? await countAlerts(supabase, role) : null,
     role,
   );
+  return withOpeningStep(summary, await readOpeningBooked(supabase, unavailable));
 }

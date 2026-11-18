@@ -156,11 +156,12 @@ describe("todayActions", () => {
 });
 
 describe("firstSteps (set-up list for the owner and admin)", () => {
-  it.each(["owner", "admin"] as const)("gives the %s six steps in order", (role) => {
+  it.each(["owner", "admin"] as const)("gives the %s seven steps in order", (role) => {
     expect(firstSteps(role).map((s) => s.href)).toEqual([
       "/anagrafiche/ubicazioni",
       "/anagrafiche/fornitori",
       "/anagrafiche/ingredienti",
+      "/magazzino/avvio",
       "/fatture",
       "/personale",
       "/tavoli",
@@ -328,6 +329,7 @@ describe("stepStatuses", () => {
     "locations",
     "suppliers",
     "ingredients",
+    "openingStock",
     "invoice",
     "staff",
     "device",
@@ -337,7 +339,7 @@ describe("stepStatuses", () => {
   const doneKeys = (...keys: string[]) =>
     ALL_OPEN.map((s: { key: string }) => step(s.key, keys.includes(s.key)));
 
-  it("keeps the six steps of Primi passi, in order, for the owner and the admin", () => {
+  it("keeps the seven steps of Primi passi, in order, for the owner and the admin", () => {
     for (const role of ["owner", "admin"]) {
       expect(stepStatuses(role, ALL_OPEN).map((s) => s.href)).toEqual(
         firstSteps(role).map((s) => s.href),
@@ -352,15 +354,17 @@ describe("stepStatuses", () => {
       ["Ubicazioni", true],
       ["Fornitori", false],
       ["Ingredienti", false],
+      ["Carica il magazzino iniziale", false],
       ["Carica la prima fattura", true],
       ["Aggiungi il personale", false],
       ["Imposta tavoli e menu", false],
     ]);
-    expect(done(["staff"])[4]![1]).toBe(false);
-    expect(done(["device"])[4]![1]).toBe(false);
-    expect(done(["staff", "device"])[4]![1]).toBe(true);
-    expect(done(["tables"])[5]![1]).toBe(false);
-    expect(done(["tables", "menu"])[5]![1]).toBe(true);
+    expect(done(["openingStock"])[3]).toEqual(["Carica il magazzino iniziale", true]);
+    expect(done(["staff"])[5]![1]).toBe(false);
+    expect(done(["device"])[5]![1]).toBe(false);
+    expect(done(["staff", "device"])[5]![1]).toBe(true);
+    expect(done(["tables"])[6]![1]).toBe(false);
+    expect(done(["tables", "menu"])[6]![1]).toBe(true);
   });
 
   it("is empty for the chef and the waiter, and for a null list", () => {
@@ -370,7 +374,7 @@ describe("stepStatuses", () => {
 
   it("without the API list the steps are shown with no state (done is null)", () => {
     const steps = stepStatuses("owner", null);
-    expect(steps).toHaveLength(6);
+    expect(steps).toHaveLength(7);
     expect(steps.every((s) => s.done === null)).toBe(true);
   });
 

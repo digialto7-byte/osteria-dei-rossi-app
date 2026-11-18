@@ -96,6 +96,7 @@ export const it = {
   "today.hint.waste": "Scegli l'ingrediente nel magazzino.",
   "today.hint.staffMeals": "Le regole e la conferma dei pasti.",
   "today.firstSteps": "Primi passi",
+  "today.step.openingStock": "Carica il magazzino iniziale",
   "today.step.invoice": "Carica la prima fattura",
   "today.step.staff": "Aggiungi il personale",
   "today.step.floor": "Imposta tavoli e menu",
