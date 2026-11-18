@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import * as tokens from "@/lib/design/tokens";
 
 // P2j (ADR-045, docs/ux/costi-design-system.md §11 step 9): there is one theme, Costì, at `:root`. The osteria theme, the `data-brand` switch,
 // the `CostiTheme` marker and the Bodoni Moda and Figtree faces are gone, and nothing may bring them back. This replaces the re-skin order guard
@@ -61,5 +62,13 @@ describe("there is one theme", () => {
     // `--color-paper` is declared once in each of the three blocks (the exact values are pinned by tokens.test.ts and print-css.test.ts).
     expect(css.match(/--color-paper:\s*#[0-9a-fA-F]{6}/g)).toHaveLength(3);
     expect(css.match(/@media screen and \(prefers-color-scheme: dark\)/g)).toHaveLength(1);
+  });
+
+  it("(d) tokens.ts exports no osteria palette: no THEMES, BRAND or DERIVED", () => {
+    expect(Object.keys(tokens)).toEqual(
+      expect.arrayContaining(["PRODUCT_THEMES", "PRODUCT_BRAND"]),
+    );
+    for (const name of ["THEMES", "BRAND", "DERIVED"])
+      expect(tokens, name).not.toHaveProperty(name);
   });
 });

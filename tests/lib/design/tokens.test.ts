@@ -6,15 +6,12 @@ import {
   AA_NON_TEXT,
   AA_TEXT,
   ACCENT_ONLY,
-  BRAND,
   COLOR_TOKENS,
   CONTRAST_PAIRS,
-  DERIVED,
   PRODUCT_BRAND,
   PRODUCT_DERIVED,
   PRINT_COLORS,
   PRODUCT_THEMES,
-  THEMES,
   type Theme,
   mix,
 } from "@/lib/design/tokens";
@@ -45,23 +42,8 @@ describe("contrast maths", () => {
 });
 
 describe("design tokens meet WCAG AA in both themes", () => {
-  it("defines every token in both themes as #RRGGBB", () => {
-    for (const theme of THEME_NAMES) {
-      expect(Object.keys(THEMES[theme]).sort()).toEqual([...COLOR_TOKENS].sort());
-      for (const value of Object.values(THEMES[theme])) expect(value).toMatch(/^#[0-9A-F]{6}$/);
-    }
-  });
-
   it("uses only AA thresholds (4.5:1 text, 3:1 UI boundaries)", () => {
     for (const pair of CONTRAST_PAIRS) expect([AA_TEXT, AA_NON_TEXT]).toContain(pair.min);
-  });
-
-  const cases = THEME_NAMES.flatMap((theme) =>
-    CONTRAST_PAIRS.map((pair) => [theme, pair.fg, pair.bg, pair.min, pair.use] as const),
-  );
-
-  it.each(cases)("%s: %s on %s reaches %s:1 (%s)", (theme, fg, bg, min) => {
-    expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(min);
   });
 
   it("checks the focus ring on the header band (QW1: band-ink, an existing token) at 3:1 in both themes", () => {
@@ -69,9 +51,9 @@ describe("design tokens meet WCAG AA in both themes", () => {
       expect.objectContaining({ fg: "band-ink", bg: "band", min: AA_NON_TEXT }),
     );
     for (const theme of THEME_NAMES) {
-      expect(contrastRatio(THEMES[theme]["band-ink"], THEMES[theme].band)).toBeGreaterThanOrEqual(
-        AA_NON_TEXT,
-      );
+      expect(
+        contrastRatio(PRODUCT_THEMES[theme]["band-ink"], PRODUCT_THEMES[theme].band),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     }
   });
 
@@ -103,55 +85,14 @@ describe("mix and the derived shades", () => {
     expect(() => mix("#000000", "#FFFFFF", -0.1)).toThrow(RangeError);
     expect(() => mix("#000000", "#FFFFFF", 1.1)).toThrow(RangeError);
   });
-
-  it("BRAND holds exactly the eight founder-approved colours", () => {
-    expect(BRAND).toEqual({
-      cream: "#FFFADF",
-      creamDeep: "#F8EFC6",
-      green: "#1C4130",
-      gold: "#C89550",
-      olive: "#7D9550",
-      soft: "#4D5B45",
-      black: "#0F0F0D",
-      yellow: "#FFB028",
-    });
-  });
-
-  it("each DERIVED literal equals its formula over approved colours", () => {
-    expect(DERIVED.rule).toBe(mix(BRAND.creamDeep, BRAND.gold, 0.3));
-    expect(DERIVED.darkInk).toBe(BRAND.cream);
-    expect(DERIVED.darkInkMuted).toBe(mix(BRAND.cream, BRAND.black, 0.3));
-  });
 });
 
-describe("the palette is the Osteria Dei Rossi brand (the eight colours are approved client facts)", () => {
-  it("light, the primary theme: cream paper, green action, black and soft ink", () => {
-    expect(THEMES.light.paper).toBe(BRAND.cream);
-    expect(THEMES.light.sunk).toBe(BRAND.creamDeep);
-    expect(THEMES.light.rule).toBe(DERIVED.rule);
-    expect(THEMES.light.accent).toBe(BRAND.green);
-    expect(THEMES.light["on-accent"]).toBe(BRAND.cream);
-    expect(THEMES.light.ink).toBe(BRAND.black);
-    expect(THEMES.light["ink-muted"]).toBe(BRAND.soft);
-  });
-
-  it("dark: black paper with cream ink and a cream-to-black muted ink", () => {
-    expect(THEMES.dark.paper).toBe(BRAND.black);
-    expect(THEMES.dark.ink).toBe(DERIVED.darkInk);
-    expect(THEMES.dark["ink-muted"]).toBe(DERIVED.darkInkMuted);
-    expect(THEMES.dark["band-ink"]).toBe(DERIVED.darkInk);
-  });
-
-  it("gold and yellow are the brand accents in both themes", () => {
-    for (const theme of THEME_NAMES) {
-      expect(THEMES[theme].gold).toBe(BRAND.gold);
-      expect(THEMES[theme].highlight).toBe(BRAND.yellow);
-    }
-  });
-
-  it("gold and yellow would fail AA as text on cream, so they are accent-only", () => {
+describe("the accent-only tokens (Coral)", () => {
+  it("gold and yellow would fail AA as text on the page, so they are accent-only", () => {
     for (const token of ACCENT_ONLY) {
-      expect(contrastRatio(THEMES.light[token], THEMES.light.paper)).toBeLessThan(AA_TEXT);
+      expect(contrastRatio(PRODUCT_THEMES.light[token], PRODUCT_THEMES.light.paper)).toBeLessThan(
+        AA_TEXT,
+      );
       expect(CONTRAST_PAIRS.some((pair) => pair.fg === token && pair.min === AA_TEXT)).toBe(false);
     }
   });
@@ -420,9 +361,9 @@ describe("chart colours (owner dashboard, ADR-021)", () => {
     const pair = CONTRAST_PAIRS.find((p) => p.fg === fg && p.bg === bg && p.min === AA_NON_TEXT);
     expect(pair).toBeDefined();
     for (const theme of THEME_NAMES) {
-      expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(
-        AA_NON_TEXT,
-      );
+      expect(
+        contrastRatio(PRODUCT_THEMES[theme][fg], PRODUCT_THEMES[theme][bg]),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     }
   });
 
