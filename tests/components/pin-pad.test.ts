@@ -27,7 +27,7 @@ describe("PinPad", () => {
     const input = /<input[^>]*>/.exec(html)![0];
     expect(input).toContain('type="password"');
     expect(input).toContain('inputMode="numeric"');
-    expect(input).toContain('autoComplete="current-password"');
+    expect(input).toContain('autoComplete="off"');
     expect(input).toContain('maxLength="4"');
     expect(input).toContain('pattern="[0-9]{4}"');
     expect(html).toMatch(/<span[^>]*>PIN<\/span>/);
@@ -67,14 +67,15 @@ describe("PinPad", () => {
   it("the submit button is disabled in the server render, even with four digits", () => {
     expect(render({ pin: "4827" })).toMatch(/<button[^>]*disabled=""[^>]*>Entra/);
   });
-  // WCAG 2.2 SC 3.3.8: the secret can be pasted or filled by a password manager.
-  it("does not block paste", () => {
+  // Lead, 2026-11-14 (docs/ux/costi-sign-in.md §7, S3, Q-UX21): paste allowed, no autofill. The kitchen phone is shared, so the field keeps
+  // autocomplete="off" and a browser never offers one person's saved PIN to the next; "off" does not block paste.
+  it("allows paste and keeps autofill off on the shared phone", () => {
     mounted();
     const field = screen.getByLabelText("PIN");
     const paste = createEvent.paste(field, { clipboardData: { getData: () => "4827" } });
     fireEvent(field, paste);
     expect(paste.defaultPrevented).toBe(false);
-    expect(field.getAttribute("autocomplete")).toBe("current-password");
+    expect(field.getAttribute("autocomplete")).toBe("off");
   });
   it("shows a message as an alert", () => {
     expect(render({ message: "PIN errato. Tentativi rimasti: 2." })).toMatch(

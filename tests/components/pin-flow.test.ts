@@ -179,6 +179,20 @@ describe("PinFlow, the fourth digit submits", () => {
     expect(pinBodies).toHaveLength(1);
   });
 
+  it("retyping a full PIN while the first is still being checked sends nothing more", async () => {
+    let release!: () => void;
+    pinGate = new Promise<void>((resolve) => (release = resolve));
+    pinReply = loggedIn(WAITER);
+    const field = await openPad();
+    fireEvent.change(field, { target: { value: "4827" } });
+    fireEvent.change(field, { target: { value: "482" } });
+    fireEvent.change(field, { target: { value: "4828" } });
+    expect(pinBodies).toEqual([{ userId: WAITER.id, pin: "4827" }]);
+    release();
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/tavoli"));
+    expect(pinBodies).toHaveLength(1);
+  });
+
   it("a wrong PIN clears the field and shows the alert", async () => {
     pinReply = { ok: false, status: 401, error: { code: "invalid_pin", message: "PIN errato." } };
     const field = await openPad();
