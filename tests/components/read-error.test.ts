@@ -2,7 +2,7 @@
 import { StrictMode, createElement } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ReadError } from "@/components/console/read-error";
+import { ReadError } from "@/components/read-error";
 
 // A repeated failed «Riprova» is announced politely; the live region stays mounted so a text change is read.
 

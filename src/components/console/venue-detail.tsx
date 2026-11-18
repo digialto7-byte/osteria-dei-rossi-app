@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { FactList, FactRow } from "@/components/fact-list";
 import { RawCode } from "@/components/console/raw-code";
-import { ReadError } from "@/components/console/read-error";
+import { ReadError } from "@/components/read-error";
 import { useConsoleRead } from "@/components/console/use-console-read";
 import { Heading, LedgerList, LedgerRow, Muted, SubHeading, linkClass } from "@/components/ui";
 import { auditSentence, registroHref } from "@/lib/console/audit-view";

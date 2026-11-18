@@ -3,7 +3,7 @@
 import { useId, useState } from "react";
 import { useConsoleShell } from "@/components/console/console-shell";
 import { RawCode } from "@/components/console/raw-code";
-import { ReadError } from "@/components/console/read-error";
+import { ReadError } from "@/components/read-error";
 import { useConsoleRead } from "@/components/console/use-console-read";
 import { SegmentedControl } from "@/components/segmented-control";
 import { Button, ErrorAlert, Heading, LedgerList, LedgerRow, Muted } from "@/components/ui";
