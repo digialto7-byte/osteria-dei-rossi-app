@@ -2225,11 +2225,11 @@ export const en: Record<MessageKey, string> = {
     "The number may have letters, digits and / . - (at most 20 characters, no spaces).",
   "billError.receipt_type_invalid": "Choose receipt or invoice.",
   "billError.payment_type_invalid": "Choose how the guest paid.",
-  "venueSettingsError.locale_invalid": "Language not available: choose Italian or English.",
-  "venueSettingsError.vat_rate_invalid": "VAT rate not allowed for sales.",
-  "venueSettingsError.receipt_type_invalid": "Document type not allowed.",
-  "venueSettingsError.payment_type_invalid": "Payment method not allowed.",
-  "venueSettingsError.settings_list_empty": "The list cannot be empty: keep at least one entry.",
+  "venueSettingsError.locale_invalid": "Language not available: choose Italian or English.", // (da approvare)
+  "venueSettingsError.vat_rate_invalid": "VAT rate not allowed for sales.", // (da approvare)
+  "venueSettingsError.receipt_type_invalid": "Document type not allowed.", // (da approvare)
+  "venueSettingsError.payment_type_invalid": "Payment method not allowed.", // (da approvare)
+  "venueSettingsError.settings_list_empty": "The list cannot be empty: keep at least one entry.", // (da approvare)
   "dayCloseError.forbidden": "The cash close is for the owner only.",
   "dayCloseError.register_total_invalid": "Write an amount like 1,234.50",
   "dayCloseError.business_date_invalid": "The date is not valid: you can go back up to 62 days.",
