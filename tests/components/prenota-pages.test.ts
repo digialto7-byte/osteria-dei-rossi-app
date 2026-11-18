@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const pathname = "/prenota/osteria-demo";
 vi.mock("next/navigation", () => ({ usePathname: () => pathname }));
-// The pages' children fetch on mount; the marker, the title and the band are what is tested here.
+// The pages' children fetch on mount; the title, the band and the page's own markup are what is tested here.
 vi.mock("@/app/(public)/prenota/[slug]/request-form", () => ({
   RequestForm: () => createElement("p", null, "modulo"),
 }));
@@ -26,15 +26,14 @@ const props = {
   searchParams: Promise.resolve({ t: "token" }),
 };
 
-// P2i (ADR-045): the guest pages wear the Costì look, and a guest never sees the name or logo "Costì".
+// P2i (ADR-045): the guest pages wear the Costì look (the one theme since P2j), and a guest never sees the name or logo "Costì".
 describe.each([
-  ["the booking page", BookingPage, bookingMetadata],
-  ["the cancel page", CancelPage, cancelMetadata],
-])("%s", (_name, Page, metadata) => {
-  it("renders the Costì marker once, before its content", async () => {
+  ["the booking page", BookingPage, bookingMetadata, "<p>modulo</p>"],
+  ["the cancel page", CancelPage, cancelMetadata, "<p>annullamento</p>"],
+])("%s", (_name, Page, metadata, content) => {
+  it("renders its content first, with no marker", async () => {
     const html = renderToStaticMarkup(await Page(props));
-    expect(html.startsWith('<span data-brand="costi" hidden=""></span>')).toBe(true);
-    expect(html.match(/data-brand="costi"/g)).toHaveLength(1);
+    expect(html).toBe(content);
   });
 
   it("keeps the venue's name as the tab title", () => {

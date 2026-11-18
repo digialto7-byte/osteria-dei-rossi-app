@@ -38,7 +38,8 @@ async function expectCosti(page: Page, label: string) {
   await expect(page.locator("header.band"), label).toContainText(VENUE);
   await expect(page.locator("header.band").getByRole("link"), label).toHaveCount(0);
   await expect(page.locator('img[alt="Costì"]'), label).toHaveCount(0);
-  await expect(page.locator("body"), label).not.toContainText(/costì/i);
+  // innerText, not textContent: Next's flight data can hold the word in a script, and only what a guest can read counts.
+  await expect(page.locator("body"), label).not.toContainText(/costì/i, { useInnerText: true });
 }
 
 async function expectPrimaryReadable(primary: Locator, body: Locator) {
@@ -124,5 +125,17 @@ test.describe("the guest booking page wears the Costì look", () => {
       page.getByText("Questa pagina di prenotazione non è disponibile.", { exact: true }),
     ).toBeVisible();
     await expectCosti(page, "unknown address");
+  });
+
+  test("the cancel page, signed out: body, band, tab title and no Costì", async ({ page }) => {
+    await page.goto("/prenota/osteria-demo-nessuna/annulla?t=x");
+    await expect(
+      page.locator("main").getByRole("heading", { level: 1, name: "Annulla la prenotazione" }),
+    ).toBeVisible();
+    // Not the bare "alert" role: Next's route announcer is one too.
+    await expect(
+      page.getByRole("alert").filter({ hasText: "Il link non è valido o è scaduto." }),
+    ).toBeVisible();
+    await expectCosti(page, "cancel page");
   });
 });

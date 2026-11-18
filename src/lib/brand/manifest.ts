@@ -3,7 +3,7 @@ import { COSTI_ICONS } from "@/lib/brand/costi-assets";
 import { PRODUCT_THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 
-// The web manifest (M20 plan §3.6.6), served by src/app/manifest.webmanifest/route.ts and linked from the venue layouts only (SP3 step 16), in the Costì product look (docs/plans/2026-11-13-costi-product-brand.md): the product name, Forest as
+// The web manifest (M20 plan §3.6.6), served by src/app/manifest.webmanifest/route.ts and linked from the venue layouts only (SP3 step 16), in the Costì look (docs/plans/2026-11-13-costi-product-brand.md): the product name, Forest as
 // the theme colour and Off-white as the splash background (both from PRODUCT_THEMES), and the four icons. The icon files are placeholders until
 // the founder's logo files replace them; the paths in costi-assets.ts do not change.
 const icon = (i: (typeof COSTI_ICONS)[keyof typeof COSTI_ICONS]) => ({

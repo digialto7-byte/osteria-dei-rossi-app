@@ -4,7 +4,6 @@ import { createElement } from "react";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AppShellView } from "@/app/(owner)/app-shell";
-import ReportLayout from "@/app/(owner)/report/layout";
 import { PeriodPanel } from "@/app/(owner)/report/period-picker";
 import type { MeState } from "@/components/use-me";
 import { KPI_REPORT } from "../helpers/report-data";
@@ -13,7 +12,7 @@ import { ME_SETTINGS } from "../helpers/me-data";
 
 // The report's period tabpanel wraps the content under the picker. `.reveal > *` only reaches direct children of main, so globals.css has a
 // matching rule for the children of a [data-reveal-through] box: the k-th child gets the delay that child (panel index + k - 1) of main gets,
-// whatever the panel's position (the shell's section row, CostiTheme's marker, the heading and the picker come first, and vary by role).
+// whatever the panel's position (the shell's section row, the heading and the picker come first, and vary by role).
 vi.mock("@/lib/api/client", async () => ({
   ...(await vi.importActual<typeof import("@/lib/api/client")>("@/lib/api/client")),
   apiJson: (path: string) =>
@@ -122,11 +121,7 @@ describe("the rise through a wrapper box", () => {
     async (_, state) => {
       const { default: ReportPage } = await import("@/app/(owner)/report/page");
       render(
-        createElement(
-          AppShellView,
-          { state, pathname: "/report" },
-          createElement(ReportLayout, null, createElement(ReportPage)),
-        ),
+        createElement(AppShellView, { state, pathname: "/report" }, createElement(ReportPage)),
       );
       await screen.findByText("Questo periodo");
       const main = screen.getByRole("main");
@@ -138,8 +133,8 @@ describe("the rise through a wrapper box", () => {
       [...panel.children].forEach((_child, index) => {
         expect(throughDelay(p, index + 1), `child ${index + 1}`).toBe(mainDelay(p + index));
       });
-      // The two shells put the panel at different positions: the 3 + section row + theme marker are counted, not assumed.
-      expect(p).toBe(state === OWNER ? 6 : 5);
+      // The two shells put the panel at different positions: the section row, heading and picker are counted, not assumed.
+      expect(p).toBe(state === OWNER ? 5 : 4);
     },
   );
 });

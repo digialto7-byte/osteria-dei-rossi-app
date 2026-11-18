@@ -6,15 +6,12 @@ import {
   AA_NON_TEXT,
   AA_TEXT,
   ACCENT_ONLY,
-  BRAND,
   COLOR_TOKENS,
   CONTRAST_PAIRS,
-  DERIVED,
   PRODUCT_BRAND,
   PRODUCT_DERIVED,
   PRINT_COLORS,
   PRODUCT_THEMES,
-  THEMES,
   type Theme,
   mix,
 } from "@/lib/design/tokens";
@@ -45,23 +42,8 @@ describe("contrast maths", () => {
 });
 
 describe("design tokens meet WCAG AA in both themes", () => {
-  it("defines every token in both themes as #RRGGBB", () => {
-    for (const theme of THEME_NAMES) {
-      expect(Object.keys(THEMES[theme]).sort()).toEqual([...COLOR_TOKENS].sort());
-      for (const value of Object.values(THEMES[theme])) expect(value).toMatch(/^#[0-9A-F]{6}$/);
-    }
-  });
-
   it("uses only AA thresholds (4.5:1 text, 3:1 UI boundaries)", () => {
     for (const pair of CONTRAST_PAIRS) expect([AA_TEXT, AA_NON_TEXT]).toContain(pair.min);
-  });
-
-  const cases = THEME_NAMES.flatMap((theme) =>
-    CONTRAST_PAIRS.map((pair) => [theme, pair.fg, pair.bg, pair.min, pair.use] as const),
-  );
-
-  it.each(cases)("%s: %s on %s reaches %s:1 (%s)", (theme, fg, bg, min) => {
-    expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(min);
   });
 
   it("checks the focus ring on the header band (QW1: band-ink, an existing token) at 3:1 in both themes", () => {
@@ -69,10 +51,17 @@ describe("design tokens meet WCAG AA in both themes", () => {
       expect.objectContaining({ fg: "band-ink", bg: "band", min: AA_NON_TEXT }),
     );
     for (const theme of THEME_NAMES) {
-      expect(contrastRatio(THEMES[theme]["band-ink"], THEMES[theme].band)).toBeGreaterThanOrEqual(
-        AA_NON_TEXT,
-      );
+      expect(
+        contrastRatio(PRODUCT_THEMES[theme]["band-ink"], PRODUCT_THEMES[theme].band),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     }
+  });
+
+  it("names every use of the paper-on-ink pair (the owner nav, the segmented control, Button selected)", () => {
+    const pair = CONTRAST_PAIRS.find((p) => p.fg === "paper" && p.bg === "ink");
+    expect(pair?.use).toBe(
+      "current tab in the owner nav; selected segment; picked option (Button selected)",
+    );
   });
 
   it("checks every semantic text colour against its own background", () => {
@@ -96,55 +85,14 @@ describe("mix and the derived shades", () => {
     expect(() => mix("#000000", "#FFFFFF", -0.1)).toThrow(RangeError);
     expect(() => mix("#000000", "#FFFFFF", 1.1)).toThrow(RangeError);
   });
-
-  it("BRAND holds exactly the eight founder-approved colours", () => {
-    expect(BRAND).toEqual({
-      cream: "#FFFADF",
-      creamDeep: "#F8EFC6",
-      green: "#1C4130",
-      gold: "#C89550",
-      olive: "#7D9550",
-      soft: "#4D5B45",
-      black: "#0F0F0D",
-      yellow: "#FFB028",
-    });
-  });
-
-  it("each DERIVED literal equals its formula over approved colours", () => {
-    expect(DERIVED.rule).toBe(mix(BRAND.creamDeep, BRAND.gold, 0.3));
-    expect(DERIVED.darkInk).toBe(BRAND.cream);
-    expect(DERIVED.darkInkMuted).toBe(mix(BRAND.cream, BRAND.black, 0.3));
-  });
 });
 
-describe("the palette is the Osteria Dei Rossi brand (the eight colours are approved client facts)", () => {
-  it("light, the primary theme: cream paper, green action, black and soft ink", () => {
-    expect(THEMES.light.paper).toBe(BRAND.cream);
-    expect(THEMES.light.sunk).toBe(BRAND.creamDeep);
-    expect(THEMES.light.rule).toBe(DERIVED.rule);
-    expect(THEMES.light.accent).toBe(BRAND.green);
-    expect(THEMES.light["on-accent"]).toBe(BRAND.cream);
-    expect(THEMES.light.ink).toBe(BRAND.black);
-    expect(THEMES.light["ink-muted"]).toBe(BRAND.soft);
-  });
-
-  it("dark: black paper with cream ink and a cream-to-black muted ink", () => {
-    expect(THEMES.dark.paper).toBe(BRAND.black);
-    expect(THEMES.dark.ink).toBe(DERIVED.darkInk);
-    expect(THEMES.dark["ink-muted"]).toBe(DERIVED.darkInkMuted);
-    expect(THEMES.dark["band-ink"]).toBe(DERIVED.darkInk);
-  });
-
-  it("gold and yellow are the brand accents in both themes", () => {
-    for (const theme of THEME_NAMES) {
-      expect(THEMES[theme].gold).toBe(BRAND.gold);
-      expect(THEMES[theme].highlight).toBe(BRAND.yellow);
-    }
-  });
-
-  it("gold and yellow would fail AA as text on cream, so they are accent-only", () => {
+describe("the accent-only tokens (Coral)", () => {
+  it("gold and yellow would fail AA as text on the page, so they are accent-only", () => {
     for (const token of ACCENT_ONLY) {
-      expect(contrastRatio(THEMES.light[token], THEMES.light.paper)).toBeLessThan(AA_TEXT);
+      expect(contrastRatio(PRODUCT_THEMES.light[token], PRODUCT_THEMES.light.paper)).toBeLessThan(
+        AA_TEXT,
+      );
       expect(CONTRAST_PAIRS.some((pair) => pair.fg === token && pair.min === AA_TEXT)).toBe(false);
     }
   });
@@ -188,12 +136,10 @@ function colorDeclarations(block: string): Record<string, string> {
   return out;
 }
 
-/** The css with the print palette rule (`:root, :root:has([data-brand="costi"]) { … }` inside `@media print`) cut out, and that rule's text. */
+/** The css with the print palette rule (`:root { … }` inside `@media print`) cut out, and that rule's text. */
 function splitPrintPalette(source: string): { rest: string; palette: string } {
   const print = source.indexOf("@media print");
-  const match = /:root,\s*:root:has\(\[data-brand="costi"\]\)\s*\{[^}]*\}/.exec(
-    source.slice(print),
-  );
+  const match = /:root\s*\{[^}]*--color-paper:[^}]*\}/.exec(source.slice(print));
   if (print < 0 || !match) throw new Error("the print palette rule is missing");
   const start = print + match.index;
   const end = start + match[0].length;
@@ -201,7 +147,7 @@ function splitPrintPalette(source: string): { rest: string; palette: string } {
 }
 
 /**
- * The guard on colour tokens in globals.css: the colour tokens declared outside the two osteria blocks and the two product blocks
+ * The guard on colour tokens in globals.css: the colour tokens declared outside @theme and the screen-dark block
  * (`stray`), and those of the print palette rule, which is cut out first (`palette`).
  */
 function colourTokensOutsideThemes(source: string): {
@@ -224,12 +170,6 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   const inlineStart = css.indexOf("@theme inline");
   const darkStart = css.indexOf("@media screen and (prefers-color-scheme: dark)");
   const baseStart = css.indexOf("@layer base");
-  // The Costì product blocks (docs/plans/2026-11-13-costi-product-brand.md §3.2), after the osteria dark block.
-  const productLightStart = css.indexOf("/* Costì product theme");
-  const productDarkStart = css.indexOf(
-    "@media screen and (prefers-color-scheme: dark)",
-    productLightStart + 1,
-  );
 
   it("has the light @theme block, then the dark override", () => {
     expect(themeStart).toBeGreaterThanOrEqual(0);
@@ -238,35 +178,20 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(baseStart).toBeGreaterThan(darkStart);
   });
 
-  it("declares the light colours exactly as THEMES.light", () => {
-    expect(colorDeclarations(css.slice(themeStart, inlineStart))).toEqual(THEMES.light);
+  it("declares the light colours at :root (@theme) exactly as PRODUCT_THEMES.light", () => {
+    expect(colorDeclarations(css.slice(themeStart, inlineStart))).toEqual(PRODUCT_THEMES.light);
   });
 
-  it("declares the dark colours exactly as THEMES.dark", () => {
-    expect(colorDeclarations(css.slice(darkStart, productLightStart))).toEqual(THEMES.dark);
+  it("declares the dark colours exactly as PRODUCT_THEMES.dark", () => {
+    expect(colorDeclarations(css.slice(darkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
   });
 
-  it("places the two product blocks after the osteria dark block and before @layer base, light first", () => {
-    expect(productLightStart).toBeGreaterThan(darkStart);
-    expect(productDarkStart).toBeGreaterThan(productLightStart);
-    expect(baseStart).toBeGreaterThan(productDarkStart);
-    const light = css.slice(productLightStart, productDarkStart);
-    const dark = css.slice(productDarkStart, baseStart);
-    expect(light).toContain(':root:has([data-brand="costi"]) {');
-    expect(dark).toContain(':root:has([data-brand="costi"]) {');
+  it("has one screen-dark colour block and no :has() switch", () => {
+    expect(css.slice(darkStart, baseStart).match(/--color-paper:/g)).toHaveLength(1);
+    expect(css.slice(darkStart, baseStart)).not.toContain(":has(");
   });
 
-  it("declares the product light colours exactly as PRODUCT_THEMES.light", () => {
-    expect(colorDeclarations(css.slice(productLightStart, productDarkStart))).toEqual(
-      PRODUCT_THEMES.light,
-    );
-  });
-
-  it("declares the product dark colours exactly as PRODUCT_THEMES.dark", () => {
-    expect(colorDeclarations(css.slice(productDarkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
-  });
-
-  it("declares no colour token outside the two osteria blocks, the two product blocks and the print palette rule", () => {
+  it("declares no colour token outside @theme, the screen-dark block and the print palette rule", () => {
     const { stray, palette } = colourTokensOutsideThemes(css);
     expect(stray).toEqual({});
     // The cut-out rule (§10.5) is exactly PRINT_COLORS; print-css.test.ts pins its selector and that nothing else in the print block has a colour.
@@ -389,14 +314,40 @@ describe("the Costì product theme (CB4)", () => {
     }
   });
 
-  it("the status tones keep the osteria values (semantic, not brand)", () => {
-    for (const theme of THEME_NAMES) {
-      for (const token of COLOR_TOKENS.filter((name) =>
-        /^(success|warning|danger|info)/.test(name),
-      )) {
-        expect(PRODUCT_THEMES[theme][token], `${theme} ${token}`).toBe(THEMES[theme][token]);
-      }
-    }
+  it("the status tones are these 16 literals (semantic, not brand)", () => {
+    expect(
+      Object.fromEntries(
+        THEME_NAMES.map((theme) => [
+          theme,
+          Object.fromEntries(
+            COLOR_TOKENS.filter((name) => /^(success|warning|danger|info)/.test(name)).map(
+              (name) => [name, PRODUCT_THEMES[theme][name]],
+            ),
+          ),
+        ]),
+      ),
+    ).toEqual({
+      light: {
+        success: "#2D6435",
+        "success-bg": "#E2ECD9",
+        warning: "#74480A",
+        "warning-bg": "#F5E5C3",
+        danger: "#9A2A1D",
+        "danger-bg": "#F6DDD5",
+        info: "#1E5470",
+        "info-bg": "#DCE8EE",
+      },
+      dark: {
+        success: "#A3D4A9",
+        "success-bg": "#1B2C1D",
+        warning: "#EBC57E",
+        "warning-bg": "#302511",
+        danger: "#F4A694",
+        "danger-bg": "#391A12",
+        info: "#A1CBE2",
+        "info-bg": "#14252F",
+      },
+    });
   });
 });
 
@@ -410,9 +361,9 @@ describe("chart colours (owner dashboard, ADR-021)", () => {
     const pair = CONTRAST_PAIRS.find((p) => p.fg === fg && p.bg === bg && p.min === AA_NON_TEXT);
     expect(pair).toBeDefined();
     for (const theme of THEME_NAMES) {
-      expect(contrastRatio(THEMES[theme][fg], THEMES[theme][bg])).toBeGreaterThanOrEqual(
-        AA_NON_TEXT,
-      );
+      expect(
+        contrastRatio(PRODUCT_THEMES[theme][fg], PRODUCT_THEMES[theme][bg]),
+      ).toBeGreaterThanOrEqual(AA_NON_TEXT);
     }
   });
 

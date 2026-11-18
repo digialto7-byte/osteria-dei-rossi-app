@@ -22,11 +22,11 @@ describe("the console layout", () => {
     expect(viewport.themeColor).toBe(PRODUCT_THEMES.light.band);
   });
 
-  it("renders the Costì theme marker and its children, nothing else", () => {
+  it("renders its children, nothing else", () => {
     const html = renderToStaticMarkup(
       createElement(ConsoleLayout, null, createElement("p", null, "figlio")),
     );
-    expect(html).toBe('<span data-brand="costi" hidden=""></span><p>figlio</p>');
+    expect(html).toBe("<p>figlio</p>");
   });
 });
 

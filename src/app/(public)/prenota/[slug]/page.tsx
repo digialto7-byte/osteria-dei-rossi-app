@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { CostiTheme } from "@/components/costi-theme";
 import { VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { localeFromQuery } from "@/lib/reservations/public-view";
 import { RequestForm } from "./request-form";
@@ -17,10 +16,5 @@ export default async function BookingPage({
 }) {
   const { slug } = await params;
   const { lang } = await searchParams;
-  return (
-    <>
-      <CostiTheme />
-      <RequestForm slug={slug} locale={localeFromQuery(lang)} />
-    </>
-  );
+  return <RequestForm slug={slug} locale={localeFromQuery(lang)} />;
 }

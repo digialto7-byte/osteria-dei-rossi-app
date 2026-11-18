@@ -9,72 +9,16 @@ import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { nonceOrNull } from "@/lib/security/nonce";
 import "./globals.css";
 
-// The brand's founder-approved faces, self-hosted: the woff2 files (latin and latin-ext subsets, from the OFL-licensed Fontsource packages
-// 5.3.0) and their licences are committed in ./fonts. next/font/local serves them from /_next/static/media, so the browser
-// never contacts Google (GDPR) and the build needs no network (a failed Google fetch broke CI run 42513051864). Checked by
-// tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts. One Bodoni weight only, set large: its hairlines break up below
-// ~20 px. No italics: the screens do not use them. The constant names become the family names (e2e/fonts.spec.ts matches
-// them loosely, so keep "bodoniModa" and "figtree" in them).
-const bodoniModa = localFont({
-  src: [{ path: "./fonts/bodoni-moda-latin-600-normal.woff2", weight: "600", style: "normal" }],
-  display: "swap",
-  variable: "--font-display-face",
-  adjustFontFallback: "Times New Roman",
-});
-const figtree = localFont({
-  src: [
-    { path: "./fonts/figtree-latin-400-normal.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/figtree-latin-700-normal.woff2", weight: "700", style: "normal" },
-  ],
-  display: "swap",
-  variable: "--font-body",
-  adjustFontFallback: "Arial",
-});
-// Latin-ext (names such as "Ștefan" or "Żubrówka"), as the Google-hosted fonts did before: a second face per family, limited to
-// Google's latin-ext range and not preloaded, so it is downloaded only for a page that has such a letter. globals.css lists
-// it first: its range keeps it out of plain latin text (tests/lib/design/fonts.test.ts). next/font needs literals here, so
-// the range is written out in both calls.
-const bodoniModaExt = localFont({
-  src: [{ path: "./fonts/bodoni-moda-latin-ext-600-normal.woff2", weight: "600", style: "normal" }],
-  display: "swap",
-  variable: "--font-display-ext",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [
-    {
-      prop: "unicode-range",
-      value:
-        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
-    },
-  ],
-});
-const figtreeExt = localFont({
-  src: [
-    { path: "./fonts/figtree-latin-ext-400-normal.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/figtree-latin-ext-700-normal.woff2", weight: "700", style: "normal" },
-  ],
-  display: "swap",
-  variable: "--font-body-ext",
-  preload: false,
-  adjustFontFallback: false,
-  declarations: [
-    {
-      prop: "unicode-range",
-      value:
-        "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF",
-    },
-  ],
-});
-
-// The Costì product faces (docs/plans/2026-11-13-costi-product-brand.md §3.4): Montserrat for headings and Inter for body text, full
-// upstream files (src/app/fonts/README.md). Not preloaded, so a venue page never downloads them: only an element that resolves to them
-// does, inside the product scope, where globals.css remaps the four font variables above to these two. The constant names become the
-// family names (e2e/fonts.spec.ts matches "montserrat" and "inter").
+// The Costì faces (docs/ux/costi-design-system.md §3), self-hosted: Montserrat 600 for headings and Inter 400 and 700 for everything else. The
+// full upstream woff2 files and their OFL licences are committed in ./fonts (see its README), so there is no latin/latin-ext split.
+// next/font/local serves them from /_next/static/media, so the browser never contacts Google (GDPR) and the build needs no network (a
+// failed Google fetch broke CI run 42513051864). They are preloaded on every page and set on the two variables the font stacks in
+// globals.css start with. Checked by tests/lib/design/fonts.test.ts and e2e/fonts.spec.ts. No italics: the screens do not use them. The
+// constant names become the family names (e2e/fonts.spec.ts matches "montserrat" and "inter" loosely, so keep them).
 const montserrat = localFont({
   src: [{ path: "./fonts/montserrat-600-normal.woff2", weight: "600", style: "normal" }],
   display: "swap",
-  variable: "--font-product-display",
-  preload: false,
+  variable: "--font-display-face",
   adjustFontFallback: "Arial",
 });
 const inter = localFont({
@@ -83,8 +27,7 @@ const inter = localFont({
     { path: "./fonts/inter-700-normal.woff2", weight: "700", style: "normal" },
   ],
   display: "swap",
-  variable: "--font-product-body",
-  preload: false,
+  variable: "--font-body",
   adjustFontFallback: "Arial",
 });
 
@@ -117,10 +60,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   nonceOrNull(await headers());
   return (
-    <html
-      lang={DEFAULT_LOCALE}
-      className={`${bodoniModa.variable} ${figtree.variable} ${bodoniModaExt.variable} ${figtreeExt.variable} ${montserrat.variable} ${inter.variable}`}
-    >
+    <html lang={DEFAULT_LOCALE} className={`${montserrat.variable} ${inter.variable}`}>
       <body className="group/body min-h-dvh text-ink antialiased">{children}</body>
     </html>
   );

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
-import { CostiTheme } from "@/components/costi-theme";
 import { PRODUCT_THEMES } from "@/lib/design/tokens";
 import { t } from "@/lib/i18n";
 
@@ -10,10 +9,5 @@ export const metadata: Metadata = { title: t("console.tabTitle") };
 export const viewport: Viewport = { themeColor: PRODUCT_THEMES.light.band };
 
 export default function ConsoleLayout({ children }: { children: ReactNode }) {
-  return (
-    <>
-      <CostiTheme />
-      {children}
-    </>
-  );
+  return children;
 }

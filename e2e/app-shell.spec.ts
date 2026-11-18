@@ -55,9 +55,8 @@ test.describe("one main per page (A3)", () => {
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
   });
 
-  // The two themes coexist until P2j. From P2h (step 7) every signed-in screen wears Costì, Ricette included, and from P2i (step 8) so does
-  // the guest booking page. The one cream screen left is the 404 (step 9), which product-brand.spec.ts pins.
-  test("a signed-in step-7 screen (Ricette) and the guest booking page both wear Costì", async ({
+  // One theme since P2j: every screen wears Costì, Ricette, the guest booking page and an unknown address included.
+  test("every screen wears Costì: a signed-in Ricette, the guest booking page and an unknown address", async ({
     page,
   }) => {
     await signInWithMagicLink(page, createOwner());
@@ -67,10 +66,12 @@ test.describe("one main per page (A3)", () => {
     await page.goto("/prenota/osteria-demo-nessuna");
     await expect(page.locator("main")).toHaveCount(1);
     await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
+    await page.goto("/non-esiste-questa-pagina");
+    await expect(page.locator("body")).toHaveCSS("background-color", "rgb(247, 248, 246)");
   });
 
   // ADR-045 (venue layer, from P2a): the band wears the venue's accent in both schemes, with a readable ink. The rule under the band
-  // is still the osteria's gold on pages not yet re-skinned; it becomes Coral with P2j.
+  // is Costì's Coral (P2j).
   for (const colorScheme of ["light", "dark"] as const) {
     test(`a signed-in page's band is the venue green with Off-white ink, ${colorScheme}`, async ({
       page,
@@ -81,6 +82,7 @@ test.describe("one main per page (A3)", () => {
       const band = page.locator("header.band");
       await expect(band).toHaveCount(1);
       await expect(band).toHaveCSS("background-color", "rgb(28, 65, 48)");
+      await expect(band).toHaveCSS("border-bottom-color", "rgb(255, 122, 92)");
       const wordmark = band.getByRole("link", { name: "Osteria Dei Rossi, Home" }).locator("span");
       await expect(wordmark).toHaveCSS("color", "rgb(247, 248, 246)");
       // Retried, not one-shot (an element can be replaced while the page renders; main CI, 455df83).

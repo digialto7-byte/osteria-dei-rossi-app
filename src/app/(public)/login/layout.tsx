@@ -1,17 +1,15 @@
 import type { Viewport } from "next";
 import type { ReactNode } from "react";
-import { CostiTheme } from "@/components/costi-theme";
 import { ProductLogo } from "@/components/product-logo";
 import { PRODUCT_THEMES } from "@/lib/design/tokens";
 
-// A product surface (Costì plan §3.2, ADR-045): the sign-in and device pages get the Costì colours, fonts and logo. The header band above shows the
+// A product surface (Costì plan §3.2, ADR-045): the sign-in and device pages show the Costì logo. The header band above shows the
 // Costì wordmark, not the venue's name (founder, 2026-11-14). The browser chrome continues the product's Forest here (one meta tag: the nested viewport replaces the root's).
 export const viewport: Viewport = { themeColor: PRODUCT_THEMES.light.band };
 
 export default function ProductLayout({ children }: { children: ReactNode }) {
   return (
     <>
-      <CostiTheme />
       <ProductLogo />
       {children}
     </>

@@ -117,14 +117,6 @@ describe("Oggi, the home page", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it.each(["owner", "admin", "chef"])(
-    "P2d: the %s's Home renders the Costì marker",
-    async (who) => {
-      const { container } = await open(who);
-      expect(container.querySelectorAll('[data-brand="costi"]')).toHaveLength(1);
-    },
-  );
-
   it("P2d-2: the account card's venue name is a label, not a display-face line", async () => {
     await open("owner");
     const name = screen.getByTestId("role").previousElementSibling!;
@@ -132,21 +124,11 @@ describe("Oggi, the home page", () => {
     expect(name.className).not.toContain("font-display");
   });
 
-  it("P2d: the Costì marker is there while /api/me is still pending, before the greeting", async () => {
+  it("shows «Caricamento…» and no greeting while /api/me is still pending", async () => {
     apiJson.mockImplementationOnce(() => new Promise(() => {}));
-    const { container } = render(createElement(HomePage));
+    render(createElement(HomePage));
     expect(await screen.findByText("Caricamento…")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: /Utente Demo/ })).toBeNull();
-    expect(container.querySelectorAll('[data-brand="costi"]')).toHaveLength(1);
-  });
-
-  it("P2d: the Costì marker is there beside the notice when /api/me fails", async () => {
-    apiJson.mockImplementationOnce(() =>
-      Promise.resolve({ ok: false, status: 500, error: { code: "boom", message: "x" } } as never),
-    );
-    const { container } = render(createElement(HomePage));
-    expect((await screen.findByRole("alert")).textContent).toContain("Non riusciamo a verificare");
-    expect(container.querySelectorAll('[data-brand="costi"]')).toHaveLength(1);
   });
 
   it.each(["owner", "admin", "chef"])("does not redirect the %s", async (who) => {
