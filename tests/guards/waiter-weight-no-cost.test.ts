@@ -427,6 +427,9 @@ describe("PATCH /api/settings/venue", () => {
 const openingDraft = await import("@/app/api/stock/opening/draft/route");
 const openingLines = await import("@/app/api/stock/opening/draft/lines/route");
 const openingLine = await import("@/app/api/stock/opening/draft/lines/[id]/route");
+const openingConfirm = await import("@/app/api/stock/opening/confirm/route");
+const openingHistory = await import("@/app/api/stock/opening/history/route");
+const openingReverse = await import("@/app/api/stock/opening/[id]/reverse/route");
 const OPENING = "http://localhost:3000/api/stock/opening";
 const OPENING_ID = "0d000000-0000-4000-8000-000000000001";
 const OPENING_LOC = "10000000-0000-4000-8000-0000000000a1";
@@ -465,6 +468,30 @@ const OPENING_ROUTES: [string, () => Promise<Response>][] = [
     () =>
       openingLine.DELETE(
         jsonRequest(`${OPENING}/draft/lines/${OPENING_ID}`, {}, { method: "DELETE" }),
+        routeContext({ id: OPENING_ID }),
+      ),
+  ],
+  [
+    "POST /api/stock/opening/confirm",
+    () =>
+      openingConfirm.POST(
+        jsonRequest(`${OPENING}/confirm`, {
+          locationId: OPENING_LOC,
+          effectiveOn: "2026-12-01",
+          requestId: OPENING_ID,
+          lines: [{ id: OPENING_ID, ingredientId: OPENING_ID, qty: 1, unitCostEur: 1 }],
+        }),
+      ),
+  ],
+  [
+    "GET /api/stock/opening/history",
+    () => openingHistory.GET(new Request(`${OPENING}/history?locationId=${OPENING_LOC}`)),
+  ],
+  [
+    "POST /api/stock/opening/:id/reverse",
+    () =>
+      openingReverse.POST(
+        jsonRequest(`${OPENING}/${OPENING_ID}/reverse`, { reason: "qty_wrong" }),
         routeContext({ id: OPENING_ID }),
       ),
   ],
