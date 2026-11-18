@@ -95,8 +95,9 @@ select is(md5(pg_temp.src('app', 'require_batch_writer')) || md5(pg_temp.src('ap
 select is((select string_agg(kind, ',' order by kind) from app.alert_kind),
   'batch_expiring,device_locked,ledger_drift,negative_stock,payable_due_7d,payable_due_today,payable_overdue_3d,payables_weekly_digest,prep_due,prep_raw_short,price_variance,purchase_due,raw_lot_expiring,test_alert,test_alert_kitchen',
   'the alert kinds: M15 adds none, M16 adds the five rule kinds');
+-- re-pinned on purpose by opening stock (step 3; was receipt,consumption,waste,transfer,count): the enum gains `opening` (docs/plans/2026-11-18-opening-stock.md section 3.1).
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.stock_movement_type'::regtype),
-  'receipt,consumption,waste,transfer,count', 'stock_movement_type is unchanged');
+  'receipt,consumption,waste,transfer,count,opening', 'stock_movement_type is the six labels (the five of M12, then opening)');
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.batch_movement_type'::regtype),
   'produce,consume,count,waste,split', 'batch_movement_type is unchanged');
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.batch_state'::regtype),

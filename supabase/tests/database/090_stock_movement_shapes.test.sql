@@ -75,9 +75,10 @@ create function pg_temp.mv(
 $$;
 
 -- Enum and reason codes ---------------------------------------------------------------------------------
+-- re-pinned on purpose by opening stock (step 3; was receipt,consumption,waste,transfer,count): the enum gains `opening` (docs/plans/2026-11-18-opening-stock.md section 3.1).
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder)
              from pg_enum e where e.enumtypid = 'public.stock_movement_type'::regtype),
-  'receipt,consumption,waste,transfer,count', 'the movement types, in order');
+  'receipt,consumption,waste,transfer,count,opening', 'the movement types, in order');
 select is(app.stock_reason_codes(),
   array['spoilage', 'expired', 'over_production', 'plating_error', 'staff_meal', 'comp', 'breakage', 'count_correction'],
   'the eight waste reason codes, in order');

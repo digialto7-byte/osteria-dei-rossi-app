@@ -185,6 +185,10 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206200300_close_with_tenant_codes.sql",
   // SP1 step 7 (20261206200400_tenant_locale_settings.sql), re-pinned on purpose by SP1: tenant.default_locale, public.tenant_settings and public.set_tenant_settings, and app.check_sale_vat_rate re-created with the tenant-row lock; no new table.
   "20261206200400_tenant_locale_settings.sql",
+  // Opening stock step 3 (20261206210000_stock_movement_opening_type.sql), re-pinned on purpose by opening stock (step 3; was the list ending at 20261206200400_tenant_locale_settings.sql): one enum value.
+  "20261206210000_stock_movement_opening_type.sql",
+  // Opening stock step 4 (20261206210100_stock_movement_opening_shape.sql), re-pinned on purpose by opening stock (step 4; was the list ending at 20261206210000_stock_movement_opening_type.sql): one CHECK on stock_movement.
+  "20261206210100_stock_movement_opening_shape.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

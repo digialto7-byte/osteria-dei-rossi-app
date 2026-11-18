@@ -33,6 +33,10 @@ insert into p27_objs values
 insert into p27_objs values
   ('column', 'tenant.default_locale'), ('constraint', 'tenant.tenant_default_locale_check'),
   ('public_fn', 'tenant_settings'), ('public_fn', 'set_tenant_settings');
+-- Opening stock (docs/plans/2026-11-18-opening-stock.md section 3.11), re-pinned on purpose by opening stock: its additions since main, in a separate insert placed right after SP1's (this plan merges before the comanda per uscita and P2-4), so a neighbouring milestone's edits do not touch these lines. Each opening-stock migration adds its objects here.
+-- Step 4 (20261206210100_stock_movement_opening_shape.sql): the shape CHECK of an opening ledger row.
+insert into p27_objs values
+  ('constraint', 'stock_movement.stock_movement_opening_ck');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -166,7 +170,8 @@ select is((select count(*)::int || ',' || md5(string_agg(pol.polrelid::regclass:
           '71,c246f155f708cebe2d69133c8f1e1ae9', 'the row-level security policies are main''s (71)');
 select is((select count(*)::int || ',' || md5(string_agg(e.enumtypid::regtype::text || '.' || e.enumlabel, ',' order by e.enumtypid::regtype::text, e.enumsortorder))
              from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)),
-          '92,5e4c067f10066e0feb287bbfaeb3c636', 'the enum values are main''s (92)');
+-- re-pinned on purpose by opening stock (step 3; was 92,5e4c067f10066e0feb287bbfaeb3c636): stock_movement_type gains `opening` (20261206210000). Not in plan section 3.11; found by the full run.
+          '93,9b1ca14d6e57cf2c1d5b16bc4ecc4554', 'the enum values are main''s plus stock_movement_type.opening (93)');
 select is((select count(*)::int || ',' || md5(string_agg(i.indexname, ',' order by i.indexname collate "C")) from pg_indexes i
             where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')
               and i.tablename not in (select o.name from p27_objs o where o.kind = 'table')
