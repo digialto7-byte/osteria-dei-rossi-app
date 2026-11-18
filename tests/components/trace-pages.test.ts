@@ -642,11 +642,12 @@ describe("plate search: failed reads are not hidden", () => {
     const retry = screen.getByRole("button", { name: "Riprova" });
     retry.focus();
     const release = hold(fail(500, "server_error"));
-    const before = count("/api/reports/push-sell-through");
+    const before = apiJson.mock.calls.length;
     await act(async () => {
       fireEvent.click(retry);
     });
-    expect(count("/api/reports/push-sell-through")).toBe(before);
+    // The retry is one read, now held in flight.
+    expect(apiJson.mock.calls.length).toBe(before + 1);
     const during = apiJson.mock.calls.length;
     await act(async () => {
       fireEvent.click(retry);
@@ -701,14 +702,24 @@ describe("plate search: failed reads are not hidden", () => {
     expect(count("/api/reports/push-sell-through")).toBe(1);
   });
 
-  it("says why Riprova cannot work while offline, next to the day error", async () => {
+  it("says why Riprova cannot work while offline, next to the day error, and an offline click reads nothing", async () => {
     vi.spyOn(window.navigator, "onLine", "get").mockReturnValue(false);
-    routes["/api/reports/push-sell-through"] = () => fail(0, "network");
-    window.history.replaceState(null, "", "/tracciabilita?da=piatto");
-    const view = await renderSearch();
-    await screen.findByText(DAY_ERROR);
-    expect(text(view)).toContain("Serve la connessione per cercare.");
-    vi.restoreAllMocks();
+    try {
+      routes["/api/reports/push-sell-through"] = () => fail(0, "network");
+      window.history.replaceState(null, "", "/tracciabilita?da=piatto");
+      const view = await renderSearch();
+      await screen.findByText(DAY_ERROR);
+      expect(text(view)).toContain("Serve la connessione per cercare.");
+      const retry = screen.getByRole("button", { name: "Riprova" });
+      const before = apiJson.mock.calls.length;
+      await act(async () => {
+        fireEvent.click(retry);
+      });
+      expect(apiJson.mock.calls.length).toBe(before);
+      expect(retry.getAttribute("aria-disabled")).not.toBe("true");
+    } finally {
+      vi.restoreAllMocks();
+    }
   });
 
   it("skips the business-day read when ?giorno= names the day", async () => {
