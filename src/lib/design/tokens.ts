@@ -175,9 +175,8 @@ export const PRODUCT_DERIVED = {
 } as const;
 
 /**
- * The Costì product theme: the same token names as THEMES with product values, applied under `data-brand="costi"` (globals.css,
- * `:root:has([data-brand="costi"])`). Coral takes gold and highlight, which are accent-only. The status tones are semantic, not
- * brand, so they keep the osteria values.
+ * The Costì theme, the one theme of the app: the `:root` values in globals.css (`@theme` for light, the screen-dark block for dark).
+ * Coral takes gold and highlight, which are accent-only. The status tones are semantic, not brand: they are literals.
  */
 export const PRODUCT_THEMES: Record<Theme, Record<ColorToken, string>> = {
   light: {
@@ -322,7 +321,7 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "ink", bg: "sunk", min: AA_NON_TEXT, use: "target tick over the bar track" },
 ];
 
-/** Tokens that are accents only: never a text colour (they fail AA on cream). */
+/** Tokens that are accents only: never a text colour (they fail AA on the page). */
 export const ACCENT_ONLY: readonly ColorToken[] = ["gold", "highlight"];
 
 /** WCAG AAA for body text: 7:1. The kitchen's high-contrast mode uses only pairs that reach it (M19 plan §3.1.11). */

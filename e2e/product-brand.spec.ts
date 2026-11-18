@@ -8,7 +8,8 @@ const PRODUCT_PAGES = ["/login", "/login/codice", "/dispositivo"] as const;
 const OFF_WHITE = "rgb(247, 248, 246)";
 const FOREST = "rgb(14, 77, 58)";
 const CHARCOAL = "rgb(31, 41, 51)";
-const OSTERIA_CREAM = "rgb(255, 250, 223)";
+// The venue layer on the band of the venue's own pages (the 404 included): #1C4130.
+const VENUE_FOREST = "rgb(28, 65, 48)";
 
 // Retried (toHaveCSS), not a one-shot read of the computed style.
 const expectBodyBackground = (page: Page, colour: string) =>
@@ -96,7 +97,7 @@ test("the tab carries the favicon and the apple-touch icon", async ({ page }) =>
 });
 
 test.describe("the venue's pages keep the osteria look (R1)", () => {
-  test("a missing address (404 under the static policy) is cream, and no product face is loaded", async ({
+  test("a missing address (404 under the static policy) is Off-white in light and Charcoal in dark, with the venue band, and no product face is loaded", async ({
     page,
   }) => {
     const csp = await collectCspViolations(page.context());
@@ -106,7 +107,12 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     });
     const response = await page.goto("/brand/costi/missing.png");
     expect(response?.status()).toBe(404);
-    await expectBodyBackground(page, OSTERIA_CREAM);
+    await expectBodyBackground(page, OFF_WHITE);
+    await expect(page.locator("header.band")).toHaveCSS("background-color", VENUE_FOREST);
+    await page.emulateMedia({ colorScheme: "dark" });
+    await expectBodyBackground(page, CHARCOAL);
+    await expect(page.locator("header.band")).toHaveCSS("background-color", VENUE_FOREST);
+    await page.emulateMedia({ colorScheme: "light" });
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
     await page.waitForLoadState("networkidle");
     const loaded = await page.evaluate(() =>
@@ -123,7 +129,7 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     expect(csp.violations.filter((line) => !/script-src/.test(line))).toEqual([]);
   });
 
-  // P2i (step 8): the guest booking page wears the Costì values (Off-white) with the venue's layer; only the 404 above is still cream.
+  // P2i (step 8): the guest booking page wears the Costì values (Off-white) with the venue's layer; the 404 above is Off-white too (P2j step 4).
   test("an unknown booking address wears Costì's Off-white with the venue's tab title and band", async ({
     page,
   }) => {

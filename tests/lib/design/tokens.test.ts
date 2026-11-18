@@ -208,7 +208,7 @@ function splitPrintPalette(source: string): { rest: string; palette: string } {
 }
 
 /**
- * The guard on colour tokens in globals.css: the colour tokens declared outside the two osteria blocks and the two product blocks
+ * The guard on colour tokens in globals.css: the colour tokens declared outside @theme and the screen-dark block
  * (`stray`), and those of the print palette rule, which is cut out first (`palette`).
  */
 function colourTokensOutsideThemes(source: string): {
@@ -231,12 +231,6 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
   const inlineStart = css.indexOf("@theme inline");
   const darkStart = css.indexOf("@media screen and (prefers-color-scheme: dark)");
   const baseStart = css.indexOf("@layer base");
-  // The Costì product blocks (docs/plans/2026-11-13-costi-product-brand.md §3.2), after the osteria dark block.
-  const productLightStart = css.indexOf("/* Costì product theme");
-  const productDarkStart = css.indexOf(
-    "@media screen and (prefers-color-scheme: dark)",
-    productLightStart + 1,
-  );
 
   it("has the light @theme block, then the dark override", () => {
     expect(themeStart).toBeGreaterThanOrEqual(0);
@@ -245,35 +239,20 @@ describe("globals.css (the runtime source) matches src/lib/design/tokens.ts", ()
     expect(baseStart).toBeGreaterThan(darkStart);
   });
 
-  it("declares the light colours exactly as THEMES.light", () => {
-    expect(colorDeclarations(css.slice(themeStart, inlineStart))).toEqual(THEMES.light);
+  it("declares the light colours at :root (@theme) exactly as PRODUCT_THEMES.light", () => {
+    expect(colorDeclarations(css.slice(themeStart, inlineStart))).toEqual(PRODUCT_THEMES.light);
   });
 
-  it("declares the dark colours exactly as THEMES.dark", () => {
-    expect(colorDeclarations(css.slice(darkStart, productLightStart))).toEqual(THEMES.dark);
+  it("declares the dark colours exactly as PRODUCT_THEMES.dark", () => {
+    expect(colorDeclarations(css.slice(darkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
   });
 
-  it("places the two product blocks after the osteria dark block and before @layer base, light first", () => {
-    expect(productLightStart).toBeGreaterThan(darkStart);
-    expect(productDarkStart).toBeGreaterThan(productLightStart);
-    expect(baseStart).toBeGreaterThan(productDarkStart);
-    const light = css.slice(productLightStart, productDarkStart);
-    const dark = css.slice(productDarkStart, baseStart);
-    expect(light).toContain(':root:has([data-brand="costi"]) {');
-    expect(dark).toContain(':root:has([data-brand="costi"]) {');
+  it("has one screen-dark colour block and no :has() switch", () => {
+    expect(css.slice(darkStart, baseStart).match(/--color-paper:/g)).toHaveLength(1);
+    expect(css.slice(darkStart, baseStart)).not.toContain(":has(");
   });
 
-  it("declares the product light colours exactly as PRODUCT_THEMES.light", () => {
-    expect(colorDeclarations(css.slice(productLightStart, productDarkStart))).toEqual(
-      PRODUCT_THEMES.light,
-    );
-  });
-
-  it("declares the product dark colours exactly as PRODUCT_THEMES.dark", () => {
-    expect(colorDeclarations(css.slice(productDarkStart, baseStart))).toEqual(PRODUCT_THEMES.dark);
-  });
-
-  it("declares no colour token outside the two osteria blocks, the two product blocks and the print palette rule", () => {
+  it("declares no colour token outside @theme, the screen-dark block and the print palette rule", () => {
     const { stray, palette } = colourTokensOutsideThemes(css);
     expect(stray).toEqual({});
     // The cut-out rule (§10.5) is exactly PRINT_COLORS; print-css.test.ts pins its selector and that nothing else in the print block has a colour.
