@@ -75,6 +75,13 @@ describe("design tokens meet WCAG AA in both themes", () => {
     }
   });
 
+  it("names every use of the paper-on-ink pair (the owner nav, the segmented control, Button selected)", () => {
+    const pair = CONTRAST_PAIRS.find((p) => p.fg === "paper" && p.bg === "ink");
+    expect(pair?.use).toBe(
+      "current tab in the owner nav; selected segment; picked option (Button selected)",
+    );
+  });
+
   it("checks every semantic text colour against its own background", () => {
     for (const tone of ["success", "warning", "danger", "info"] as const) {
       expect(CONTRAST_PAIRS).toContainEqual(

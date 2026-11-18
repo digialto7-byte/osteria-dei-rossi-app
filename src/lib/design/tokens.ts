@@ -287,7 +287,12 @@ export const CONTRAST_PAIRS: readonly ContrastPair[] = [
   { fg: "ink", bg: "paper", min: AA_TEXT, use: "body text on the page" },
   { fg: "ink", bg: "surface", min: AA_TEXT, use: "text in cards, inputs, secondary buttons" },
   { fg: "ink", bg: "sunk", min: AA_TEXT, use: "text on hovered rows, tabs and buttons" },
-  { fg: "paper", bg: "ink", min: AA_TEXT, use: "current tab in the owner nav" },
+  {
+    fg: "paper",
+    bg: "ink",
+    min: AA_TEXT,
+    use: "current tab in the owner nav; selected segment; picked option (Button selected)",
+  },
   { fg: "ink-muted", bg: "paper", min: AA_TEXT, use: "hints and secondary row text" },
   { fg: "ink-muted", bg: "surface", min: AA_TEXT, use: "hints inside cards" },
   { fg: "ink-muted", bg: "sunk", min: AA_TEXT, use: "neutral status badge" },
