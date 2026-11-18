@@ -449,24 +449,32 @@ A venue's language and its lists of sale VAT rates, receipt types and payment ty
 (test: tests/app/api/settings-venue.test.ts)
 - Keys: `locale` (`it` or `en`), `saleVatRates` (numbers from 0, 4, 5, 10, 22), `receiptTypes` (`scontrino`, `fattura`),
   `paymentTypes` (`cash`, `card`, `other`). Send only the keys to change, at least one. A list is the complete new list: what is left out is
-  switched off, and the array order is the order on screen.
+  switched off. For `receiptTypes` and `paymentTypes` the array order is the order on screen; `saleVatRates` is always stored and shown in
+  ascending order (`[22, 10]` becomes `[10, 22]`).
 - Answers: 200 with `changed` and the settings. Sending the same values again is 200 with `changed: false` and writes nothing.
   (test: supabase/tests/database/395_sp1_tenant_settings.test.sql)
-- 400: an unknown key, or no key, or a wrong type. 415: not a JSON body. 401: not signed in. 403: not owner or admin, or the second step
-  (`mfa_required`) is missing. 422: a value the database refuses, with one of these codes: `locale_invalid`, `vat_rate_invalid` (a rate not in
-  the statutory list), `receipt_type_invalid`, `payment_type_invalid` (a code outside the catalogue), `settings_list_empty` (an empty list: keep at
-  least one entry). Nothing is written on a refusal. Each change writes one `tenant.settings_changed` audit row.
+- 400: an unknown key, no key, a wrong type, a list longer than 20 entries, or a body that is not valid JSON (`invalid_json`). 413: a body
+  over the size limit. 415: not a JSON body. 401: not signed in. 403: not owner or admin (`forbidden`), or the second step is missing
+  (`mfa_required`; an admin without an enrolled factor gets `mfa_enrol_required`). 422: a value the database refuses, with one of these codes:
+  `locale_invalid`, `vat_rate_invalid` (a rate not in the statutory list, or the same rate sent twice), `receipt_type_invalid`,
+  `payment_type_invalid` (a code outside the catalogue, or the same code sent twice), `settings_list_empty` (an empty list: keep at least one
+  entry). Nothing is written on a refusal. Each change writes one `tenant.settings_changed` audit row.
 
 **What removing a VAT rate does.** The rate is switched off for this venue (`is_active = false`), never deleted. Switching it on again is the
 same call with the rate back in the list.
 - Open table sessions keep the coperto rate they were opened with and still close.
   (test: supabase/tests/database/391_sp1_sale_vat.test.sql)
+- **The stored coperto rate is not changed.** If the venue's coperto (Tavoli › Impostazioni › Coperto) is at the removed rate, every table
+  opened afterwards still copies that rate, because the coperto rate is checked only when it is set or changed. Saving the coperto card with
+  only a new amount keeps it too. Change the coperto rate to one in the new list as part of the same job (see the last point).
 - Existing menu prices at that rate stay valid and keep selling. A new price version at the same rate as the dish's current one is accepted;
   a new dish, a new coperto rate, or a price at a rate other than the current one is refused with `vat_rate_invalid` (422). The menu form
   shows the stored rate as the current option, so saving a dish unchanged keeps it.
   (test: supabase/tests/database/391_sp1_sale_vat.test.sql)
 - Supplier invoices are not affected: they are checked against the statutory list.
-- To move prices off the removed rate, edit each dish to a rate in the new list.
+- To move off the removed rate completely: set the coperto rate to one in the new list (Tavoli › Impostazioni › Coperto), and edit each dish
+  at the old rate to a rate in the new list. Until both are done, the old rate keeps being charged on new tables (coperto) and on those
+  dishes.
 
 **What removing a receipt or payment type does.** A table that is closed afterwards with that code is refused (`receipt_type_invalid` or
 `payment_type_invalid`) and stays open; tables already closed with it keep it, and the day report still shows it for that day.

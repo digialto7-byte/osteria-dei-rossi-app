@@ -121,14 +121,28 @@ describe.skipIf(!env)("tenant sale VAT list on the real stack", () => {
     expect(made.status).toBe(201);
   });
 
-  it("a waiter cannot change the list: 403", async () => {
-    const denied = await call(
+  it("a waiter cannot change the list: 403 forbidden, and the list is unchanged", async () => {
+    const listOf = async () =>
+      (
+        await call<{ vatRates: number[] }>(
+          stack.tenantB.owner,
+          menuItemsRoute.GET as Handler,
+          "GET",
+          "/api/menu/items",
+        )
+      ).body.vatRates;
+    const before = await listOf();
+    const denied = await call<{ error: { code: string } }>(
       stack.tenantB.waiter,
       venueRoute.PATCH as Handler,
       "PATCH",
       "/api/settings/venue",
-      { saleVatRates: [0, 4, 5, 10, 22] },
+      // [22] differs from both the default five rates and the first test's [10, 22], so a write that got through would show, also when
+      // this test runs alone.
+      { saleVatRates: [22] },
     );
     expect(denied.status).toBe(403);
+    expect(denied.body.error.code).toBe("forbidden");
+    expect(await listOf()).toEqual(before);
   });
 });
