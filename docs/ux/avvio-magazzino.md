@@ -1,6 +1,7 @@
 # Screens: Avvio magazzino (opening stock)
 
-- **Status:** draft for the lead; **the data side (§7) waits for builder 1's note** on what the database already supports ·
+- **Status:** direction approved by the lead (2026-11-18: Q-A1–Q-A3, Q-A5); **the data side (§7) waits for builder 1's note** on what the
+  database already supports ·
   **Author:** UX/UI designer · **Date:** 2026-11-18
 - **Founder request (2026-11-18, via the lead):** "there should be a way to add ingredients and their costs as it already has stock when
   they start in the tenant."
@@ -119,7 +120,10 @@ duty is not skipped silently.
 
 - **Magazzino:** balances include the carico. Each ingredient's history shows one row "Carico iniziale · 1 dic · 25 kg · 0,80 €/kg"
   (da approvare), not editable.
-- **Ingredient detail:** the stock is "Senza lotto · Dispensa" (opening stock has no lot or use-by in v1, §9 Q-A3).
+- **Ingredient detail:** the stock is "Senza lotto · Dispensa" (opening stock has no lot or use-by in v1, §9 Q-A3). **So the carico
+  stock gets no expiry alerts**: Avvisi and "Da spingere" know nothing about its dates. The screen says it once, under the intro and in the
+  confirm step: "Il carico iniziale non ha lotti né scadenze: l'app non ti avviserà quando scadono. Controllali tu finché non arrivano le
+  prime fatture." (da approvare)
 - **Recipe costs:** an ingredient whose only price comes from the carico shows its cost with the source in words: "Costo da carico
   iniziale" (da approvare) next to the figure, so the owner knows it is their own estimate, not an invoice. When the first approved invoice
   brings a price, the invoice price takes over for new costs (frozen costs of past sales never change).
@@ -169,7 +173,7 @@ To be finalised when builder 1 reports what the database supports. What the scre
 | Draft with rows | The list with totals, the primary "Conferma il carico iniziale" |
 | Saving a row | The row shows "Salvataggio…"; the form stays usable |
 | Offline | The form is disabled with "Serve la connessione per caricare il magazzino." (stock writes are online-only, like the kitchen) |
-| Confirming | Step 2: "Carichi 37 righe per 2.418,60 € alla data 01/12/2026. Dopo la conferma le righe si correggono solo con uno storno." + "Conferma" / "Annulla" |
+| Confirming | Step 2: "Carichi 37 righe per 2.418,60 € alla data 01/12/2026. Dopo la conferma le righe si correggono solo con uno storno." plus the no-expiry sentence (§4) + "Conferma" / "Annulla" |
 | Confirmed | Read-only list, "Confermato il 1 dic da Mario", "Correggi" on rows still correctable, "Aggiunta al carico iniziale" while allowed |
 | Error | `ErrorAlert` with the reason; the draft is never lost |
 
@@ -179,8 +183,8 @@ All targets ≥ 44 px; one primary per screen; amounts `1.234,50 €` in `.num`;
 
 | # | For | Question | Default |
 |---|---|---|---|
-| Q-A1 | Lead | One-time carico (with an "Aggiunta" window until the first count), as §2 recommends? | Yes |
-| Q-A2 | Founder | Cost per base unit **IVA esclusa**, like invoice prices? | Yes |
-| Q-A3 | Lead | Lots and use-by on opening stock: optional fields (laptop grid only) or none? | None in v1; traceability starts with the first invoice |
+| Q-A1 | Lead | One-time carico (with an "Aggiunta" window until the first count), as §2 recommends? | **Decided (lead, 2026-11-18): yes**, additions until the first approved count |
+| Q-A2 | Founder | Cost per base unit **IVA esclusa**, like invoice prices? | **Decided (lead, 2026-11-18): IVA esclusa**, as the invoice side |
+| Q-A3 | Lead | Lots and use-by on opening stock: optional fields (laptop grid only) or none? | **Decided (lead, 2026-11-18): none in v1**; no expiry alerts for carico stock, said on screen (§4) |
 | Q-A4 | Builder 1 | §7 items 1–6 | Waits for the note |
-| Q-A5 | Founder | Wording (all da approvare) | The copywriter drafts; the founder approves |
+| Q-A5 | Founder | Wording (all da approvare) | **Decided (lead): stays da approvare**; the copywriter drafts, the founder approves |
