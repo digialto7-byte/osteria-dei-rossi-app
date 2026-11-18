@@ -1,7 +1,16 @@
 "use client";
 
 import { useId, useState, type FormEvent } from "react";
-import { Button, Card, Checkbox, ErrorAlert, Field, Select, TextInput } from "@/components/ui";
+import {
+  Button,
+  Card,
+  Checkbox,
+  ErrorAlert,
+  Field,
+  Select,
+  SubHeading,
+  TextInput,
+} from "@/components/ui";
 import { t } from "@/lib/i18n";
 import { setByWeight, type MenuFormErrors, type MenuFormState } from "@/lib/menu/menu-form";
 import { courseWord } from "@/lib/menu/menu-view";
@@ -65,9 +74,9 @@ export function MenuItemForm({
   return (
     <Card>
       <form method="post" onSubmit={submit} noValidate className="flex flex-col gap-4">
-        <h2 className="font-display text-[1.5rem] leading-tight font-semibold">
+        <SubHeading>
           {t(mode === "create" ? "menu.form.newTitle" : "menu.form.editTitle")}
-        </h2>
+        </SubHeading>
         <Field label={t("menu.form.name")}>
           <TextInput
             name="name"
