@@ -14,8 +14,10 @@ const filesOf = (dir: string): string[] =>
   });
 const read = (path: string) => readFileSync(join(ROOT, path), "utf8");
 
-// The utility class `font-display`, not the CSS variable names `--font-display-face` of the root layout (which the old, narrower guard never saw).
-const FONT_DISPLAY_CLASS = /(?<![-\w])font-display(?![-\w])/;
+// Any use of the display face (the utility class, `var(--font-display)`, `font-(family-name:--font-display)`, `[font-family:var(--font-display)]`),
+// as strict as the old substring guard. The one name it lets through is the root layout's next/font variable `--font-display-face`, which
+// only declares the face and styles nothing (P2j review).
+const FONT_DISPLAY = /font-display(?!-face\b)/;
 
 const SRC = filesOf("src").filter((file) => /\.(ts|tsx|css)$/.test(file));
 // The components that define the type ramp, and two display faces (docs plan 2026-11-14 §4.4).
@@ -49,13 +51,25 @@ describe("there is one theme", () => {
       expect(source, `${file}: role="tablist": use SegmentedControl`).not.toMatch(/role="tablist"/);
       if (!FONT_DISPLAY_ALLOWED.includes(file)) {
         expect(source, `${file}: font-display: use Heading or SubHeading`).not.toMatch(
-          FONT_DISPLAY_CLASS,
+          FONT_DISPLAY,
         );
       }
     }
   });
 
-  it("(c) globals.css has no :root:has() switch and declares the colour tokens in three places only: @theme, the screen-dark :root and the print :root", () => {
+  it("(b) catches every way of setting the display face, and lets only the root layout's --font-display-face variable through", () => {
+    for (const use of [
+      'className="font-display"',
+      "font-family: var(--font-display)",
+      'className="font-(family-name:--font-display)"',
+      'className="[font-family:var(--font-display)]"',
+    ]) {
+      expect(use, use).toMatch(FONT_DISPLAY);
+    }
+    expect('variable: "--font-display-face",').not.toMatch(FONT_DISPLAY);
+  });
+
+  it("(c) globals.css has no :root:has() switch, one paper declaration per palette block (@theme, screen-dark :root, print :root) and one screen-dark query", () => {
     const css = read("src/app/globals.css");
     expect(css).not.toMatch(/:root:has\(/);
     expect(css).not.toContain("data-brand");

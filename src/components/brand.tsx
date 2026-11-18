@@ -2,8 +2,8 @@ import Link from "next/link";
 import type { Venue } from "@/lib/design/venue-layer";
 import { t } from "@/lib/i18n";
 
-// Brand pieces of Osteria Dei Rossi (docs/design/ui-foundation.md §6). Colours come only from
-// the tokens; gold and yellow are accents here, never text on a light surface.
+// Brand pieces: the venue's wordmark and logo in the band (venue layer, costi-design-system §9) and the Costì product mark. Colours come
+// only from the tokens; Coral (`gold`, `highlight`) is an accent here, never text on a light surface.
 
 /** The wordmark link's classes: 44 px tall, the focus ring in the band's ink (N1). Shared with `ShellBrandLink`. */
 export const BRAND_LINK_CLASS =

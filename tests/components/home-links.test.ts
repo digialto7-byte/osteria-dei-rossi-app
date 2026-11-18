@@ -122,6 +122,13 @@ describe("Oggi, the home page", () => {
     expect(name.className).not.toContain("font-display");
   });
 
+  it("shows «Caricamento…» and no greeting while /api/me is still pending", async () => {
+    apiJson.mockImplementationOnce(() => new Promise(() => {}));
+    render(createElement(HomePage));
+    expect(await screen.findByText("Caricamento…")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: /Utente Demo/ })).toBeNull();
+  });
+
   it.each(["owner", "admin", "chef"])("does not redirect the %s", async (who) => {
     await open(who);
     expect(replace).not.toHaveBeenCalled();

@@ -269,8 +269,8 @@ html:has([data-slot="sticky-action-bar"]) {
  * limited to the screen above). One block for the whole app, so every page prints cleanly, not only the monthly pack. A page marks its own
  * screen-only controls with data-print="hide".
  * Costì print palette and print-fill rule (costi-design-system §10.5), mirrored in `PRINT_COLORS` (src/lib/design/tokens.ts): black on
- * white, no band, no shadows. The palette selector has the specificity of the Costì block and comes later, so it wins over both light
- * palettes. Fills print white with black words and a 1 px inset outline (an outline, so no layout moves and the notes' own borders stay).
+ * white, no band, no shadows. The print `:root` is unlayered, so it wins over the palette in `@layer theme` (and over the screen-dark
+ * `:root`, which applies to the screen only). Fills print white with black words and a 1 px inset outline (an outline, so no layout moves and the notes' own borders stay).
  */
 @media print {
   @page {
