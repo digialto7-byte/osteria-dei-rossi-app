@@ -22,6 +22,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: ["public.tenant_vat_rate"],
     triggers: ["menu_item_price_sale_vat", "sale_settings_sale_vat", "tenant_seed_settings"],
   },
+  "20261206200100_sale_vat_reads.sql": {
+    functions: ["app.default_vat_rate", "public.menu_items_manage", "public.sale_settings_read"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 

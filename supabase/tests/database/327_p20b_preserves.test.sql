@@ -34,7 +34,7 @@ select p.sch, p.name, p.want,
   ('app', 'post_plate_raw_outflow', '1,db726fcfc59579fa2f327a040601de5b'),
   ('app', 'lock_fire_batches', '1,c8538170fd37474800d1ae278920ba88'),
   ('public', 'set_sale_settings', '1,e79b8120c6d5385ef635d32afb5cd828'),
-  ('public', 'sale_settings_read', '1,08de8612fab4edd737e5039c0ade5bf6'),
+  ('public', 'sale_settings_read', '1,531cb272878c91274d968673b364104b'), -- re-pinned on purpose by SP1 (step 4: 'vatRates' is the tenant's sale list; was 08de8612fab4edd737e5039c0ade5bf6)
   ('app', 'coperto_settings', '1,5eb270334b7d988d7e42dada2559069f'),
   ('public', 'plate_margins_pct', '1,1385b7b4051023745de14f4d395452f5'),
   ('public', 'recipe_cost_at', '1,1dca622a9df20785952878e69351922f')

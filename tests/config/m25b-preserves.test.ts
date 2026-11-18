@@ -177,6 +177,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206100100_device_enrolment_code_hash_comment.sql",
   // SP1 (docs/plans/2026-11-15-sp01-tenant-config.md), re-pinned on purpose by SP1: step 3, the tenant sale VAT list (one table, three app functions, three triggers, a backfill). Each SP1 migration step adds its file here.
   "20261206200000_tenant_sale_vat.sql",
+  // SP1 step 4 (20261206200100_sale_vat_reads.sql), re-pinned on purpose by SP1: three sale-side reads re-created on the tenant's sale VAT list (default_vat_rate, menu_items_manage, sale_settings_read), no new object.
+  "20261206200100_sale_vat_reads.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
