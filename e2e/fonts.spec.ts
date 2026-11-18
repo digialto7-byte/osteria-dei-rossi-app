@@ -29,15 +29,12 @@ test("the production build references no Google Fonts host and ships its own fon
   expect(built.filter((file) => file.endsWith(".woff2")).length).toBeGreaterThan(0);
 });
 
-// The families the screens use (src/app/layout.tsx). The venue's screens: Bodoni Moda for the wordmark and headings, Figtree for
-// everything else. The product pages (the sign-in and device pages, Costì plan CB7): Montserrat for headings and Inter for the rest.
-// next/font may rename a family, so match loosely. The latin-ext faces (bodoniModaExt, figtreeExt) are excluded: only the main faces
-// may satisfy the check.
-const VENUE_FAMILIES = [/Bodoni.?Moda(?!Ext)/i, /Figtree(?!Ext)/i];
-const PRODUCT_FAMILIES = [/Montserrat/i, /Inter/i];
+// The families every screen uses (src/app/layout.tsx): Montserrat for headings and Inter for the rest. next/font may rename a family, so match
+// loosely.
+const FAMILIES = [/Montserrat/i, /Inter/i];
 const firstFamily = (stack: string) => stack.split(",")[0]!.trim();
 
-test("the login page loads its product fonts from the app itself, never from Google", async ({
+test("the login page loads Montserrat and Inter from the app itself, never from Google", async ({
   page,
 }) => {
   const requested: string[] = [];
@@ -63,11 +60,11 @@ test("the login page loads its product fonts from the app itself, never from Goo
   expect(fontResponses.map((response) => response.url).sort()).toEqual([...fontRequests].sort());
   for (const response of fontResponses) expect(response.status, response.url).toBe(200);
 
-  // Each product family has a face the browser actually loaded (not just declared).
+  // Each family has a face the browser actually loaded (not just declared).
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family),
   );
-  for (const family of PRODUCT_FAMILIES)
+  for (const family of FAMILIES)
     expect(
       loaded.some((name) => family.test(name)),
       `${family} in ${loaded.join(", ")}`,
@@ -78,17 +75,17 @@ test("the login page loads its product fonts from the app itself, never from Goo
   // Retried, not one-shot (an element can be replaced while the page renders; main CI, 455df83).
   await expect
     .poll(async () => firstFamily(await heading.evaluate((el) => getComputedStyle(el).fontFamily)))
-    .toMatch(PRODUCT_FAMILIES[0]!);
+    .toMatch(FAMILIES[0]!);
   await expect
     .poll(async () =>
       firstFamily(await page.evaluate(() => getComputedStyle(document.body).fontFamily)),
     )
-    .toMatch(PRODUCT_FAMILIES[1]!);
+    .toMatch(FAMILIES[1]!);
 });
 
-// The venue keeps Bodoni Moda and Figtree: a missing file under /brand/ (a 404 the proxy skips, under the static policy, ADR-028) is a venue page. Each family still
-// has a face the browser loaded, and Figtree is the face applied to the body.
-test("the venue's 404 page loads Bodoni Moda and Figtree from the app itself, never from Google", async ({
+// Every screen wears Costì, the 404 included (a missing file under /brand/ is a 404 the proxy skips, under the static policy, ADR-028): it loads
+// Montserrat and Inter, never Bodoni Moda or Figtree, and Inter is the face applied to the body.
+test("the 404 page loads Montserrat and Inter from the app itself, never Bodoni or Figtree, never from Google", async ({
   page,
 }) => {
   const requested: string[] = [];
@@ -106,13 +103,15 @@ test("the venue's 404 page loads Bodoni Moda and Figtree from the app itself, ne
   const loaded = await page.evaluate(() =>
     [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family),
   );
-  for (const family of VENUE_FAMILIES)
+  for (const family of FAMILIES)
     expect(
       loaded.some((name) => family.test(name)),
       `${family} in ${loaded.join(", ")}`,
     ).toBe(true);
-  // The whole stack, as before: the venue's stack lists the latin-ext face first, so its first family is the Ext face.
+  expect(loaded.filter((name) => /bodoni|figtree/i.test(name))).toEqual([]);
   await expect
-    .poll(() => page.evaluate(() => getComputedStyle(document.body).fontFamily))
-    .toMatch(VENUE_FAMILIES[1]!);
+    .poll(async () =>
+      firstFamily(await page.evaluate(() => getComputedStyle(document.body).fontFamily)),
+    )
+    .toMatch(FAMILIES[1]!);
 });

@@ -57,25 +57,11 @@
   }
 }
 
-/*
- * next/font/local sets the four variables on <html> (src/app/layout.tsx). The latin-ext face comes first: its unicode-range
- * keeps it out of plain latin text, and the main face's stack ends in a metric-adjusted fallback that covers every letter.
- */
+/* next/font/local sets the two variables on <html> (src/app/layout.tsx): Montserrat for headings, Inter for the rest. The stacks end in
+ * system faces, so a missing file never leaves text unstyled. */
 @theme inline {
-  --font-sans: var(--font-body-ext), var(--font-body), "Figtree", ui-sans-serif, sans-serif;
-  --font-display:
-    var(--font-display-ext), var(--font-display-face), "Bodoni Moda", "Didot", Georgia, serif;
-}
-
-/* Costì product theme, fonts: the four variables the font stacks end in point at Montserrat and Inter, until the root layout loads them under
- * these names (P2j step 5). The latin-ext variables map to the same face (the files are full-charset), because an unset variable would
- * make the whole font-family invalid.
- */
-:root:has([data-brand="costi"]) {
-  --font-display-face: var(--font-product-display);
-  --font-display-ext: var(--font-product-display);
-  --font-body: var(--font-product-body);
-  --font-body-ext: var(--font-product-body);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), ui-sans-serif, system-ui, sans-serif;
 }
 
 /*

@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { collectCspViolations } from "./helpers/csp";
 
 // Costì product brand (docs/plans/2026-11-13-costi-product-brand.md CB7, §3.2, R1): stack-free, like smoke.spec.ts. The sign-in and device pages
-// carry the product look (colours, Forest header band, theme colour, logo) and the venue's pages keep theirs. Since the founder's 2026-11-14 decision the
+// carry the product look (colours, Forest header band, theme colour, logo) and the venue's pages wear the same Costì look with the venue layer (P2j: one theme). Since the founder's 2026-11-14 decision the
 // header band shows the Costì wordmark on these pages, not the venue's name. Colours are the computed values of the tokens in globals.css.
 const PRODUCT_PAGES = ["/login", "/login/codice", "/dispositivo"] as const;
 const OFF_WHITE = "rgb(247, 248, 246)";
@@ -96,8 +96,8 @@ test("the tab carries the favicon and the apple-touch icon", async ({ page }) =>
   ).toHaveCount(1);
 });
 
-test.describe("the venue's pages keep the osteria look (R1)", () => {
-  test("a missing address (404 under the static policy) is Off-white in light and Charcoal in dark, with the venue band, and no product face is loaded", async ({
+test.describe("the venue's pages wear Costì with the venue layer (ADR-045)", () => {
+  test("a missing address (404 under the static policy) is Off-white in light and Charcoal in dark, with the venue band, and Montserrat and Inter are loaded, never Bodoni or Figtree", async ({
     page,
   }) => {
     const csp = await collectCspViolations(page.context());
@@ -118,9 +118,10 @@ test.describe("the venue's pages keep the osteria look (R1)", () => {
     const loaded = await page.evaluate(() =>
       [...document.fonts].filter((face) => face.status === "loaded").map((face) => face.family),
     );
-    expect(loaded.filter((name) => /montserrat|^"?_*inter/i.test(name))).toEqual([]);
-    expect(loaded.some((name) => /bodoni/i.test(name))).toBe(true);
-    // Fonts the page asked for are all same-origin and none is a product face (their names are in the loaded list above).
+    expect(loaded.some((name) => /montserrat/i.test(name))).toBe(true);
+    expect(loaded.some((name) => /^"?_*inter/i.test(name))).toBe(true);
+    expect(loaded.filter((name) => /bodoni|figtree/i.test(name))).toEqual([]);
+    // Fonts the page asked for are all same-origin, served by the app.
     for (const url of fontRequests)
       expect(new URL(url).pathname).toMatch(/^\/_next\/static\/media\//);
     await expect(page.locator('img[alt="Costì"]')).toHaveCount(0);
