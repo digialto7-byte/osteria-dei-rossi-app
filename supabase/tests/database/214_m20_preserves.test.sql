@@ -484,9 +484,9 @@ select is((select got from pin_md5 where k = 'parse_client_time'), '19ed81946726
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds (M20 adds none)');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is the one on 5277c12 (md5)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_entity_type_check'),
-          '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
+          '8dfaecfa6f53bcbea28c6b96bc14c7ef' /* on purpose by opening stock (step 5; was 72e5b28132df039351b652a126ed03a3) */, 'audit_event_entity_type_check re-pinned on purpose by reservations (A2)');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conrelid = 'public.audit_event'::regclass and conname = 'audit_event_action_check'),
-          '014e2adc1b25094e2196b7f889851fef' /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'audit_event_action_check re-pinned on purpose by reservations (A2)'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+          'f1bcb630ef53cdc857e3c2b5944bd31f' /* on purpose by opening stock (step 5; was 014e2adc1b25094e2196b7f889851fef) */ /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'audit_event_action_check re-pinned on purpose by reservations (A2)'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
 
 -- New objects ---------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(tablename::text, ',' order by tablename::text collate "C") from pg_tables where schemaname = 'public'),

@@ -117,7 +117,7 @@ select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))),
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname collate "C") from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
-  'audit_event_action_check:014e2adc1b25094e2196b7f889851fef,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d', -- md5 re-pinned on purpose by P2-1 A3 and by P2-7 S4 (invoice.imported_xml) (six MFA audit actions)
+  'audit_event_action_check:f1bcb630ef53cdc857e3c2b5944bd31f,audit_event_entity_type_check:8dfaecfa6f53bcbea28c6b96bc14c7ef,audit_event_reason_check:995aca422790ad65f85a6515909fb21d' /* on purpose by opening stock (step 5; was audit_event_action_check:014e2adc1b25094e2196b7f889851fef,audit_event_entity_type_check:72e5b28132df039351b652a126ed03a3,audit_event_reason_check:995aca422790ad65f85a6515909fb21d) */, -- md5 re-pinned on purpose by P2-1 A3 and by P2-7 S4 (invoice.imported_xml) (six MFA audit actions)
   'the three audit_event checks are unchanged (no new action or entity type)');
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job where jobname <> 'mfa-failure-retention'), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,reservation-mail,reservation-retention', 'the cron jobs are unchanged (P2-1''s mfa-failure-retention is the one addition, pinned in 347)');
 

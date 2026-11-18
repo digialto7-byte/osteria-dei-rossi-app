@@ -102,7 +102,8 @@ describe("check constraints that several milestones re-create", () => {
     const action = definitionsOf("audit_event_action_check", files).at(-1)!;
     expect(entity.values).toContain("reservation_settings");
     expect(action.values).toContain("reservation_settings.changed");
-    expect(entity.file).toBe("20261124100200_reservation_settings.sql");
+    // on purpose by opening stock (step 5; was 20261124100200_reservation_settings.sql)
+    expect(entity.file).toBe("20261206210200_stock_opening_tables.sql");
   });
 
   it("the last job_run definition carries the reservations jobs (reservations plan B3 and B4)", () => {

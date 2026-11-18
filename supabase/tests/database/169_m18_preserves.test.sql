@@ -58,11 +58,11 @@ select is((select h from pin_md5 where k = 'alert_rules_body'), '2ac38ab6a9ae5ef
 
 -- The shared check constraints and the alert registry: M18 adds nothing.
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'),
-  '72e5b28132df039351b652a126ed03a3', 'the audit entity-type check is the M17 list (md5): M18 adds no entity type');
+  '8dfaecfa6f53bcbea28c6b96bc14c7ef' /* on purpose by opening stock (step 5; was 72e5b28132df039351b652a126ed03a3) */, 'the audit entity-type check is the M17 list (md5): M18 adds no entity type');
 select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'),
   -- M18 adds no action. The value is the M17 list plus tenant.demo_data_loaded and tenant.demo_data_removed (migration
   -- 20261105100000, demo data, ADR-018), which re-creates the check as the union; the M17-only value was b4dfa112...
-  '014e2adc1b25094e2196b7f889851fef' /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action'); -- md5 re-pinned on purpose by P2-1 A3 (seven MFA audit actions)
+  'f1bcb630ef53cdc857e3c2b5944bd31f' /* on purpose by opening stock (step 5; was 014e2adc1b25094e2196b7f889851fef) */ /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'the audit action check is the M17 list plus the two demo-data actions (md5): M18 adds no action'); -- md5 re-pinned on purpose by P2-1 A3 (seven MFA audit actions)
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still holds 15 kinds (M18 adds none)');
 select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention', 'mfa-failure-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the set of cron jobs is that of M18 plus M22''s kpi-rollup (list updated in M22 step 2)');
 
