@@ -37,6 +37,12 @@ describe("StatementView", () => {
     expect(html).toMatch(/<dd data-testid="statement-balance"[^>]*><strong>[^<]+<\/strong><\/dd>/);
     expect(html).toMatch(/<dd data-testid="statement-invoices"[^>]*>[^<]+<\/dd>/);
     expect(/<dl[\s\S]*?<\/dl>/.exec(html)?.[0]).not.toContain("border-b");
+    // Figures never break mid-number at 360 px (P2h review): no anywhere-wrap on these values.
+    for (const id of ["statement-balance", "statement-invoices"]) {
+      expect(new RegExp(`<dd data-testid="${id}"[^>]*>`).exec(html)?.[0], id).not.toContain(
+        "overflow-wrap",
+      );
+    }
   });
 
   it("leaves out 'di cui contestate' when nothing is disputed", () => {

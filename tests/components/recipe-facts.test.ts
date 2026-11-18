@@ -67,6 +67,12 @@ describe("RecipeFacts", () => {
     ]) {
       expect(html).toContain(`data-testid="fact-${id}"`);
     }
+    // Figures never break mid-number at 360 px (P2h review): no anywhere-wrap on these values.
+    for (const id of ["fact-version", "fact-output", "fact-portions", "fact-shelf-life"]) {
+      expect(new RegExp(`<dd data-testid="${id}"[^>]*>`).exec(html)?.[0], id).not.toContain(
+        "overflow-wrap",
+      );
+    }
   });
 
   it("omits the facts a recipe does not have", () => {

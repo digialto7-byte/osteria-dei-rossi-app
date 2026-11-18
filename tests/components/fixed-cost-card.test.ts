@@ -41,6 +41,12 @@ describe("FixedCostCard", () => {
     expect(html).toContain('data-testid="fixed-month"');
     expect(html).toContain('data-testid="fixed-sold"');
     expect(html).not.toContain("border-b");
+    // Figures never break mid-number at 360 px (P2h review): no anywhere-wrap on these values.
+    for (const id of ["fixed-month", "fixed-sold", "fixed-per-plate"]) {
+      expect(new RegExp(`<dd data-testid="${id}"[^>]*>`).exec(html)?.[0], id).not.toContain(
+        "overflow-wrap",
+      );
+    }
   });
 
   it("no sales: 'Non ripartiti' in words and the sentence that food cost % stays valid", () => {
