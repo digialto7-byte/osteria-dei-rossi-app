@@ -514,7 +514,7 @@ ratios below are the test's own output (min 4.5 for text, 3 for non-text); they 
 | `ink` on `paper` | 4.5 | 13.85 | 13.85 | body text on the page |
 | `ink` on `surface` | 4.5 | 14.76 | 11.68 | text in cards, inputs, secondary buttons |
 | `ink` on `sunk` | 4.5 | 12.15 | 9.61 | text on hovered rows, tabs and buttons |
-| `paper` on `ink` | 4.5 | 13.85 | 13.85 | current tab in the owner nav |
+| `paper` on `ink` | 4.5 | 13.85 | 13.85 | current tab in the owner nav; selected segment; picked option (Button selected) |
 | `ink-muted` on `paper` | 4.5 | 6.29 | 7.22 | hints and secondary row text |
 | `ink-muted` on `surface` | 4.5 | 6.70 | 6.09 | hints inside cards |
 | `ink-muted` on `sunk` | 4.5 | 5.52 | 5.01 | neutral status badge |
