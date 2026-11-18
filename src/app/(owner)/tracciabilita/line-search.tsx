@@ -18,6 +18,7 @@ import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
 import { lineHref, lineText } from "@/lib/trace/trace-view";
 import type { TraceLineSearch } from "@/server/trace/output";
+import { ReadError } from "@/components/read-error";
 import { DayPicker } from "@/components/day-picker";
 import { searchErrorText } from "./trace-errors";
 
@@ -42,8 +43,11 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
   const [day, setDay] = useState("");
   const [menuItemId, setMenuItemId] = useState("");
   const [dishes, setDishes] = useState<{ id: string; name: string; active?: boolean }[]>([]);
+  // A failed read and its retry: the error stays mounted while the retry runs (`busy`), so the focused Riprova keeps focus.
   const [dishesError, setDishesError] = useState(false);
+  const [dishesBusy, setDishesBusy] = useState(false);
   const [dayError, setDayError] = useState(false);
+  const [dayBusy, setDayBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TraceLineSearch | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,22 +74,31 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
 
   // The chef cannot read the menu (403): no dish list, the whole day, and nothing to say. Any other failure is shown, with a way to retry.
   const loadDishes = useCallback(async () => {
-    setDishesError(false);
+    setDishesBusy(true);
     const menu = await apiJson<{ items: { id: string; name: string; active?: boolean }[] }>(
       "/api/menu/items",
     );
-    if (menu.ok) return setDishes(menu.data.items.filter((item) => item.active !== false));
-    if (menu.status !== FORBIDDEN) setDishesError(true);
+    setDishesBusy(false);
+    if (menu.ok) {
+      setDishesError(false);
+      return setDishes(menu.data.items.filter((item) => item.active !== false));
+    }
+    setDishesError(menu.status !== FORBIDDEN);
   }, []);
 
   // Yesterday's business day is the database's call (the 02:00 cut-off is tenant data): the sell-through report, asked with no date, names it.
   // When it cannot be read there is no day to offer, so the form stays closed and says so.
   const loadDay = useCallback(async () => {
-    setDayError(false);
+    setDayBusy(true);
     const reply = await apiJson<{ businessDate: string }>("/api/reports/push-sell-through");
-    if (reply.ok && DAY.test(reply.data.businessDate)) return setDay(reply.data.businessDate);
+    setDayBusy(false);
+    if (reply.ok && DAY.test(reply.data.businessDate)) {
+      setDayError(false);
+      return setDay(reply.data.businessDate);
+    }
+    if (!reply.ok && reply.status === FORBIDDEN) return onForbidden();
     setDayError(true);
-  }, []);
+  }, [onForbidden]);
 
   useEffect(() => {
     // Reading the dishes, the day and the search named in the address, when the tab opens, is the effect's job here.
@@ -106,10 +119,12 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
   if (day === "" && dayError) {
     return (
       <div className="flex flex-col gap-4">
-        <ErrorAlert message={t("trace.line.dayError")} />
-        <Button variant="secondary" onClick={() => void loadDay()} disabled={!online}>
-          {t("common.retry")}
-        </Button>
+        <ReadError
+          message={t("trace.line.dayError")}
+          onRetry={() => online && void loadDay()}
+          busy={dayBusy}
+        />
+        {!online && <Muted>{t("trace.offline")}</Muted>}
       </div>
     );
   }
@@ -142,12 +157,11 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
           </Field>
         ) : null}
         {dishesError ? (
-          <>
-            <ErrorAlert message={t("trace.line.dishesError")} />
-            <Button variant="secondary" onClick={() => void loadDishes()} disabled={!online}>
-              {t("common.retry")}
-            </Button>
-          </>
+          <ReadError
+            message={t("trace.line.dishesError")}
+            onRetry={() => online && void loadDishes()}
+            busy={dishesBusy}
+          />
         ) : null}
         <ErrorAlert message={error} />
         {!online && <Muted>{t("trace.offline")}</Muted>}
