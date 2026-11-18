@@ -1,6 +1,6 @@
 # Screens: Comanda per uscita (the handwritten pad)
 
-- **Status:** draft for the lead · **Author:** UX/UI designer · **Date:** 2026-11-18
+- **Status:** accepted by the lead (#195, 2026-11-18), including the two-tap move (§2.2); decisions in §9 · **Author:** UX/UI designer · **Date:** 2026-11-18
 - **Founder request (2026-11-18, via the lead):** "the comanda when taken should be like an old piece of handwritten paper, by portata,
   not invio e segue — someone takes an antipasto and another a primo, then both a secondo."
 - **Spec for:** `/tavoli/comanda` (waiter sheet), `/cucina` (kitchen board), `/tavoli` (tile). It replaces, on those screens, the
@@ -262,17 +262,17 @@ Listed so the plan can start; the names are suggestions, the plan decides.
 7. **Voiding a held line (decision needed).** Today a voided fired line stays depleted and counts as waste ("Il piatto resta scaricato dal
    magazzino e conta come scarto."). A dish of an uscita **in attesa** was never cooked: the designer's recommendation is that its void
    **reverses** the depletion (a reversal row, never a delete) with the reason "Non preparato" (da approvare), and the dialog says so. This
-   is a stock rule, so it is the lead's and the founder's call (Q-U1).
+   is a stock rule, so it is the lead's and the founder's call (Q-U1; **decided: reversal, "Non preparato"**).
 8. **Reports** keep using `course`; nothing changes there.
 
 ## 9. Open questions
 
 | # | For | Question | Default |
 |---|---|---|---|
-| Q-U1 | Founder via lead | A dish of an uscita still in attesa is cancelled: back into stock (reversal, "Non preparato") or waste as today? | Back into stock |
+| Q-U1 | Founder via lead | A dish of an uscita still in attesa is cancelled: back into stock (reversal, "Non preparato") or waste as today? | **Decided (lead, 2026-11-18): back into stock**, reason "Non preparato"; the lead tells the founder |
 | Q-U2 | Lead | Bevande always "subito" (§2.5), with the editor's Uscita control as the escape hatch? | Yes |
-| Q-U3 | Lead | Kitchen-side "Via" (the pass calls the next uscita) now, or after P0? | After P0 |
-| Q-U4 | Lead | Ship together with the P0 observation, or before go-live? The model changes the waiter's core task | Before go-live, so P0 observes the final flow |
+| Q-U3 | Lead | Kitchen-side "Via" (the pass calls the next uscita) now, or after P0? | **Decided (lead): after P0** |
+| Q-U4 | Lead | Ship together with the P0 observation, or before go-live? The model changes the waiter's core task | **Decided (lead): before go-live** |
 | Q-U5 | Founder | Wording: "uscita", "segue", "Via la 2ª", "in attesa", "da chiamare" (all da approvare) | The copywriter drafts; the founder approves |
 
 ## 10. Acceptance checks (for the builder's tests)
