@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { CostiTheme } from "@/components/costi-theme";
 import { VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { localeFromQuery } from "@/lib/reservations/public-view";
 import { CancelView } from "./cancel-view";
@@ -20,10 +21,13 @@ export default async function CancelPage({
   const { slug } = await params;
   const { t, lang } = await searchParams;
   return (
-    <CancelView
-      slug={slug}
-      token={typeof t === "string" && t !== "" ? t : null}
-      locale={localeFromQuery(lang)}
-    />
+    <>
+      <CostiTheme />
+      <CancelView
+        slug={slug}
+        token={typeof t === "string" && t !== "" ? t : null}
+        locale={localeFromQuery(lang)}
+      />
+    </>
   );
 }

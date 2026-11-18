@@ -81,9 +81,17 @@ describe("the venue's pages never switch the product look on (R1)", () => {
       e.isDirectory() ? files(join(dir, e.name)) : [join(dir, e.name)],
     );
 
-  it("neither (public)/layout.tsx nor anything under (public)/prenota/ mentions data-brand or CostiTheme", () => {
+  // P2i (step 8): the two guest pages render the marker (the order guard pins that); nothing else in the public group may, so the sign-in
+  // pages keep their own Costì look and no component deep in the guest page switches it on by itself.
+  it("neither (public)/layout.tsx nor anything under (public)/prenota/ but the two guest pages mentions data-brand or CostiTheme", () => {
     const root = join(process.cwd(), "src/app/(public)");
-    const guarded = [join(root, "layout.tsx"), ...files(join(root, "prenota"))];
+    const pages = ["[slug]/page.tsx", "[slug]/annulla/page.tsx"].map((name) =>
+      join(root, "prenota", name),
+    );
+    const guarded = [
+      join(root, "layout.tsx"),
+      ...files(join(root, "prenota")).filter((file) => !pages.includes(file)),
+    ];
     expect(guarded.length).toBeGreaterThan(3);
     for (const file of guarded) {
       expect(readFileSync(file, "utf8"), file).not.toMatch(/data-brand|CostiTheme/);
