@@ -221,13 +221,17 @@ export const DRIFT_CHECK_KEYS = [
   "alerts_refused",
 ] as const;
 
-/** The scheduled jobs a job-health finding can name: cron job names and app.job_run job names. */
-const DRIFT_JOB_KEYS = [
+/** The scheduled jobs a job-health finding can name: cron job names and app.job_run job names. Kept in step with the migrations by tests/parity/drift-keys-sql-parity.test.ts. */
+export const DRIFT_JOB_KEYS = [
   "extract",
   "extract-invoices",
   "alert-rules",
   "ledger-invariants",
   "auth-purge",
+  "kpi-rollup",
+  "reservation-mail",
+  "reservation-retention",
+  "mfa-failure-retention",
 ] as const;
 
 export const TEMPLATES: Record<AlertKind, AlertTemplate> = {

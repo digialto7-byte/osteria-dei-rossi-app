@@ -293,6 +293,22 @@ describe("renderAlert: ledger_drift (M13)", () => {
     );
   });
 
+  // Every scheduled job a job-health check can name renders its real text, not the generic fallback: kpi-rollup, the reservation jobs
+  // and the MFA retention job were missing from the job list, so the whole nightly alert fell back to "Avviso".
+  it.each(["kpi-rollup", "reservation-mail", "reservation-retention", "mfa-failure-retention"])(
+    "a drift alert naming the job %s gets its real text",
+    (job) => {
+      const named = {
+        checks: [{ check_key: "job_stale", rows_count: 1, sample_ids: [], job_key: job }],
+        checked_at: "2026-11-18T02:45:00Z",
+      };
+      expect(renderAlert(row("ledger_drift", named), "it", "Europe/Rome")).toEqual({
+        title: "Controllo notturno: 1 problema nei registri",
+        body: `attività pianificata ferma: ${job}. Contatta l'assistenza.`,
+      });
+    },
+  );
+
   it("a payload that fails the schema shows the fallback", () => {
     const bad = { ...payload, checks: [{ check_key: "nope", rows_count: 1, sample_ids: [] }] };
     expect(renderAlert(row("ledger_drift", bad), "it", "Europe/Rome").title).toBe("Avviso");
