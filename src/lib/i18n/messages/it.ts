@@ -2252,12 +2252,12 @@ export const it = {
     "Il numero può avere lettere, cifre e / . - (al massimo 20 caratteri, senza spazi).",
   "billError.receipt_type_invalid": "Scegli scontrino o fattura.",
   "billError.payment_type_invalid": "Scegli come ha pagato il cliente.",
-  "venueSettingsError.locale_invalid": "Lingua non disponibile: scegli italiano o inglese.",
-  "venueSettingsError.vat_rate_invalid": "Aliquota IVA non ammessa per le vendite.",
-  "venueSettingsError.receipt_type_invalid": "Tipo di documento non ammesso.",
-  "venueSettingsError.payment_type_invalid": "Modo di pagamento non ammesso.",
+  "venueSettingsError.locale_invalid": "Lingua non disponibile: scegli italiano o inglese.", // (da approvare)
+  "venueSettingsError.vat_rate_invalid": "Aliquota IVA non ammessa per le vendite.", // (da approvare)
+  "venueSettingsError.receipt_type_invalid": "Tipo di documento non ammesso.", // (da approvare)
+  "venueSettingsError.payment_type_invalid": "Modo di pagamento non ammesso.", // (da approvare)
   "venueSettingsError.settings_list_empty":
-    "L'elenco non può essere vuoto: lascia almeno una voce.",
+    "L'elenco non può essere vuoto: lascia almeno una voce.", // (da approvare)
   "dayCloseError.forbidden": "La chiusura di cassa è riservata al titolare.",
   "dayCloseError.register_total_invalid": "Scrivi un importo come 1.234,50",
   "dayCloseError.business_date_invalid":
