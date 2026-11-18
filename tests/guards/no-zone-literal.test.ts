@@ -20,9 +20,18 @@ function files(dir: string): string[] {
   );
 }
 
+/**
+ * One syntax tree per file, built once while the suite is collected: the checks below only walk it. Building the trees inside the
+ * test bodies (twice per file) took the literal check past vitest's 5 s default on a loaded runner (#183, CI run 44336401274).
+ */
+function parse(source: string, fileName = "x.tsx"): ts.SourceFile {
+  // The kind follows the extension: a .ts file read as TSX would misparse a `<T>value` assertion.
+  const kind = fileName.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS;
+  return ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, kind);
+}
+
 /** Line numbers of string literals, no-substitution templates and template parts that hold the zone name. */
-function zoneLiterals(source: string, fileName = "x.tsx"): number[] {
-  const sf = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+function zoneLiterals(sf: ts.SourceFile): number[] {
   const lines: number[] = [];
   const visit = (node: ts.Node) => {
     if (
@@ -41,9 +50,8 @@ function zoneLiterals(source: string, fileName = "x.tsx"): number[] {
   return lines;
 }
 
-/** True when the source imports VENUE_TIME_ZONE. */
-function importsVenueTimeZone(source: string): boolean {
-  const sf = ts.createSourceFile("x.ts", source, ts.ScriptTarget.Latest, true);
+/** True when the file imports VENUE_TIME_ZONE. */
+function importsVenueTimeZone(sf: ts.SourceFile): boolean {
   return sf.statements.some(
     (s) =>
       ts.isImportDeclaration(s) &&
@@ -66,38 +74,53 @@ describe("the scanner", () => {
       "/** Europe/Rome in a doc comment */",
       "const e = 1;",
     ].join("\n");
-    expect(zoneLiterals(text)).toEqual([1, 2, 3, 4]);
+    expect(zoneLiterals(parse(text))).toEqual([1, 2, 3, 4]);
+  });
+
+  it("finds an escaped literal: the cooked value is checked, not the source text", () => {
+    expect(
+      zoneLiterals(parse('const a = "Europe\\u002FRome";\nconst b = "Europe\\/Rome";')),
+    ).toEqual([1, 2]);
+  });
+
+  it("reads a .ts file as TS: a `<T>value` assertion does not hide a literal below it (read as TSX, it opens JSX)", () => {
+    const text = 'const n = <number>x;\nconst z = "Europe/Rome";';
+    expect(zoneLiterals(parse(text, "a.ts"))).toEqual([2]);
   });
 
   it("finds an import of VENUE_TIME_ZONE, also renamed, and nothing else", () => {
-    expect(importsVenueTimeZone('import { VENUE_TIME_ZONE } from "@/lib/time/format";')).toBe(true);
-    expect(importsVenueTimeZone('import { x, VENUE_TIME_ZONE as z } from "y";')).toBe(true);
-    expect(importsVenueTimeZone('import { formatTime } from "@/lib/time/format";')).toBe(false);
+    expect(
+      importsVenueTimeZone(parse('import { VENUE_TIME_ZONE } from "@/lib/time/format";')),
+    ).toBe(true);
+    expect(importsVenueTimeZone(parse('import { x, VENUE_TIME_ZONE as z } from "y";'))).toBe(true);
+    expect(importsVenueTimeZone(parse('import { formatTime } from "@/lib/time/format";'))).toBe(
+      false,
+    );
   });
 });
 
 describe("src/", () => {
   const root = process.cwd();
-  const sources = files(join(root, "src")).map((f) => ({
-    path: relative(root, f),
-    text: readFileSync(f, "utf8"),
-  }));
+  const sources = files(join(root, "src")).map((f) => {
+    const path = relative(root, f);
+    return { path, sf: parse(readFileSync(f, "utf8"), path) };
+  });
 
   it("has no \"Europe/Rome\" or 'Europe/Rome' string-literal token outside src/lib/venue/settings.ts", () => {
     const found = sources
       .filter((s) => s.path !== HOME)
-      .flatMap((s) => zoneLiterals(s.text, s.path).map((line) => `${s.path}:${line}`));
+      .flatMap((s) => zoneLiterals(s.sf).map((line) => `${s.path}:${line}`));
     expect(found).toEqual([]);
   });
 
   it("holds the one literal at its home", () => {
     const home = sources.find((s) => s.path === HOME)!;
-    expect(zoneLiterals(home.text, HOME)).toHaveLength(1);
+    expect(zoneLiterals(home.sf)).toHaveLength(1);
   });
 
   it("imports VENUE_TIME_ZONE only under src/lib/console/ and src/lib/time/", () => {
     const importers = sources
-      .filter((s) => importsVenueTimeZone(s.text))
+      .filter((s) => importsVenueTimeZone(s.sf))
       .map((s) => s.path)
       .filter((p) => !ALIAS_HOMES.some((home) => p.startsWith(home)));
     expect(importers).toEqual([]);

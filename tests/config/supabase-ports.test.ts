@@ -103,13 +103,15 @@ describe("scripts/ci/supabase-ports.sh", () => {
     expect(result.status).toBe(0);
   });
 
+  // Waits on the script's real 2 s timer by design: a fixed 15 s budget, not vitest's 5 s default, which a loaded runner can reach.
   it("wait-free fails after the timeout and names the busy port when a socket keeps it", () => {
     const port = freePort();
     const result = run(["wait-free", "2"], port, 10_000);
     expect(result.stderr).toContain(`ports still in use after 2s: ${port}`);
     expect(result.status).toBe(1);
-  });
+  }, 15_000);
 
+  // Waits on the script's real 2 s timer by design: a fixed 15 s budget, not vitest's 5 s default, which a loaded runner can reach.
   it("on the timeout it describes the socket that holds the port, without needing ss (T1 spike, run 43656779665 printed nothing)", () => {
     const port = freePort();
     const result = run(["wait-free", "2"], port, 10_000, { PATH: noSsPath() });
@@ -118,7 +120,7 @@ describe("scripts/ci/supabase-ports.sh", () => {
       `  port ${port}: LISTEN, local 127.0.0.1, remote 0.0.0.0:0, uid ${process.getuid!()},`,
     );
     expect(result.status).toBe(1);
-  });
+  }, 15_000);
 
   it("decodes every kind of row it may meet: TIME_WAIT with a remote end, an IPv6 ESTABLISHED row, an unknown state", () => {
     // Fake kernel tables (columns as /proc/net/tcp writes them): 54322 in TIME_WAIT towards 192.168.1.10:59556, 54324 ESTABLISHED in
@@ -156,11 +158,12 @@ describe("scripts/ci/supabase-ports.sh", () => {
     expect(result.status).toBe(1);
   });
 
+  // Waits on the script's real 2 s timer by design: a fixed 15 s budget, not vitest's 5 s default, which a loaded runner can reach.
   it("wait-free succeeds once the port is released within the timeout", () => {
     const result = run(["wait-free", "10"], freePort(), 1_500);
     expect(result.stderr).toBe("");
     expect(result.status).toBe(0);
-  });
+  }, 15_000);
 
   it("reads a timeout with a leading zero as decimal (08 is 8 seconds, not an octal error)", () => {
     const result = run(["wait-free", "08"], freePort());
