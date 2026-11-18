@@ -107,7 +107,7 @@ select is((select string_agg(u.sig, ', ' order by u.sig) from unchanged u where 
           'each equals its value on main (demo_purge_tables: its value after P2-7 S3, which adds invoice_vat_summary to the list): approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
 -- Re-pinned on purpose by P2-7 S3 (was 244dbb02cefe9a6ea25146717a2bcbb4 and 58 names on main): invoice_vat_summary joins the list right before invoice (ADR-018; pgTAP 362 checks the position).
 select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
-select is(cardinality(app.demo_purge_tables()), 61 /* re-pinned on purpose by opening stock (step 5; was 59) */, 'and the purge list holds 59 names (main''s 58 and the new table)');
+select is(cardinality(app.demo_purge_tables()), 61 /* re-pinned on purpose by opening stock (step 5; was 59) */, 'and the purge list holds 61 names (main''s 58, the P2-7 table and opening stock''s two)');
 
 -- 2. The function catalogue: main's plus the 22 new functions -----------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p

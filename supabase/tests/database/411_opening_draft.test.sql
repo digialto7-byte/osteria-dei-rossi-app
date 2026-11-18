@@ -5,7 +5,7 @@
 begin;
 create extension if not exists pgtap with schema extensions;
 set local timezone = 'UTC';
-select plan(62);
+select plan(63);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -31,6 +31,7 @@ insert into public.location (id, tenant_id, name, is_active) values
   ('10000000-0000-4000-8000-0000000000a5', '11111111-1111-4111-8111-111111111111', 'Cella (demo)', true),
   ('10000000-0000-4000-8000-0000000000a6', '11111111-1111-4111-8111-111111111111', 'Retro (demo)', true),
   ('10000000-0000-4000-8000-0000000000a7', '11111111-1111-4111-8111-111111111111', 'Magazzino (demo)', true),
+  ('10000000-0000-4000-8000-0000000000a8', '11111111-1111-4111-8111-111111111111', 'Sala (demo)', true),
   ('10000000-0000-4000-8000-0000000000b1', '22222222-2222-4222-8222-222222222222', 'Dispensa B (demo)', true);
 insert into public.ingredient (id, tenant_id, name, base_unit, is_stock) values
   ('1a000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', 'Farina 00 (demo)', 'kg', true),
@@ -42,6 +43,7 @@ insert into public.ingredient (id, tenant_id, name, base_unit, is_stock)
   select ('1c000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid, '11111111-1111-4111-8111-111111111111', 'Voce ' || n || ' (demo)', 'pz', true from generate_series(1, 200) n;
 insert into public.count_session (tenant_id, location_id, type, status, started_by, closed_at, closed_by, cancelled_at, cancelled_by) values
   ('11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a4', 'daily', 'open', 'a1000000-0000-4000-8000-00000000000a', null, null, null, null),
+  ('11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a8', 'monthly', 'open', 'a1000000-0000-4000-8000-00000000000a', null, null, null, null),
   ('11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a5', 'monthly', 'cancelled', 'a1000000-0000-4000-8000-00000000000a', null, null, '1998-12-10T10:00:00Z', 'a1000000-0000-4000-8000-00000000000a'),
   ('11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a6', 'daily', 'closed', 'a1000000-0000-4000-8000-00000000000a', '1998-12-11T10:00:00Z', 'a1000000-0000-4000-8000-00000000000a', null, null),
   ('11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a7', 'monthly', 'closed', 'a1000000-0000-4000-8000-00000000000a', '1998-12-15T10:00:00Z', 'a1000000-0000-4000-8000-00000000000a', null, null);
@@ -176,6 +178,8 @@ select is(pg_temp.put1('0d000000-0000-4000-8000-00000000000c', '10000000-0000-40
   'P0001 opening_location_counted 1998-12-15', 'Magazzino has a closed monthly count: opening_location_counted, with the count''s business date as detail');
 select is(pg_temp.put1('0d000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-0000000000a4', '1a000000-0000-4000-8000-000000000001', '1', '1'),
   'P0001 opening_count_open', 'Banco has an open (daily) count: opening_count_open');
+select is(pg_temp.put1('0d000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-0000000000a8', '1a000000-0000-4000-8000-000000000001', '1', '1'),
+  'P0001 opening_count_open', 'Sala has an open MONTHLY count: opening_count_open too (either type refuses)');
 select is(pg_temp.put1('0d000000-0000-4000-8000-00000000000c', '10000000-0000-4000-8000-0000000000a5', '1a000000-0000-4000-8000-000000000001', '1', '1'), 'ok', 'Cella''s only count was cancelled: accepted');
 select is(pg_temp.put1('0d000000-0000-4000-8000-00000000000d', '10000000-0000-4000-8000-0000000000a1', '1a000000-0000-4000-8000-000000000003', '1', '1') || ' / '
        || pg_temp.put1('0d000000-0000-4000-8000-00000000000d', '10000000-0000-4000-8000-0000000000a2', '1a000000-0000-4000-8000-000000000001', '1', '1'),
@@ -190,7 +194,7 @@ select is((select string_agg((l ->> 'bookable') || '|' || coalesce(l ->> 'counte
 select is((select (d ->> 'maxLines') || '|' || (d ->> 'booked') || '|' || ((d ->> 'today')::date = (select today from ctx))::text from (select public.opening_draft() d) x),
   '200|false|true', 'opening_draft() has maxLines 200, booked false (no operation yet) and today = the business date');
 select is((select string_agg(l ->> 'name', ',' order by l ->> 'name') from jsonb_array_elements(public.opening_draft() -> 'locations') l),
-  'Banco (demo),Cella (demo),Dispensa (demo),Frigo 1 (demo),Magazzino (demo),Retro (demo)', 'every active location of A is listed, and no inactive one without draft lines, and nothing of B');
+  'Banco (demo),Cella (demo),Dispensa (demo),Frigo 1 (demo),Magazzino (demo),Retro (demo),Sala (demo)', 'every active location of A is listed, and no inactive one without draft lines, and nothing of B');
 select is((select coalesce(l ->> 'firstReceiptOn', '-') from (select pg_temp.loc('10000000-0000-4000-8000-0000000000a1') l) x), '-', 'no receipt at Dispensa: firstReceiptOn is null');
 
 -- 6. Remove and clear ------------------------------------------------------------------------------------------------------------------------------------------------------------
