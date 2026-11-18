@@ -2306,6 +2306,8 @@ export const it = {
   "bill.offline": "Serve la connessione per vedere il conto.",
   "bill.loading": "Carico il conto…",
   "bill.close.total": "Totale {amount}",
+  "bill.close.settingsMissing":
+    "Impostazioni del locale non disponibili: non posso mostrare i tipi di documento e di pagamento. Riprova tra poco.",
   "bill.close.document": "Documento",
   "bill.close.number": "Numero",
   "bill.close.numberHint": "Il numero stampato dal registratore",

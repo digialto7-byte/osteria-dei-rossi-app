@@ -8,8 +8,8 @@ export const MENU_CATEGORY_MAX = 40;
 export const MENU_PRICE_MAX = 10_000;
 /** Mirrors menu_item.position. */
 export const MENU_POSITION_MAX = 9999;
-/** Mirrors app.allowed_vat_rates(). */
-export const VAT_RATES = [0, 4, 5, 10, 22] as const;
+/** Mirrors app.allowed_vat_rates(): the statutory list, the outer bound. The tenant's sale list comes with `menu_items_manage` and `sale_settings_read`. */
+export const STATUTORY_VAT_RATES = [0, 4, 5, 10, 22] as const;
 /** Mirrors public.course, in service order (PRD 3.2). */
 export const COURSES = ["antipasti", "primi", "secondi", "dolci", "bevande"] as const;
 export type Course = (typeof COURSES)[number];

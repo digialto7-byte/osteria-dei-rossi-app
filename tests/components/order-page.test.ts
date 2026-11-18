@@ -38,6 +38,8 @@ let billReply: (path: string, init: Init) => Result;
 /** What `PATCH /api/table-sessions/:id` answers (the header's "Conto richiesto" and "Modifica coperti", P2b-4). */
 let patchReply: Result;
 let query = "";
+/** When set, /api/me answers this instead of the waiter with settings (SP1 step 10). */
+let meReply: Promise<Result> | null = null;
 const calls: Array<{ path: string; init: Init }> = [];
 const ok = (data: unknown, cachedAt?: string): Result => ({
   ok: true,
@@ -47,6 +49,7 @@ const ok = (data: unknown, cachedAt?: string): Result => ({
 });
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
+  if (path === "/api/me" && meReply !== null) return meReply;
   if (path === "/api/me") {
     return Promise.resolve(
       ok({
@@ -100,6 +103,7 @@ beforeEach(async () => {
   billReply = () => ok(BILL_HERE);
   patchReply = ok({});
   query = "";
+  meReply = null;
   calls.length = 0;
   apiJson.mockClear();
   push.mockClear();
@@ -1153,6 +1157,39 @@ describe("Comanda page: the Conto tab (M21)", () => {
       if (number !== undefined)
         fireEvent.change(screen.getByLabelText(/^Numero/), { target: { value: number } });
     };
+    const noChoiceRadios = () => {
+      for (const name of ["Scontrino", "Fattura", "Contanti", "Carta", "Altro"]) {
+        expect(screen.queryByRole("radio", { name }), name).toBeNull();
+      }
+      expect(screen.queryByRole("radio")).toBeNull();
+    };
+
+    it("with /api/me in the error state the sheet is not shown: the settings message is, and no option exists (Rule B)", async () => {
+      meReply = Promise.resolve({
+        ok: false,
+        status: 500,
+        error: { code: "internal", message: "x" },
+      });
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      expect(
+        (await screen.findByText(/^Impostazioni del locale non disponibili/)).textContent,
+      ).toBe(
+        "Impostazioni del locale non disponibili: non posso mostrare i tipi di documento e di pagamento. Riprova tra poco.",
+      );
+      noChoiceRadios();
+      expect(document.querySelector("[data-close-sheet]")).toBeNull();
+    });
+
+    it("while /api/me is still loading the settings message is not shown: a loading line is", async () => {
+      meReply = new Promise(() => {});
+      await openBill();
+      fireEvent.click(screen.getByRole("button", { name: "Chiudi tavolo" }));
+      expect(await screen.findByText("Caricamento…")).toBeTruthy();
+      expect(screen.queryByText(/^Impostazioni del locale non disponibili/)).toBeNull();
+      noChoiceRadios();
+    });
+
     const closeCalls = () => writes().filter((c) => c.path === CLOSE_PATH);
     /** A button of the close sheet, found inside its own section (the bill's own "Chiudi tavolo" is outside it). */
     const closeButton = (name: string) =>

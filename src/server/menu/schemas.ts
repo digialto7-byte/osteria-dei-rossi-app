@@ -5,7 +5,7 @@ import {
   MENU_NAME_MAX,
   MENU_POSITION_MAX,
   MENU_PRICE_MAX,
-  VAT_RATES,
+  STATUTORY_VAT_RATES,
 } from "./constants";
 
 // Strict bodies of the menu endpoints (M17 plan §3.4). The bounds mirror the SQL procedures, which stay the
@@ -34,9 +34,11 @@ export const price = z
   .max(MENU_PRICE_MAX)
   .refine(hasTwoDecimals, { message: "at most 2 decimals" });
 
-export const vatRate = z.number().refine((v) => (VAT_RATES as readonly number[]).includes(v), {
-  message: "VAT rate not allowed",
-});
+export const vatRate = z
+  .number()
+  .refine((v) => (STATUTORY_VAT_RATES as readonly number[]).includes(v), {
+    message: "VAT rate not allowed",
+  });
 
 const fields = {
   name: text(MENU_NAME_MAX),

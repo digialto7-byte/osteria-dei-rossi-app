@@ -7,7 +7,6 @@ import {
   MENU_NAME_MAX,
   MENU_POSITION_MAX,
   MENU_PRICE_MAX,
-  VAT_RATES,
 } from "@/server/menu/constants";
 import type { MenuItem } from "@/server/menu/output";
 import type { CreateMenuItemBody, UpdateMenuItemBody } from "@/server/menu/schemas";
@@ -53,6 +52,19 @@ export function parsePrice(text: string): DecimalResult {
  */
 export function setByWeight(state: MenuFormState, byWeight: boolean): MenuFormState {
   return state.byWeight === byWeight ? state : { ...state, byWeight, price: "" };
+}
+
+/**
+ * The options of the VAT select: the tenant's list (from the payload), plus the rate the item is STORED at (`storedVatRate`, null for
+ * a new item) when that rate has left the list, so an existing price shows the rate it was stored at, keeps offering it whatever
+ * is picked meanwhile, and saving it never silently changes it (SP1 Q12 note).
+ */
+export function vatRateOptions(
+  vatRates: readonly number[],
+  storedVatRate: number | null,
+): number[] {
+  const extra = storedVatRate !== null && !vatRates.includes(storedVatRate) ? [storedVatRate] : [];
+  return [...vatRates, ...extra].sort((a, b) => a - b);
 }
 
 /** The empty "Nuovo piatto" form: only the VAT rate is pre-filled, from the tenant's default. */
@@ -101,7 +113,12 @@ type Validated =
     }
   | { ok: false; errors: MenuFormErrors };
 
-function validate(state: MenuFormState, locale: Locale): Validated {
+function validate(
+  state: MenuFormState,
+  vatRates: readonly number[],
+  keptVatRate: number | null,
+  locale: Locale,
+): Validated {
   const errors: MenuFormErrors = {};
   const name = state.name.trim();
   const category = state.category.trim();
@@ -114,7 +131,9 @@ function validate(state: MenuFormState, locale: Locale): Validated {
   const price = parsePrice(state.price);
   if (!price.ok) errors.price = t("menu.form.error.price", {}, locale);
   const vatRate = Number(state.vatRate);
-  const vatOk = state.vatRate.trim() !== "" && (VAT_RATES as readonly number[]).includes(vatRate);
+  // The tenant's list, or the rate the item already carries (it may have left the list; the server accepts it unchanged).
+  const vatOk =
+    state.vatRate.trim() !== "" && (vatRates.includes(vatRate) || vatRate === keptVatRate);
   if (!vatOk) errors.vatRate = t("menu.form.error.vatRate", {}, locale);
   let position: number | null = null;
   if (state.position.trim() !== "") {
@@ -140,9 +159,10 @@ function validate(state: MenuFormState, locale: Locale): Validated {
 /** The POST body of a new item, or the field errors. */
 export function bodyFromForm(
   state: MenuFormState,
+  vatRates: readonly number[],
   locale: Locale = DEFAULT_LOCALE,
 ): { ok: true; body: CreateMenuItemBody } | { ok: false; errors: MenuFormErrors } {
-  const v = validate(state, locale);
+  const v = validate(state, vatRates, null, locale);
   if (!v.ok) return v;
   return {
     ok: true,
@@ -165,9 +185,10 @@ export function bodyFromForm(
 export function patchFromForm(
   state: MenuFormState,
   item: MenuItem,
+  vatRates: readonly number[],
   locale: Locale = DEFAULT_LOCALE,
 ): { ok: true; patch: UpdateMenuItemBody } | { ok: false; errors: MenuFormErrors } {
-  const v = validate(state, locale);
+  const v = validate(state, vatRates, item.vatRate, locale);
   if (!v.ok) return v;
   const patch: UpdateMenuItemBody = {};
   if (v.name !== item.name) patch.name = v.name;

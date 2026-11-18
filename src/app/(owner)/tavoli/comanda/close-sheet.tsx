@@ -12,7 +12,7 @@ import {
 } from "@/lib/bill/close-form";
 import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
-import { PAYMENT_TYPES, RECEIPT_TYPES } from "@/server/bill/constants";
+import type { PaymentType, ReceiptType } from "@/server/bill/constants";
 
 /** A radio group with no option chosen at the start: the waiter has to say what was printed and how the guest paid. */
 function Choice<T extends string>({
@@ -64,6 +64,8 @@ function Choice<T extends string>({
  * offline or still holds orders of this table in its queue (the page works out `block`). All logic is in close-form.ts.
  */
 export function CloseSheet({
+  receiptTypes,
+  paymentTypes,
   total,
   changedTotal = null,
   onConfirmChange,
@@ -76,6 +78,9 @@ export function CloseSheet({
   onSubmit,
   onCancel,
 }: {
+  /** The documents and payments the tenant offers, in its order (/api/me settings). */
+  receiptTypes: readonly ReceiptType[];
+  paymentTypes: readonly PaymentType[];
   total: number;
   /** The new total when a poll brought a different bill than the one the waiter saw; null while nothing changed. */
   changedTotal?: number | null;
@@ -113,7 +118,7 @@ export function CloseSheet({
       <Choice
         legend={t("bill.close.document")}
         name="receipt-type"
-        options={RECEIPT_TYPES}
+        options={receiptTypes}
         value={form.receiptType}
         label={(option) => receiptTypeLabel(option)}
         onChange={(receiptType) => onForm({ ...form, receiptType })}
@@ -132,7 +137,7 @@ export function CloseSheet({
       <Choice
         legend={t("bill.close.payment")}
         name="payment-type"
-        options={PAYMENT_TYPES}
+        options={paymentTypes}
         value={form.paymentType}
         label={(option) => paymentTypeLabel(option)}
         onChange={(paymentType) => onForm({ ...form, paymentType })}
