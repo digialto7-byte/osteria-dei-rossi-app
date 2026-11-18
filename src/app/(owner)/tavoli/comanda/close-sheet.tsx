@@ -14,7 +14,7 @@ import { t } from "@/lib/i18n";
 import { formatEuro } from "@/lib/money/format";
 import type { PaymentType, ReceiptType } from "@/server/bill/constants";
 
-/** A radio group with no option chosen at the start: the waiter has to say what was printed and how the guest paid. */
+/** A radio group: the waiter says what was printed and how the guest paid. The page preselects the tenant's first document, never a payment. */
 function Choice<T extends string>({
   legend,
   name,
