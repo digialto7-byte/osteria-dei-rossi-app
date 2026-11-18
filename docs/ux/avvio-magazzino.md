@@ -36,8 +36,9 @@ onboarding) needs to say once: **"this is what we have, where it is, and what it
 4. A booked location is **closed**: read-only, listed in Magazzino history. Mistakes are corrected by reversing that location's operation
    (§5).
 5. **Forgotten items** go through **"Aggiunta al carico iniziale"** (da approvare): the same screen, a new small draft for that location,
-   booked as one more opening operation. It is allowed **per location, until that location's first approved stock count**. After that, a
-   count is the honest way to bring a forgotten item in.
+   booked as one more opening operation. It is allowed **per location, until that location's first approved monthly (full) count**; daily partial
+   counts do not close the window (lead, 2026-11-18). After that, a count is the honest way to bring a forgotten item in. While a count
+   of that location is **open**, no carico can be booked there (§3.4).
 
 ## 3. The screen
 
@@ -116,10 +117,11 @@ duty is not skipped silently.
 |---|---|
 | Quantity 0, negative or not a number | "Inserisci una quantità maggiore di zero." |
 | Cost missing | "Inserisci il costo: serve per il food cost." (a row without a cost is not allowed; "0,00 €" must be typed on purpose, with the hint "Merce senza costo: omaggi o campioni") |
-| Same ingredient and location twice | Not an error: "Già presente in Dispensa: 25 kg. Sommo le quantità?" with "Somma" / "Riga separata" (two lots at two prices are real) |
+| Same ingredient and location twice | **One row per ingredient and location** (lead, 2026-11-18): there is no "separate row". Same cost: the quantities are summed, said in a status line "Farina 00 in Dispensa: 25 kg + 10 kg = 35 kg." Different cost: the screen asks before saving, "Farina 00 è già in Dispensa a 0,80 €/kg. Con quale costo tengo i 35 kg?" with "0,80 €/kg" / "0,90 €/kg" (two secondary buttons) and "Annulla". In a paste, duplicates are merged in the preview and said per row ("unita a una riga precedente"); a cost conflict blocks that row until the owner picks |
 | Unit mismatch in paste (`g` for a kg ingredient) | The database takes base units only (kg, l, pz), so the preview converts when unambiguous (g → kg, ml → l) and says it: "500 g → 0,5 kg"; otherwise it refuses the row with the reason. The conversion is a pure helper in `src/lib`, never in a component |
 | Data del carico after the first invoice received | "La data deve essere prima della prima fattura ricevuta (3 dic)." |
-| Location already counted | "Dispensa è già stata contata il 15 dic: per aggiungere merce usa un conteggio." (the location is not offered) |
+| Location already counted (monthly) | "Dispensa ha un conteggio mensile approvato il 15 dic: per aggiungere merce usa un conteggio." (the location is not offered). A daily partial count does not block it |
+| A count of the location is open | "In Dispensa c'è un conteggio aperto: chiudilo o annullalo prima di caricare." (the location's rows stay in the draft; the others can be booked) |
 
 ## 4. What the owner sees afterwards
 
@@ -150,9 +152,9 @@ operation**, so the screen corrects that way, and makes it cheap:
   motivo" with who and when) and puts the **same rows back into the draft**, prefilled. The owner fixes the one wrong row and confirms
   again: one new operation. Nothing is retyped.
 - To remove a location's carico without rebooking it: the same step, then "Svuota la bozza" in the draft.
-- **Limit:** a location can be corrected only until its first approved stock count; after it, stock is corrected by counting (conteggi), and
-  the cost by the next invoice. A location that can no longer be corrected says so: "Dispensa è stata contata il 15 dic: correggi con un
-  conteggio." (da approvare).
+- **Limit:** a location can be corrected only until its first approved **monthly (full)** count, and not while a count of it is open;
+  after the monthly count, stock is corrected by counting (conteggi), and the cost by the next invoice. A location that can no longer be
+  corrected says so: "Dispensa ha un conteggio mensile approvato il 15 dic: correggi con un conteggio." (da approvare).
 - Food cost: a corrected cost applies to costs computed **after** the correction; sales already made keep their frozen cost (project
   invariant), and the step says so: "I piatti già venduti mantengono il costo di allora." (da approvare).
 
@@ -172,12 +174,14 @@ Builder 1's plan owns the data; this is what the screens rely on, as the lead su
 3. **Quantities in base units only** (kg, l, pz): the screen converts what it can before sending (§3.4) and never sends anything else.
 4. **Effective date** chosen by the owner: not in the future, not after the first invoice receipt (the screen validates the same rule
    and words the server's refusal).
-5. **Allowed per location until that location's first approved count**, for the first carico and for additions alike.
+5. **Allowed per location until that location's first approved monthly (full) count** (daily partial counts don't close it), for the
+   first carico, additions and corrections alike; **refused while a count of that location is open**.
 6. **Corrections by reversal of the whole operation** (§5): the screen pairs it with putting the rows back into the draft.
 7. **Cost source**: the opening unit cost is used only while the ingredient has no invoice price; then the invoice price wins, with no
    blending. The cost API must say which source a figure comes from, so the screen can show "Costo da carico iniziale".
 8. **A server-side draft**, in the smallest form builder 1's plan proposes. The screens need only: rows per location (ingredient, quantity,
    unit cost), edited and removed freely, shared between the owner's devices, and restorable from a reversed operation (§5).
+9. **No duplicate lines**: one line per ingredient and location in an operation; the screen merges or asks before sending (§3.4).
 
 ## 8. States checklist
 
@@ -189,7 +193,8 @@ Builder 1's plan owns the data; this is what the screens rely on, as the lead su
 | Offline | The form is disabled with "Serve la connessione per caricare il magazzino." (stock writes are online-only, like the kitchen) |
 | Confirming | Step 2: "Carichi 37 righe per 2.418,60 € alla data 01/12/2026: Dispensa (24), Frigo 1 (13). Dopo la conferma si corregge annullando il carico di un'ubicazione." plus the no-expiry sentence (§4) + "Conferma" / "Annulla" |
 | Partly booked | Per location: "Dispensa: caricato" (`SuccessNote`) or "Frigo 1: non caricato · motivo" (`ErrorAlert`); the failed location stays in the draft |
-| Confirmed | Read-only list per location, "Confermato il 1 dic da Mario", "Correggi il carico di …" and "Aggiunta al carico iniziale" on locations not yet counted |
+| Confirmed | Read-only list per location, "Confermato il 1 dic da Mario", "Correggi il carico di …" and "Aggiunta al carico iniziale" on locations without an approved monthly count |
+| A count is open | That location's actions are disabled with the reason "Conteggio aperto in Dispensa" (da approvare); other locations work |
 | Error | `ErrorAlert` with the reason; the draft is never lost |
 
 All targets ≥ 44 px; one primary per screen; amounts `1.234,50 €` in `.num`; dates Europe/Rome.
@@ -198,7 +203,7 @@ All targets ≥ 44 px; one primary per screen; amounts `1.234,50 €` in `.num`;
 
 | # | For | Question | Default |
 |---|---|---|---|
-| Q-A1 | Lead | One-time carico (with an "Aggiunta" window until the first count), as §2 recommends? | **Decided (lead, 2026-11-18): yes**, additions until the first approved count |
+| Q-A1 | Lead | One-time carico (with an "Aggiunta" window until the first count), as §2 recommends? | **Decided (lead, 2026-11-18): yes**, additions until the first approved monthly (full) count; refused while a count is open; one row per ingredient and location |
 | Q-A2 | Founder | Cost per base unit **IVA esclusa**, like invoice prices? | **Decided (lead, 2026-11-18): IVA esclusa**, as the invoice side |
 | Q-A3 | Lead | Lots and use-by on opening stock: optional fields (laptop grid only) or none? | **Decided (lead, 2026-11-18): none in v1**; no expiry alerts for carico stock, said on screen (§4) |
 | Q-A4 | Builder 1 | The data side | **Answered (builder 1's note, 2026-11-18)**: §7 |
