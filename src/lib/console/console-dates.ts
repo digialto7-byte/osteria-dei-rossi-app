@@ -19,7 +19,7 @@ function isRealDay(value: string): boolean {
 
 /** Today in Europe/Rome, from the given clock. */
 export function romeToday(now: Date): string {
-  return venueDate(now);
+  return venueDate(now, VENUE_TIME_ZONE);
 }
 
 /** "oggi", "ieri", "12 nov", "12 nov 2025", or a dash when there is no day. */
@@ -37,7 +37,9 @@ export function formatActivityDay(
 
 /** "21 ott 2026" for a day, or for the Europe/Rome day of an instant. */
 export function formatLongDay(dayOrInstant: string, locale: Locale = DEFAULT_LOCALE): string {
-  const day = DAY.test(dayOrInstant) ? dayOrInstant : venueDate(new Date(dayOrInstant));
+  const day = DAY.test(dayOrInstant)
+    ? dayOrInstant
+    : venueDate(new Date(dayOrInstant), VENUE_TIME_ZONE);
   return `${dayAndMonth(day, locale)} ${day.slice(0, 4)}`;
 }
 

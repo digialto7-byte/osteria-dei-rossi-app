@@ -5,6 +5,7 @@ import {
   routeContext,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../../helpers/fake-supabase";
 
 let client: FakeSupabase;
@@ -243,7 +244,7 @@ describe("GET /api/recipes/:key/cost", () => {
     expect((await getKey("?at=x")).status).toBe(400);
     expect((await getKey("?foo=1")).status).toBe(400);
     expect((await getKey("?at=2999-01-01")).status).toBe(422);
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client, 3)).toEqual([]);
   });
 
   it("404 for a malformed key", async () => {

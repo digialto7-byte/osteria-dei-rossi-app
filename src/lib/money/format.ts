@@ -1,4 +1,7 @@
-import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { currentVenueSettings } from "@/lib/venue/current";
+
+const storeLocale = (): Locale => currentVenueSettings().locale;
 
 const formatters = new Map<Locale, Intl.NumberFormat>();
 
@@ -18,7 +21,7 @@ function euroFormatter(locale: Locale): Intl.NumberFormat {
 }
 
 /** Formats an amount in euro for display, e.g. 1234.5 → "1.234,50 €" (it). */
-export function formatEuro(amount: number, locale: Locale = DEFAULT_LOCALE): string {
+export function formatEuro(amount: number, locale: Locale = storeLocale()): string {
   if (!Number.isFinite(amount)) {
     throw new RangeError(`formatEuro: amount must be a finite number, got ${amount}`);
   }
@@ -29,6 +32,6 @@ export function formatEuro(amount: number, locale: Locale = DEFAULT_LOCALE): str
  * The price of a weighted dish per 100 g (per etto), e.g. 9 → "9,00 € / 100 g" (it). The number is
  * the stored price per 100 g as the API returns it; nothing is multiplied or divided here.
  */
-export function formatPricePerEtto(pricePer100g: number, locale: Locale = DEFAULT_LOCALE): string {
+export function formatPricePerEtto(pricePer100g: number, locale: Locale = storeLocale()): string {
   return `${formatEuro(pricePer100g, locale)} / 100 g`;
 }

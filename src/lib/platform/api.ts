@@ -187,7 +187,7 @@ const exampleTenantDetail = {
   members: { owner: 1, admin: 0, chef: 1, waiter: 2 },
   digialtoAttached: false,
   lastActivityDate: "2026-11-14",
-  timeZone: "Europe/Rome",
+  timeZone: "Europe/Lisbon", // an example value of a fake tenant (demo), not the platform default (SP1 step 12)
   bookingSlug: null,
 };
 const exampleRow = {

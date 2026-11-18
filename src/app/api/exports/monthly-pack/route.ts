@@ -6,8 +6,12 @@ import { measured, timedJson } from "@/server/orders/timing";
 
 // GET /api/exports/monthly-pack?month=YYYY-MM (M24, ADR-027): the KPI, waste and actual-vs-theoretical replies of one month in a single answer, for the
 // print view /report/mese. Owner and admin only: the chef and the waiter get 403 before any RPC. A static segment, so it wins over `[file]`.
-export const GET = withApi({ roles: ["owner", "admin"] }, async ({ request, supabase, timing }) => {
-  const query = parseQuery(monthlyPackQuery, new URL(request.url));
-  const { result, header } = await measured(timing, () => getMonthlyPack(supabase, query));
-  return timedJson(result, header);
-});
+export const GET = withApi(
+  { roles: ["owner", "admin"] },
+  async ({ request, supabase, timing, tenantSettings }) => {
+    const query = parseQuery(monthlyPackQuery, new URL(request.url));
+    const { timeZone: zone } = await tenantSettings();
+    const { result, header } = await measured(timing, () => getMonthlyPack(supabase, query, zone));
+    return timedJson(result, header);
+  },
+);

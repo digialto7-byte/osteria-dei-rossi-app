@@ -7,6 +7,7 @@ import {
   jsonRequest,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../../helpers/fake-supabase";
 
 let client: FakeSupabase;
@@ -72,7 +73,7 @@ describe("POST /api/admin/cost-check (AT9)", () => {
 
   it("reads plate_costs once and nothing else: nothing is written", async () => {
     await post({ format: "csv", csv: CSV });
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(dataRpcCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("plate_costs", { p_date: null });
     expect(client.query.insert).not.toHaveBeenCalled();
     expect(client.query.update).not.toHaveBeenCalled();
@@ -116,7 +117,7 @@ describe("POST /api/admin/cost-check (AT9)", () => {
     ]);
     expect(JSON.stringify(error)).not.toContain("Segretissimo");
     expect(JSON.stringify(error)).not.toContain("SUM");
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it("413 for a body over the character limit, by length or by Content-Length", async () => {
@@ -127,7 +128,7 @@ describe("POST /api/admin/cost-check (AT9)", () => {
       { headers: { "content-type": "application/json", "content-length": "9999999" } },
     );
     expect(declared.status).toBe(413);
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it("413 for more than 500 rows", async () => {

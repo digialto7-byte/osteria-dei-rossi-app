@@ -10,12 +10,18 @@ import { measured } from "@/server/orders/timing";
 // with the JSON route's own status. `monthly-pack` is a static sibling segment and wins over this one.
 export const GET = withApi(
   { roles: ["owner", "admin"], params: exportParams },
-  async ({ request, supabase, session, params, timing }) => {
+  async ({ request, supabase, session, params, timing, tenantSettings }) => {
     const table = findExport(params.file.slice(0, -".csv".length));
     if (!table) throw new ApiError(404, "not_found", "Risorsa non trovata.");
     const query = table.parse(new URL(request.url));
     const { result, header } = await measured(timing, () => table.load(supabase, session, query));
     // The route admits owner and admin only; anything else would get the narrower (admin) columns.
-    return csvResponse(table, result, session.role === "owner" ? "owner" : "admin", header);
+    return csvResponse(
+      table,
+      result,
+      session.role === "owner" ? "owner" : "admin",
+      header,
+      (await tenantSettings()).timeZone,
+    );
   },
 );

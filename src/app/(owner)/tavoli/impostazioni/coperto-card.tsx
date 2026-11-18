@@ -12,6 +12,7 @@ import {
   TextInput,
 } from "@/components/ui";
 import { t } from "@/lib/i18n";
+import { vatRateOptions } from "@/lib/menu/menu-form";
 import { copertoBodyFromForm, copertoFormFromRead } from "@/lib/tables/coperto-form";
 import type { CopertoBody } from "@/server/tables/schemas";
 
@@ -38,7 +39,7 @@ export function CopertoCard({
   const [localError, setLocalError] = useState<string | null>(null);
 
   function save() {
-    const built = copertoBodyFromForm(form);
+    const built = copertoBodyFromForm(form, vatRates, coperto?.vatRate ?? null);
     if (!built.ok) return setLocalError(built.error);
     setLocalError(null);
     onSave(built.body);
@@ -65,7 +66,7 @@ export function CopertoCard({
           onChange={(event) => setForm({ ...form, vatRate: event.target.value })}
         >
           {form.vatRate === "" && <option value="">{t("tables.coperto.vatRate.choose")}</option>}
-          {vatRates.map((rate) => (
+          {vatRateOptions(vatRates, coperto?.vatRate ?? null).map((rate) => (
             <option key={rate} value={String(rate)}>
               {t("menu.form.vatRate.option", { rate })}
             </option>

@@ -78,13 +78,13 @@ export default function MenuPage() {
     setFormError(null);
     let request: { path: string; method: "POST" | "PATCH"; body: object } | null;
     if (editing.kind === "create") {
-      const built = bodyFromForm(state);
+      const built = bodyFromForm(state, menu.vatRates);
       if (!built.ok) return setFieldErrors(built.errors);
       request = { path: "/api/menu/items", method: "POST", body: built.body };
     } else {
       const item = menu.items.find((candidate) => candidate.id === editing.id);
       if (!item) return close();
-      const built = patchFromForm(state, item);
+      const built = patchFromForm(state, item, menu.vatRates);
       if (!built.ok) return setFieldErrors(built.errors);
       request =
         Object.keys(built.patch).length === 0
@@ -143,6 +143,7 @@ export default function MenuPage() {
                   : null
               }
               vatRates={menu.vatRates}
+              storedVatRate={editedItem?.vatRate ?? null}
               courses={menu.courses}
               categories={menu.categories}
               busy={busy}

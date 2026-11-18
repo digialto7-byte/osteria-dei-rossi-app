@@ -17,7 +17,11 @@ const calls: Array<{ path: string; init: Init }> = [];
 const apiJson = vi.fn((path: string, init?: Init): Promise<Result> => {
   calls.push({ path, init });
   if (path === "/api/me") {
-    return Promise.resolve({ ok: true, status: 200, data: { user: { role } } });
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      data: { user: { role }, settings: ME_SETTINGS },
+    });
   }
   if (init?.method) return Promise.resolve(writeReply);
   if (path === "/api/tables") return Promise.resolve(listReply);
@@ -32,6 +36,7 @@ vi.mock("@/pwa/use-outbox", async () => (await import("../helpers/sync-runtime")
 import TablesPage from "@/app/(owner)/tavoli/page";
 import { resetMe } from "@/components/use-me";
 import { bridge, startRuntime, stopRuntime } from "../helpers/sync-runtime";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn(), push }) }));

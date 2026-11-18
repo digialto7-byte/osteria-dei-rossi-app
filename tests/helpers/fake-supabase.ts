@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { ME_SETTINGS } from "./me-data";
 
 export interface FakeClaims {
   sub?: string;
@@ -96,6 +97,10 @@ export function fakeSupabase(options: FakeOptions = {}) {
     tables.set("app_user", [{ data: options.meRow ?? null, error: null }]);
   }
   const rpcs = new Map(Object.entries(options.rpc ?? {}).map(([f, r]) => [f, [...r]]));
+  // The fake database holds a tenant with today's settings (SP1 step 11): a route that asks withApi for tenantSettings() reads them
+  // unless the test supplies its own `tenant_settings` result (a tenant in another zone, an error).
+  if (!rpcs.has("tenant_settings"))
+    rpcs.set("tenant_settings", [{ data: ME_SETTINGS, error: null }]);
   let currentTable = "";
   const uploads = [...(options.storage?.upload ?? [])];
   const signedUrls = [...(options.storage?.createSignedUrl ?? [])];
@@ -202,3 +207,48 @@ export function jsonRequest(url: string, body: unknown, init: RequestInit = {}):
 export const routeContext = (params: Record<string, string>) => ({
   params: Promise.resolve(params),
 });
+
+/** How many times `tenant_settings` was called on this client. */
+export function tenantSettingsCalls(client: { rpc: { mock: { calls: unknown[][] } } }): number {
+  return client.rpc.mock.calls.filter((call) => call[0] === "tenant_settings").length;
+}
+
+/**
+ * Fails when `tenant_settings` was called more than once per request (SP1 step 11: withApi reads it once per request, however many sites
+ * ask for the zone). `requests` is how many requests the test made on this client.
+ */
+function assertSettingsReadOncePerRequest(
+  client: { rpc: { mock: { calls: unknown[][] } } },
+  requests: number,
+): void {
+  const calls = tenantSettingsCalls(client);
+  if (calls > requests) {
+    throw new Error(
+      `tenant_settings was called ${calls} times for ${requests} request(s): a duplicate read in a route`,
+    );
+  }
+}
+
+/**
+ * The RPC calls that read or write data: every call of `client.rpc` except `tenant_settings`, which withApi's `tenantSettings()` makes
+ * for the zone (SP1 step 11). Tests that count a route's database calls count these, so the counts stay exact. It also fails a
+ * duplicate `tenant_settings` read (`requests`: how many requests the test made, default 1).
+ */
+export function dataRpcCalls(
+  client: { rpc: { mock: { calls: unknown[][] } } },
+  requests = 1,
+): unknown[][] {
+  assertSettingsReadOncePerRequest(client, requests);
+  return client.rpc.mock.calls.filter((call) => call[0] !== "tenant_settings");
+}
+
+/** The `invocationCallOrder` of each call in `dataRpcCalls`, to compare with the order of other spies. */
+export function dataRpcOrders(
+  client: { rpc: { mock: { calls: unknown[][]; invocationCallOrder: number[] } } },
+  requests = 1,
+): number[] {
+  assertSettingsReadOncePerRequest(client, requests);
+  return client.rpc.mock.invocationCallOrder.filter(
+    (_order, index) => client.rpc.mock.calls[index]![0] !== "tenant_settings",
+  );
+}

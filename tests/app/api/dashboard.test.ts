@@ -4,6 +4,8 @@ import {
   fakeSupabase,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
+  tenantSettingsCalls,
 } from "../../helpers/fake-supabase";
 import { adminDashboardSchema, ownerDashboardSchema } from "@/server/dashboard/output";
 import { adminSql, ownerSql } from "../../fixtures/dashboard-sql";
@@ -36,14 +38,19 @@ const TIMING = /^auth;dur=\d+(\.\d)?, rpc;dur=\d+(\.\d)?, total;dur=\d+(\.\d)?$/
 beforeEach(() => reportError.mockClear());
 
 describe("GET /api/dashboard: who", () => {
-  it.each(["owner", "admin"])("%s: exactly one RPC and no table read", async (role) => {
-    as(role);
-    const response = await get();
-    expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
-    expect(client.rpc).toHaveBeenCalledWith("dashboard_summary");
-    expect(client.from).not.toHaveBeenCalled();
-  });
+  it.each(["owner", "admin"])(
+    "%s: one data RPC, one tenant_settings read and no table read",
+    async (role) => {
+      as(role);
+      const response = await get();
+      expect(response.status).toBe(200);
+      expect(dataRpcCalls(client)).toHaveLength(1);
+      expect(tenantSettingsCalls(client)).toBe(1); // the zone for the alert times: two RPCs in all (SP1 step 11)
+      expect(client.rpc).toHaveBeenCalledTimes(2);
+      expect(client.rpc).toHaveBeenCalledWith("dashboard_summary");
+      expect(client.from).not.toHaveBeenCalled();
+    },
+  );
 
   it.each(["chef", "waiter"])("%s: 403 before any RPC", async (role) => {
     as(role);
@@ -129,7 +136,7 @@ describe("GET /api/dashboard: the yesterday tile (M22) and the push list tile (M
       expect(body.tiles.pushList.count).toBe(3);
       expect(body.tiles.pushList.items).toHaveLength(2);
       expect(body.comingSoon).toEqual([]);
-      expect(client.rpc).toHaveBeenCalledTimes(1);
+      expect(dataRpcCalls(client)).toHaveLength(1);
     },
   );
 

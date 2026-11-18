@@ -18,6 +18,7 @@ const apiJson = vi.fn((path: string) => {
       data: {
         user: { id: "u1", displayName: "Utente Demo", role },
         tenant: { id: "t1", name: "Osteria Demo" },
+        settings: ME_SETTINGS,
       },
     });
   }
@@ -32,6 +33,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 
 import NewProductionPage from "@/app/(owner)/produzione/nuova/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

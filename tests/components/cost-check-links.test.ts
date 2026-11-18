@@ -15,6 +15,7 @@ const apiJson = vi.fn((path: string) =>
           data: {
             user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
             tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+            settings: ME_SETTINGS,
           },
         }
       : { ok: false as const, status: 404, error: { code: "not_found", message: "x" } },
@@ -26,6 +27,7 @@ vi.mock("@/lib/api/client", async (original) => ({
 }));
 
 import CostCheckPage from "@/app/(owner)/costi/verifica/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

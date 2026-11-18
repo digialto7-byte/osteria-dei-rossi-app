@@ -1,5 +1,6 @@
 import { t, tn } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import type { VenueSettings } from "@/lib/venue/settings";
 import type { SyncView } from "@/lib/sync/view";
 import type { PaymentType, ReceiptType } from "@/server/bill/constants";
 import type { CloseBody } from "@/server/bill/schemas";
@@ -18,6 +19,22 @@ export const EMPTY_CLOSE_FORM: CloseForm = {
   receiptNumber: "",
   paymentType: null,
 };
+
+export interface CloseOptions {
+  receiptTypes: readonly ReceiptType[];
+  paymentTypes: readonly PaymentType[];
+}
+
+/**
+ * The documents and payments this tenant offers, in its order (/api/me `settings`). Without settings (no answer yet, or an
+ * error) there are no options: the sheet is not shown and the page says so. Never the catalogue (lead ruling 2026-11-18, Rule B).
+ */
+export function closeOptions(
+  me: { settings: Pick<VenueSettings, "receiptTypes" | "paymentTypes"> } | null,
+): CloseOptions | null {
+  if (me === null) return null;
+  return { receiptTypes: me.settings.receiptTypes, paymentTypes: me.settings.paymentTypes };
+}
 
 export type CloseBlock = "offline" | "queued" | null;
 

@@ -165,9 +165,10 @@ export function alertHref(
 export function toAlertItem(
   row: AlertRow,
   locale: Locale,
+  zone: string,
   names: AlertNames = NO_NAMES,
 ): AlertItem {
-  const { title, body } = renderAlert(row, locale, undefined, names);
+  const { title, body } = renderAlert(row, locale, zone, undefined, names);
   return {
     id: row.id,
     kind: row.kind,
@@ -190,13 +191,14 @@ export function buildAlertList(
   rows: AlertRow[],
   role: AppRole,
   locale: Locale,
+  zone: string,
   names: AlertNames = NO_NAMES,
   pageSize: number = ALERT_LIST_PAGE_SIZE,
 ): AlertList {
   const page = rows.slice(0, pageSize);
   const hasMore = rows.length > pageSize;
   return {
-    alerts: page.filter(visibleTo(role)).map((row) => toAlertItem(row, locale, names)),
+    alerts: page.filter(visibleTo(role)).map((row) => toAlertItem(row, locale, zone, names)),
     // From the raw page, so a row dropped for the chef never stalls the cursor.
     nextCursor: hasMore ? cursorOf(page[page.length - 1]!) : null,
     canRaiseTest: role === "owner",
@@ -207,6 +209,7 @@ export async function listAlerts(
   supabase: SupabaseClient,
   role: AppRole,
   query: ListAlertsQuery,
+  zone: string,
 ): Promise<AlertList> {
   const pageSize = query.limit ?? ALERT_LIST_PAGE_SIZE;
   let request = supabase.from("alert").select(ALERT_COLUMNS);
@@ -230,7 +233,7 @@ export async function listAlerts(
     supabase,
     collectNameRefs(rows.slice(0, pageSize).filter(visibleTo(role))),
   );
-  return buildAlertList(rows, role, query.locale, names, pageSize);
+  return buildAlertList(rows, role, query.locale, zone, names, pageSize);
 }
 
 /** One alert the caller can read, rendered; 404 when it is missing or not visible. */
@@ -239,6 +242,7 @@ export async function getAlert(
   id: string,
   role: AppRole,
   locale: Locale,
+  zone: string,
 ): Promise<AlertItem> {
   const { data, error } = await supabase
     .from("alert")
@@ -248,5 +252,5 @@ export async function getAlert(
   if (error) throw mapAlertError(error);
   const row = data as unknown as AlertRow | null;
   if (!row || !visibleTo(role)(row)) throw mapAlertError({ code: "P0002", message: "not_found" });
-  return toAlertItem(row, locale, await loadNames(supabase, collectNameRefs([row])));
+  return toAlertItem(row, locale, zone, await loadNames(supabase, collectNameRefs([row])));
 }

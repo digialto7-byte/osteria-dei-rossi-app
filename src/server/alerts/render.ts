@@ -1,4 +1,4 @@
-import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { type Locale } from "@/lib/i18n/locale";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { NO_NAMES, type AlertNames } from "./names";
@@ -32,7 +32,8 @@ function fallback(locale: Locale): RenderedAlert {
  */
 export function renderAlert(
   alert: RenderableAlert,
-  locale: Locale = DEFAULT_LOCALE,
+  locale: Locale,
+  zone: string,
   registry: Readonly<Record<string, AlertTemplate>> = TEMPLATES,
   names: AlertNames = NO_NAMES,
 ): RenderedAlert {
@@ -47,7 +48,7 @@ export function renderAlert(
     for (const variant of template.variants ?? []) {
       const alt = variant.payload.safeParse(alert.payload);
       if (alt.success) {
-        const values = variant.params(alt.data, formattersFor(locale), names);
+        const values = variant.params(alt.data, formattersFor(locale, zone), names);
         const bodyKey = variant.bodyKeyFor ? variant.bodyKeyFor(alt.data) : variant.bodyKey;
         return { title: t(variant.titleKey, values, locale), body: t(bodyKey, values, locale) };
       }
@@ -57,7 +58,7 @@ export function renderAlert(
     );
     return fallback(locale);
   }
-  const values = template.params(parsed.data, formattersFor(locale), names);
+  const values = template.params(parsed.data, formattersFor(locale, zone), names);
   return {
     title: t(template.titleKey, values, locale),
     body: t(template.bodyKey, values, locale),

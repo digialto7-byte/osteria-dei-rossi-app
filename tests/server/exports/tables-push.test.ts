@@ -67,7 +67,7 @@ describe("same parser, same service (ADR-027)", () => {
 });
 
 describe("push-list", () => {
-  const csv = records(renderCsv(registry["push-list"], PUSH_LIST_EDGE, "owner"));
+  const csv = records(renderCsv(registry["push-list"], PUSH_LIST_EDGE, "owner", "Europe/Rome"));
 
   it("snapshots the header", () => {
     expect(registry["push-list"].columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -118,12 +118,12 @@ describe("push-list", () => {
   });
 
   it("the range is the business date", () => {
-    expect(registry["push-list"].range(PUSH_LIST_EDGE)).toBe("2026-11-04");
+    expect(registry["push-list"].range(PUSH_LIST_EDGE, "Europe/Rome")).toBe("2026-11-04");
   });
 });
 
 describe("forecast", () => {
-  const csv = records(renderCsv(registry.forecast, FORECAST_EDGE, "owner"));
+  const csv = records(renderCsv(registry.forecast, FORECAST_EDGE, "owner", "Europe/Rome"));
 
   it("snapshots the header", () => {
     expect(registry.forecast.columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -153,12 +153,14 @@ describe("forecast", () => {
   });
 
   it("the range is the date", () => {
-    expect(registry.forecast.range(FORECAST_EDGE)).toBe("2026-11-05");
+    expect(registry.forecast.range(FORECAST_EDGE, "Europe/Rome")).toBe("2026-11-05");
   });
 });
 
 describe("forecast-plates", () => {
-  const csv = records(renderCsv(registry["forecast-plates"], FORECAST_EDGE, "owner"));
+  const csv = records(
+    renderCsv(registry["forecast-plates"], FORECAST_EDGE, "owner", "Europe/Rome"),
+  );
 
   it("snapshots the header", () => {
     expect(registry["forecast-plates"].columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -177,14 +179,14 @@ describe("forecast-plates", () => {
   });
 
   it("the range is the date", () => {
-    expect(registry["forecast-plates"].range(FORECAST_EDGE)).toBe("2026-11-05");
+    expect(registry["forecast-plates"].range(FORECAST_EDGE, "Europe/Rome")).toBe("2026-11-05");
   });
 });
 
 describe("discards-vs-push", () => {
   it("snapshots the header and writes one row per recipe; the totals are not a row", () => {
     expect(registry["discards-vs-push"].columns("owner").map((c) => c.header)).toMatchSnapshot();
-    const csv = records(renderCsv(registry["discards-vs-push"], DISCARDS, "owner"));
+    const csv = records(renderCsv(registry["discards-vs-push"], DISCARDS, "owner", "Europe/Rome"));
     expect(csv).toHaveLength(1 + DISCARDS.rows.length);
     expect(csv[1]).toEqual([
       "ec000000-0000-4000-8000-0000000000e3",
@@ -202,6 +204,8 @@ describe("discards-vs-push", () => {
   });
 
   it("the range is the ISO week", () => {
-    expect(registry["discards-vs-push"].range(DISCARDS)).toBe("2026-11-02_2026-11-08");
+    expect(registry["discards-vs-push"].range(DISCARDS, "Europe/Rome")).toBe(
+      "2026-11-02_2026-11-08",
+    );
   });
 });

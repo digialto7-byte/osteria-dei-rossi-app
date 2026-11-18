@@ -38,7 +38,7 @@ function whenLabel(date: string, time: string, locale: Locale): string {
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "Europe/Rome",
+    timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
   return `${day}, ${time}`;
 }

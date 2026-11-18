@@ -7,6 +7,8 @@ import {
   OWNER_CLAIMS,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
+  dataRpcOrders,
 } from "../../../helpers/fake-supabase";
 import { fakePdf } from "../../../helpers/fake-files";
 import { buildSignedData } from "../../../fixtures/fatturapa/build-cms";
@@ -94,7 +96,7 @@ const one = (body: BodySpec): FileSpec => ({ bodies: [body] });
 
 const sideEffects = () => ({
   uploads: client.storage.upload.mock.calls.length,
-  rpcs: client.rpc.mock.calls.length,
+  rpcs: dataRpcCalls(client).length,
   inserts: client.query.insert.mock.calls.length,
 });
 
@@ -113,16 +115,16 @@ describe("POST /api/invoices with an XML file", () => {
 
     const order = [
       client.query.gte.mock.invocationCallOrder[0]!,
-      client.rpc.mock.invocationCallOrder[0]!,
+      dataRpcOrders(client)[0]!,
       client.storage.upload.mock.invocationCallOrder[0]!,
-      client.rpc.mock.invocationCallOrder[1]!,
+      dataRpcOrders(client)[1]!,
     ];
     expect(order).toEqual([...order].sort((a, b) => a - b));
-    expect(client.rpc.mock.calls.map((call) => call[0])).toEqual([
+    expect(dataRpcCalls(client).map((call) => call[0])).toEqual([
       "invoice_xml_precheck",
       "import_xml_invoices",
     ]);
-    expect(client.rpc.mock.calls[0]![1]).toEqual({
+    expect(dataRpcCalls(client)[0]![1]).toEqual({
       p_sha256: createHash("sha256").update(xmlPart().bytes).digest("hex"),
       p_supplier_vat: "IT12345678903",
       p_buyer_vat: "IT00000000000",
@@ -167,7 +169,7 @@ describe("POST /api/invoices with an XML file", () => {
 
   it("sends an import payload that passes the strict schema, with the sha of the file and the stored size", async () => {
     await upload();
-    const payload = client.rpc.mock.calls[1]![1] as { p_payload: unknown };
+    const payload = dataRpcCalls(client)[1]![1] as { p_payload: unknown };
     const parsed = XmlImportPayload.safeParse(payload.p_payload);
     expect(parsed.success).toBe(true);
     const { invoices, sha256, buyer } = parsed.data!;
@@ -186,7 +188,7 @@ describe("POST /api/invoices with an XML file", () => {
 
   it("the payload schema caps a description at 500 characters, like SQL", async () => {
     await upload();
-    const payload = (client.rpc.mock.calls[1]![1] as { p_payload: XmlImportPayload }).p_payload;
+    const payload = (dataRpcCalls(client)[1]![1] as { p_payload: XmlImportPayload }).p_payload;
     const withDescription = (rawDescription: string) => ({
       ...payload,
       invoices: [
@@ -212,7 +214,7 @@ describe("POST /api/invoices with an XML file", () => {
     expect(path).toMatch(/\.p7m$/);
     expect(stored).toEqual(p7m);
     expect(options).toEqual({ contentType: "application/pkcs7-mime", upsert: false });
-    const args = client.rpc.mock.calls[0]![1] as { p_sha256: string };
+    const args = dataRpcCalls(client)[0]![1] as { p_sha256: string };
     expect(args.p_sha256).toBe(createHash("sha256").update(inner).digest("hex"));
   });
 
@@ -223,7 +225,7 @@ describe("POST /api/invoices with an XML file", () => {
     });
     expect(response.status).toBe(201);
     expect(client.storage.upload).toHaveBeenCalledTimes(3);
-    expect(client.rpc.mock.calls.filter((c) => c[0] === "import_xml_invoices")).toHaveLength(1);
+    expect(dataRpcCalls(client).filter((c) => c[0] === "import_xml_invoices")).toHaveLength(1);
     const paths = client.storage.upload.mock.calls.map((c) => c[0] as string);
     expect(new Set(paths).size).toBe(3);
     const body = await response.json();
@@ -381,7 +383,7 @@ describe("a file Costì refuses is refused before anything is stored", () => {
     expect(body.error.code).toBe("already_uploaded");
     expect(body.error.details).toEqual({ invoiceId: FIRST });
     expect(client.storage.upload).not.toHaveBeenCalled();
-    expect(client.rpc.mock.calls.map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
+    expect(dataRpcCalls(client).map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
   });
 
   it.each([
@@ -422,7 +424,7 @@ describe("failures after the file is accepted", () => {
     });
     const response = await upload({ bodies: [{ numero: "FT 1" }, { numero: "FT 2" }] });
     expect(response.status).toBe(502);
-    expect(client.rpc.mock.calls.map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
+    expect(dataRpcCalls(client).map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
     expect(reportError).toHaveBeenCalledOnce();
     const message = String((reportError.mock.calls[0]![0] as Error).message);
     expect(message).toMatch(/[0-9a-f-]{36}/);
@@ -438,7 +440,7 @@ describe("failures after the file is accepted", () => {
     });
     const response = await upload({ bodies: [{ numero: "FT 1" }, { numero: "FT 2" }] });
     expect(response.status).toBe(502);
-    expect(client.rpc.mock.calls.map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
+    expect(dataRpcCalls(client).map((c) => c[0])).toEqual(["invoice_xml_precheck"]);
     expect(reportError).toHaveBeenCalledOnce();
     const message = String((reportError.mock.calls[0]![0] as Error).message);
     expect(message).toMatch(
@@ -575,7 +577,7 @@ describe("limits and roles", () => {
     expect(response.status).toBe(429);
     expect((await response.json()).error.code).toBe("rate_limited");
     expect(client.storage.upload).not.toHaveBeenCalled();
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it("lets one body through at 59, refuses at 60 before reading the file", async () => {
@@ -583,7 +585,7 @@ describe("limits and roles", () => {
     expect((await upload()).status).toBe(201);
     as("owner", { count: MAX_UPLOADS_PER_HOUR });
     expect((await upload()).status).toBe(429);
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it.each(["waiter", "chef"])("answers 403 for a %s with no work done", async (role) => {
@@ -591,7 +593,7 @@ describe("limits and roles", () => {
     expect((await upload()).status).toBe(403);
     expect(client.from).not.toHaveBeenCalled();
     expect(client.storage.upload).not.toHaveBeenCalled();
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it("leaves the PDF path as it was: 202 and the old reply", async () => {
@@ -606,7 +608,7 @@ describe("limits and roles", () => {
     );
     expect(response.status).toBe(202);
     expect(Object.keys(await response.json())).toEqual(["invoice"]);
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 });
 

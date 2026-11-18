@@ -59,6 +59,7 @@ const apiJson = vi.fn((path: string, init?: { method?: string; body?: unknown })
         role: "owner",
       },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     });
   }
   if (init?.method === "PATCH") {
@@ -80,6 +81,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
 import IngredientsPage from "@/app/(owner)/anagrafiche/ingredienti/page";
 import LocationsPage from "@/app/(owner)/anagrafiche/ubicazioni/page";
 import SupplierPage from "@/app/(owner)/anagrafiche/fornitori/[id]/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

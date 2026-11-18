@@ -1,32 +1,40 @@
-import { VENUE_TIME_ZONE } from "@/lib/time/format";
+import { currentVenueSettings } from "@/lib/venue/current";
 
-const yearFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: VENUE_TIME_ZONE,
-  year: "numeric",
-});
+const storeZone = (): string => currentVenueSettings().timeZone;
 
-/** Calendar year of an instant in venue time (Europe/Rome), e.g. for storage folders. */
-export function venueYear(instant: Date): number {
+const yearFormatters = new Map<string, Intl.DateTimeFormat>();
+const dateFormatters = new Map<string, Intl.DateTimeFormat>();
+
+function cached(
+  cache: Map<string, Intl.DateTimeFormat>,
+  zone: string,
+  options: Intl.DateTimeFormatOptions,
+): Intl.DateTimeFormat {
+  let formatter = cache.get(zone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", { timeZone: zone, ...options });
+    cache.set(zone, formatter);
+  }
+  return formatter;
+}
+
+/** Calendar year of an instant in the venue's zone (Europe/Rome for tenant #1), e.g. for storage folders. */
+export function venueYear(instant: Date, zone: string = storeZone()): number {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("venueYear: invalid date");
   }
-  return Number(yearFormatter.format(instant));
+  return Number(cached(yearFormatters, zone, { year: "numeric" }).format(instant));
 }
 
-const dateFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: VENUE_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-/** The calendar date ("2026-10-26") of an instant in venue time (Europe/Rome). */
-export function venueDate(instant: Date): string {
+/** The calendar date ("2026-10-26") of an instant in the venue's zone. */
+export function venueDate(instant: Date, zone: string = storeZone()): string {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("venueDate: invalid date");
   }
   const parts = Object.fromEntries(
-    dateFormatter.formatToParts(instant).map((part) => [part.type, part.value]),
+    cached(dateFormatters, zone, { year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(instant)
+      .map((part) => [part.type, part.value]),
   );
   return `${parts.year}-${parts.month}-${parts.day}`;
 }

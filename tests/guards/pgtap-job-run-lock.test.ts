@@ -8,8 +8,12 @@ import { describe, expect, it } from "vitest";
 // app.job_run takes `lock table app.job_run in share row exclusive mode` right after `begin;`: other sessions' inserts wait until the
 // file rolls back, and reads are unaffected. A file that only calls app.job_run_begin/_end (a writer that counts nothing) is not a
 // reader. Comment lines are ignored.
+// The lock alone is not enough (main CI run 44330126035, #183): the cron row can be COMMITTED just before the file starts (alert-rules at
+// 15:00:00, 046 at 15:00:12), and the file counts every row. So the second statement is `delete from app.job_run;`: the file starts from
+// an empty table inside its own transaction, and the rollback puts every row back. No foreign key points at app.job_run.
 const DIR = join(__dirname, "..", "..", "supabase", "tests", "database");
 const LOCK = "lock table app.job_run in share row exclusive mode;";
+const CLEAN = "delete from app.job_run;";
 const READS = /\bapp\.job_run\b/;
 
 /** Why a pgTAP file's text breaks the rule, or null when it keeps it. */
@@ -29,6 +33,11 @@ export function jobRunLockProblem(text: string): string | null {
     .slice(begin + 1, lock)
     .filter((l) => l.trim() !== "" && !l.trimStart().startsWith("--"));
   if (between.length > 0) return "the lock line must be the first statement after `begin;`";
+  const next = lines.findIndex(
+    (l, i) => i > lock && l.trim() !== "" && !l.trimStart().startsWith("--"),
+  );
+  if (next < 0 || lines[next]!.trim() !== CLEAN)
+    return "the statement right after the lock must be `delete from app.job_run;` (a cron row committed before the file started)";
   return null;
 }
 
@@ -76,10 +85,22 @@ describe("pgTAP files that read app.job_run lock it first", () => {
         /first statement/,
       );
     });
-    it("the lock right after begin passes, with comments in between", () => {
+    it("the lock then the clean slate, right after begin, passes, with comments in between", () => {
       expect(
-        jobRunLockProblem(`begin;\n-- why\n${LOCK}\nselect count(*) from app.job_run;\n`),
+        jobRunLockProblem(
+          `begin;\n-- why\n${LOCK}\n-- and why\n${CLEAN}\nselect count(*) from app.job_run;\n`,
+        ),
       ).toBeNull();
+    });
+    it("the lock without the clean slate right after it fails (a row committed before the file started)", () => {
+      expect(jobRunLockProblem(`begin;\n${LOCK}\nselect count(*) from app.job_run;\n`)).toMatch(
+        /delete from app\.job_run/,
+      );
+      expect(
+        jobRunLockProblem(
+          `begin;\n${LOCK}\nselect 1;\n${CLEAN}\nselect count(*) from app.job_run;\n`,
+        ),
+      ).toMatch(/right after the lock/);
     });
   });
 });

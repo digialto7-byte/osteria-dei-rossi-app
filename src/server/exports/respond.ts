@@ -17,12 +17,13 @@ export function csvResponse<Q, O, R>(
   output: O,
   role: ExportRole,
   timingHeader: string,
+  zone: string,
 ): Response {
-  return new Response(renderCsv(table, output, role), {
+  return new Response(renderCsv(table, output, role, zone), {
     status: 200,
     headers: {
       "content-type": "text/csv; charset=utf-8",
-      "content-disposition": `attachment; filename="${csvFileName(table.slug, table.range(output))}"`,
+      "content-disposition": `attachment; filename="${csvFileName(table.slug, table.range(output, zone))}"`,
       "server-timing": timingHeader,
     },
   });

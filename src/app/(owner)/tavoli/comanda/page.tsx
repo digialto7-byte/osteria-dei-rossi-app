@@ -18,6 +18,7 @@ import { splitErrorText } from "@/lib/bill/bill-view";
 import {
   closeBlock,
   closeBodyFrom,
+  closeOptions,
   EMPTY_CLOSE_FORM,
   queuedCount,
   type CloseForm,
@@ -70,7 +71,8 @@ function OrderScreen({
 }) {
   const sync = useSyncView();
   const online = useOnline();
-  const me = useMe().me;
+  const { me, status: meStatus } = useMe();
+  const closeChoices = closeOptions(me);
   const [menu, setMenu] = useState<ServiceMenu | null>(null);
   const [view, setView] = useState<OrderView | null>(null);
   const [cachedAt, setCachedAt] = useState<string | null>(null);
@@ -537,8 +539,16 @@ function OrderScreen({
                   error={splitError}
                 />
               )}
-              {closeOpen && !bill.closed && (
+              {closeOpen && !bill.closed && closeChoices === null && meStatus === "loading" && (
+                <Muted>{t("common.loading")}</Muted>
+              )}
+              {closeOpen && !bill.closed && closeChoices === null && meStatus !== "loading" && (
+                <ErrorAlert message={t("bill.close.settingsMissing")} />
+              )}
+              {closeOpen && !bill.closed && closeChoices !== null && (
                 <CloseSheet
+                  receiptTypes={closeChoices.receiptTypes}
+                  paymentTypes={closeChoices.paymentTypes}
                   total={seen?.total ?? bill.total}
                   changedTotal={billChanged ? bill.total : null}
                   onConfirmChange={() => {

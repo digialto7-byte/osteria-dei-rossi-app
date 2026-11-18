@@ -6,6 +6,7 @@ import {
   type ClaimedMail,
 } from "@/server/reservations/mail/render";
 import { messages } from "@/lib/i18n";
+import { INTL_LOCALE } from "@/lib/i18n/locale";
 
 // Reservations plan §5 B9: the e-mail texts. Fake data only. A claimed row's date and time are already the venue's local wall time.
 const LINK_KEY = "test-link-key-0123456789-abcdefghij";
@@ -101,6 +102,29 @@ describe("renderReservationMail", () => {
       "ven 2 luglio 2027, 21:30",
     );
   });
+
+  // SP1 step 12 (H10): the same on both clock-change days, in both locales.
+  it.each([
+    ["2026-03-29", "it", "dom 29 marzo 2026, 20:00"],
+    ["2026-03-29", "en", "Sun, 29 March 2026, 20:00"],
+    ["2026-10-25", "it", "dom 25 ottobre 2026, 20:00"],
+    ["2026-10-25", "en", "Sun, 25 October 2026, 20:00"],
+  ] as const)(
+    "writes %s in %s on a DST day exactly as %j, as with the old Rome zone",
+    (date, locale, expected) => {
+      const text = render({ date, locale }).text;
+      expect(text).toContain(expected);
+      // The rendering before SP1 (Europe/Rome on the noon-UTC instant) plus the time: the same string.
+      const before = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+        weekday: "short",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Europe/Rome",
+      }).format(new Date(`${date}T12:00:00Z`));
+      expect(text).toContain(`${before}, 20:00`);
+    },
+  );
 
   it("shows the party and the service, with a singular", () => {
     expect(render().text).toContain("4 persone");

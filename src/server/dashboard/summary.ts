@@ -11,12 +11,14 @@ const unavailable = () =>
   new ApiError(500, "dashboard_unavailable", "Il cruscotto non è disponibile. Riprova tra poco.");
 
 /**
- * The owner's or admin's dashboard: ONE database call, then the strict parse of its document, the rendering of the
+ * The owner's or admin's dashboard: ONE data call (`dashboard_summary`; the route also reads the tenant's zone once, through the
+ * memoised `tenant_settings` read, for the alert times: two RPCs in all), then the strict parse of its document, the rendering of the
  * alerts, and the strict parse of the answer. Logs carry codes only, never a message, a path or a value.
  */
 export async function dashboardSummary(
   supabase: SupabaseClient,
   role: AppRole,
+  zone: string,
   locale: Locale = DEFAULT_LOCALE,
 ): Promise<DashboardOutput> {
   const { data, error } = await supabase.rpc("dashboard_summary");
@@ -32,7 +34,7 @@ export async function dashboardSummary(
     reportError(new Error("dashboard_summary document rejected"));
     throw unavailable();
   }
-  const output = dashboardOutput.safeParse(renderDashboard(sql.data, locale));
+  const output = dashboardOutput.safeParse(renderDashboard(sql.data, locale, zone));
   if (!output.success) {
     reportError(new Error("dashboard output rejected"));
     throw unavailable();

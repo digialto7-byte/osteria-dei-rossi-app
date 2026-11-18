@@ -1,9 +1,10 @@
+import { currentVenueSettings } from "@/lib/venue/current";
 import { formatCount } from "@/lib/batches/batch-view";
 import { t, tn } from "@/lib/i18n";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { dayAndMonth } from "@/lib/reports/report-view";
 import { formatStockQty } from "@/lib/stock/stock-view";
-import { VENUE_TIME_ZONE, formatTime } from "@/lib/time/format";
+import { formatTime } from "@/lib/time/format";
 import type { QuantityUnit } from "@/lib/units/convert";
 
 export { canTrace } from "./trace-access";
@@ -20,21 +21,23 @@ export const lineHref = (lineId: string) => `/tracciabilita/piatto/${lineId}`;
 export const formatShortDate = (isoDate: string, locale: Locale = DEFAULT_LOCALE): string =>
   dayAndMonth(isoDate, locale);
 
-const dateTimeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+const dateTimeFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /** "13 nov, 12:40": an instant as a short day and the clock time in Europe/Rome. */
 export function formatShortDateTime(instant: string, locale: Locale = DEFAULT_LOCALE): string {
-  let formatter = dateTimeFormatters.get(locale);
+  const zone = currentVenueSettings().timeZone;
+  const key = `${locale}|${zone}`;
+  let formatter = dateTimeFormatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       day: "numeric",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
     });
-    dateTimeFormatters.set(locale, formatter);
+    dateTimeFormatters.set(key, formatter);
   }
   const parts = formatter.formatToParts(new Date(instant));
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";

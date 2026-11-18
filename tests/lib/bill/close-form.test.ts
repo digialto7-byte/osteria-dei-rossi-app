@@ -5,10 +5,12 @@ import {
   closeBlockText,
   closeBodyFrom,
   closeButtonLabel,
+  closeOptions,
   EMPTY_CLOSE_FORM,
 } from "@/lib/bill/close-form";
 import type { OutboxOp } from "@/lib/sync/types";
 import { BIDS, TOKEN } from "../../helpers/bill-data";
+import { ME_SETTINGS } from "../../helpers/me-data";
 
 const op = (sessionId: string): OutboxOp => ({ scope: { sessionId } }) as OutboxOp;
 const view = (state: string, ops: OutboxOp[] = []) =>
@@ -102,5 +104,25 @@ describe("close form", () => {
   it("builds no body while the form is incomplete", () => {
     expect(closeBodyFrom(EMPTY_CLOSE_FORM, TOKEN)).toBeNull();
     expect(closeBodyFrom({ ...filled, paymentType: null }, TOKEN)).toBeNull();
+  });
+});
+
+// SP1 step 10. Lead ruling 2026-11-18 (Rule B): no silent settings defaults. Without settings there are no options, never the catalogue.
+describe("closeOptions", () => {
+  it("closeOptions(me) with receiptTypes ['scontrino'] offers only scontrino", () => {
+    const options = closeOptions({ settings: { ...ME_SETTINGS, receiptTypes: ["scontrino"] } });
+    expect(options).toEqual({
+      receiptTypes: ["scontrino"],
+      paymentTypes: ["cash", "card", "other"],
+    });
+  });
+
+  it("keeps the tenant's order of the payments", () => {
+    const options = closeOptions({ settings: { ...ME_SETTINGS, paymentTypes: ["card", "cash"] } });
+    expect(options?.paymentTypes).toEqual(["card", "cash"]);
+  });
+
+  it("without settings (no answer from /api/me yet, or an error) there are no options, not the catalogue", () => {
+    expect(closeOptions(null)).toBeNull();
   });
 });

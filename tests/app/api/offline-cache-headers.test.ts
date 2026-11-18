@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ME_SETTINGS } from "../../helpers/me-data";
 import {
   claimsFor,
   fakeSupabase,
@@ -40,7 +41,7 @@ interface Read {
 const READS: Record<string, Read> = {
   "/api/me": {
     call: () => me.GET(new Request("http://localhost:3000/api/me")),
-    options: { meRow: ME_ROW },
+    options: { meRow: ME_ROW, rpc: { tenant_settings: [ok(ME_SETTINGS)] } },
   },
   "/api/menu": {
     call: () => menu.GET(new Request("http://localhost:3000/api/menu")),
@@ -136,14 +137,22 @@ describe.each(Object.entries(READS))("GET %s by role", (path, read) => {
 // chef is a chef here at once, and the other way round.
 describe("GET /api/me when the token and the row disagree", () => {
   it("a waiter token whose row now says chef gets no header", async () => {
-    client = fakeSupabase({ claims: claimsFor("waiter"), meRow: { ...ME_ROW, role: "chef" } });
+    client = fakeSupabase({
+      claims: claimsFor("waiter"),
+      meRow: { ...ME_ROW, role: "chef" },
+      rpc: { tenant_settings: [ok(ME_SETTINGS)] },
+    });
     const response = await READS["/api/me"]!.call();
     expect(response.status).toBe(200);
     expect(response.headers.has(HEADER)).toBe(false);
   });
 
   it("a chef token whose row now says waiter gets the header", async () => {
-    client = fakeSupabase({ claims: claimsFor("chef"), meRow: { ...ME_ROW, role: "waiter" } });
+    client = fakeSupabase({
+      claims: claimsFor("chef"),
+      meRow: { ...ME_ROW, role: "waiter" },
+      rpc: { tenant_settings: [ok(ME_SETTINGS)] },
+    });
     const response = await READS["/api/me"]!.call();
     expect(response.status).toBe(200);
     expect(response.headers.get(HEADER)).toBe("1");

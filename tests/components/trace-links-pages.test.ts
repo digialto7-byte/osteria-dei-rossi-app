@@ -14,6 +14,7 @@ const apiJson = vi.fn((path: string) => {
     return ok({
       user: { id: "u", displayName: "Utente Demo", role },
       tenant: { id: "t", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     });
   if (path.startsWith("/api/batches/")) return ok(BATCH_DETAIL);
   if (path === "/api/locations") return ok({ locations: [] });
@@ -34,6 +35,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 
 import BatchPage from "@/app/(owner)/produzione/[id]/page";
 import StockPage from "@/app/(owner)/magazzino/[ingredientId]/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

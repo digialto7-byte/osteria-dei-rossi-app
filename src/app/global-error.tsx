@@ -1,6 +1,7 @@
 "use client";
 
 import { t } from "@/lib/i18n";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 
 // Next.js 16 pre-renders this as /_global-error, its fallback for a server error, and it must draw its own <html> and
 // <body>. Its scripts carry no nonce, so the nonce policy blocks them (it fails closed, ADR-028): everything the person
@@ -13,7 +14,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   return (
-    <html lang="it">
+    <html lang={DEFAULT_LOCALE}>
       <body
         style={{
           fontFamily: "system-ui, sans-serif",

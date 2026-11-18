@@ -23,7 +23,7 @@ import { adminSql, ownerSql, purchaseDueAlert } from "../fixtures/dashboard-sql"
 
 type Tiles = OwnerDashboard["tiles"];
 const fresh = (): Tiles => {
-  const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+  const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
   if (out.role !== "owner") throw new Error("owner expected");
   return out.tiles;
 };
@@ -331,6 +331,7 @@ describe("content", () => {
         },
       }),
       "it",
+      "Europe/Rome",
     );
     if (seen.role !== "owner") throw new Error("owner expected");
     const unseen = html(createElement(TodayListsTile, { tile: t.todayLists }));
@@ -739,7 +740,7 @@ describe("collapsed tiles (M25b)", () => {
   });
 
   it("the chef-facing rule holds: collapsed tiles of the admin carry no owner-only key", () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(out.role).toBe("admin");
     const markup = collapsedHtml(createElement(DashboardTiles, { data: out }));
     const shown = [...markup.matchAll(/data-tile="([^"]+)"/g)].map((m) => m[1]);

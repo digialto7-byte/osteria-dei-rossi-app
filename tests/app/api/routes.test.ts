@@ -6,6 +6,7 @@ import {
   OWNER_CLAIMS,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
+import { ME_SETTINGS } from "../../helpers/me-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -44,7 +45,11 @@ const ME_ROW = {
 
 beforeEach(() => {
   floor.sleeps.length = 0;
-  client = fakeSupabase({ claims: OWNER_CLAIMS, meRow: ME_ROW });
+  client = fakeSupabase({
+    claims: OWNER_CLAIMS,
+    meRow: ME_ROW,
+    rpc: { tenant_settings: [{ data: ME_SETTINGS, error: null }] },
+  });
 });
 
 describe("GET /api/health", () => {
@@ -63,6 +68,7 @@ describe("GET /api/me", () => {
     expect(await response.json()).toEqual({
       user: { id: ME_ROW.id, displayName: "Titolare Demo", role: "owner" },
       tenant: { id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", isDemo: false },
+      settings: ME_SETTINGS, // re-pinned on purpose by SP1 (step 9): /api/me gains `settings`
     });
     expect(client.query.eq).toHaveBeenCalledWith("auth_id", OWNER_CLAIMS.sub);
   });
@@ -71,6 +77,7 @@ describe("GET /api/me", () => {
     client = fakeSupabase({
       claims: OWNER_CLAIMS,
       meRow: { ...ME_ROW, tenant: { ...ME_ROW.tenant, demo_data_since: "2026-10-28T10:00:00Z" } },
+      rpc: { tenant_settings: [{ data: ME_SETTINGS, error: null }] },
     });
     const json = await (await me.GET(new Request(`${BASE}/api/me`))).json();
     expect(json.tenant).toEqual({ id: OWNER_CLAIMS.tenant_id, name: "Osteria Demo", isDemo: true });
@@ -99,7 +106,11 @@ describe("GET /api/me", () => {
   });
 
   it("is available to every role, waiter included", async () => {
-    client = fakeSupabase({ claims: { ...OWNER_CLAIMS, app_role: "waiter" }, meRow: ME_ROW });
+    client = fakeSupabase({
+      claims: { ...OWNER_CLAIMS, app_role: "waiter" },
+      meRow: ME_ROW,
+      rpc: { tenant_settings: [{ data: ME_SETTINGS, error: null }] },
+    });
     expect((await me.GET(new Request(`${BASE}/api/me`))).status).toBe(200);
   });
 });

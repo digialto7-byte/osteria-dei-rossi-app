@@ -7,7 +7,8 @@ import { adminSql, ING_1, ownerSql, purchaseDueAlert, SUP_1 } from "../../fixtur
 const reportError = vi.fn();
 vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => reportError(e) }));
 
-const owner = (doc = ownerSql()) => renderDashboard(dashboardSqlSchema.parse(doc), "it");
+const owner = (doc = ownerSql()) =>
+  renderDashboard(dashboardSqlSchema.parse(doc), "it", "Europe/Rome");
 
 beforeEach(() => reportError.mockClear());
 
@@ -38,7 +39,7 @@ describe("renderDashboard", () => {
       raw_lot: new Map<string, string>(),
       batch: new Map<string, string>(),
     };
-    const expected = toAlertItem(row, "it", names);
+    const expected = toAlertItem(row, "it", "Europe/Rome", names);
     expect(out.tiles.todayLists.purchase[0]).toEqual(expected);
     expect(expected.title + expected.body).toContain("Farina (fixture)");
     expect(expected.title + expected.body).toContain("Fornitore Uno (demo)");
@@ -100,12 +101,12 @@ describe("renderDashboard", () => {
   it("owner: the today block has the alerts card first, from alertsOpen; admin: none", () => {
     const o = owner();
     expect(o.today.cards[0]).toEqual({ key: "alerts", count: 7, more: false, href: "/avvisi" });
-    const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(a.today.cards.map((c) => c.key)).not.toContain("alerts");
   });
 
   it("the admin output has no owner-only tile", () => {
-    const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const a = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(Object.keys(a.tiles).sort()).toEqual(
       ["foodCost", "payables", "plates", "pushList", "stockAtRisk", "waste", "yesterday"].sort(),
     );
@@ -135,7 +136,10 @@ describe("renderDashboard", () => {
   });
 
   it("the push list tile links to /spingere and carries the database's rows, count and expired stock", () => {
-    for (const out of [owner(), renderDashboard(dashboardSqlSchema.parse(adminSql()), "it")]) {
+    for (const out of [
+      owner(),
+      renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome"),
+    ]) {
       expect(out.tiles.pushList.href).toBe("/spingere");
       expect(out.tiles.pushList.count).toBe(3);
       expect(out.tiles.pushList.expired).toEqual({ batches: 1, lots: 0 });
@@ -166,7 +170,7 @@ describe("renderDashboard", () => {
   });
 
   it("the admin gets the same yesterday tile", () => {
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(admin.tiles.yesterday).toEqual(owner().tiles.yesterday);
   });
 });
