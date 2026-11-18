@@ -4,7 +4,7 @@
 -- Proof that it can fail: a temporary policy that lets B read A's ledger turns the first group red (see the mutation test at the end, which runs that policy inside a rolled-back block).
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(35);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -62,6 +62,13 @@ insert into public.price_history (tenant_id, ingredient_id, supplier_id, invoice
   ('11111111-1111-4111-8111-111111111111', '1a000000-0000-4000-8000-000000000001', '5a000000-0000-4000-8000-00000000005a', 'a2000000-0000-4000-8000-0000000000a1', 1, 'kg', '1998-11-03', 'a1000000-0000-4000-8000-00000000000a'),
   ('22222222-2222-4222-8222-222222222222', '1b000000-0000-4000-8000-000000000001', '5b000000-0000-4000-8000-00000000005b', 'a2000000-0000-4000-8000-0000000000b1', 1, 'kg', '1998-11-03', 'b1000000-0000-4000-8000-00000000000b');
 
+-- Step 5: A has one opening operation and one draft line (written by the table owner, as a fixture; the procedures arrive in steps 6 and 7).
+insert into public.stock_opening (id, tenant_id, location_id, effective_on, request_id, line_count, created_by) values
+  ('0e000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', '1998-11-02', 'e0000000-0000-4000-8000-0000000000a1', 1, 'a1000000-0000-4000-8000-00000000000a');
+insert into public.opening_draft_line (id, tenant_id, location_id, ingredient_id, qty, unit_cost, created_by, updated_by) values
+  ('0d000000-0000-4000-8000-0000000000a1', '11111111-1111-4111-8111-111111111111', '10000000-0000-4000-8000-0000000000a1', '1a000000-0000-4000-8000-000000000002', 3, 0.8,
+   'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+
 create function pg_temp.err(stmt text) returns text language plpgsql as $$
 declare
   state text;
@@ -116,6 +123,21 @@ select is((select count(*)::int from public.location where tenant_id = '11111111
 select is((select count(*)::int from public.v_stock_on_hand where tenant_id = '11111111-1111-4111-8111-111111111111'), 0, 'and none of A''s balances (v_stock_on_hand)');
 select is((select count(*)::int from public.audit_event where tenant_id = '11111111-1111-4111-8111-111111111111'), 0, 'and none of A''s audit rows');
 
+-- 1b. Step 5: B reads none of A's opening operations or draft lines (A's owner does: the control) ---------------------------------------------------------------------------------
+create function pg_temp.a_opening_rows() returns text language sql as $$
+  select (select count(*) from public.stock_opening where tenant_id = '11111111-1111-4111-8111-111111111111')
+      || '/' || (select count(*) from public.opening_draft_line where tenant_id = '11111111-1111-4111-8111-111111111111')
+$$;
+grant execute on function pg_temp.a_opening_rows() to authenticated;
+select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
+select is(pg_temp.a_opening_rows(), '1/1', 'control: A''s owner reads A''s opening operation and draft line');
+select pg_temp.as_b('owner');
+select is(pg_temp.a_opening_rows(), '0/0', 'B''s owner reads 0 of A''s opening operations and draft lines');
+select pg_temp.as_b('admin');
+select is(pg_temp.a_opening_rows(), '0/0', 'B''s admin reads 0 of them');
+select pg_temp.as_b('chef');
+select is(pg_temp.a_opening_rows(), '0/0', 'B''s chef reads 0 of them');
+
 -- 2. The stock procedures cannot be pointed at A ---------------------------------------------------------------------------------------------------------------------------
 select pg_temp.as_b('owner');
 select is(pg_temp.err($$ select public.post_waste('1a000000-0000-4000-8000-000000000001', 1, 'kg', 'spoilage', '10000000-0000-4000-8000-0000000000b1', null) $$), 'P0002 ingredient_not_found',
@@ -129,8 +151,30 @@ select is((select count(*)::int from public.stock_on_hand(null) where ingredient
 select is(pg_temp.err($$ select * from public.stock_movements('1a000000-0000-4000-8000-000000000001') $$), 'P0002 ingredient_not_found', 'B reads no movement of A''s ingredient through stock_movements (ingredient not found)');
 select is((select count(*)::int from public.ingredient_costs() where ingredient_id in ('1a000000-0000-4000-8000-000000000001', '1a000000-0000-4000-8000-000000000002')), 0, 'B''s ingredient costs list none of A''s ingredients');
 select is((select count(*)::int from public.ingredient_costs() where ingredient_id = '1b000000-0000-4000-8000-000000000001'), 1, 'control: they do list B''s own');
+-- Step 6: the draft procedures cannot be pointed at A.
+select pg_temp.as_b('owner');
+select is((select count(*)::int from jsonb_array_elements(public.opening_draft() -> 'locations') l
+            where l ->> 'locationId' = '10000000-0000-4000-8000-0000000000a1' or l -> 'lines' @> '[{"id": "0d000000-0000-4000-8000-0000000000a1"}]'), 0,
+  'B''s owner: opening_draft() shows none of A''s locations or draft lines');
+select is(pg_temp.err($$ select public.opening_draft_put('[{"id": "0d000000-0000-4000-8000-0000000000b9", "locationId": "10000000-0000-4000-8000-0000000000a1", "ingredientId": "1b000000-0000-4000-8000-000000000001", "qty": 1, "unitCostEur": 1}]') $$),
+  'P0001 location_not_found', 'B''s owner putting a draft line at A''s location: location_not_found');
+select is(pg_temp.err($$ select public.opening_draft_put('[{"id": "0d000000-0000-4000-8000-0000000000a1", "locationId": "10000000-0000-4000-8000-0000000000b1", "ingredientId": "1b000000-0000-4000-8000-000000000001", "qty": 1, "unitCostEur": 1}]') $$)
+       || ' / ' || pg_temp.err($$ select public.opening_draft_remove(array['0d000000-0000-4000-8000-0000000000a1']::uuid[]) $$)
+       || ' / ' || pg_temp.err($$ select public.opening_draft_clear('10000000-0000-4000-8000-0000000000a1') $$),
+  '22023 invalid_request / ok / P0001 location_not_found', 'B cannot take over A''s draft line id, its remove of that id removes nothing (next case), and it cannot clear A''s location');
+-- Step 7: the confirm and the reads cannot be pointed at A.
+select is(pg_temp.err($$ select public.post_opening_stock('10000000-0000-4000-8000-0000000000a1', '1998-11-02', 'e0000000-0000-4000-8000-0000000000b9',
+    '[{"id": "0d000000-0000-4000-8000-0000000000a1", "ingredientId": "1a000000-0000-4000-8000-000000000002", "qty": 3, "unitCostEur": 0.8}]') $$),
+  'P0001 location_not_found', 'B''s owner confirming A''s draft at A''s location: location_not_found');
+select is(pg_temp.err($$ select public.post_opening_stock('10000000-0000-4000-8000-0000000000b1', '1998-11-02', 'e0000000-0000-4000-8000-0000000000a1',
+    '[{"id": "0d000000-0000-4000-8000-0000000000b9", "ingredientId": "1b000000-0000-4000-8000-000000000002", "qty": 3, "unitCostEur": 0.8}]') $$),
+  'P0001 opening_draft_changed', 'B reusing A''s request id at B''s location is not a replay of A''s operation (B''s own, empty draft answers)');
+select is(pg_temp.err($$ select public.opening_history('10000000-0000-4000-8000-0000000000a1') $$), 'P0001 location_not_found', 'B''s history of A''s location: location_not_found');
+select is(public.opening_stock_summary(), '{"booked": false, "draftLines": 0}'::jsonb, 'B''s summary counts none of A''s operations or draft lines');
 reset role;
 select is((select count(*)::int from public.stock_movement where tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'nothing was written to A''s ledger by any of the refused calls');
+select is((select count(*)::int from public.stock_opening), 1, 'and no operation was booked by B (A''s one fixture row only)');
+select is((select count(*)::int from public.opening_draft_line where tenant_id = '11111111-1111-4111-8111-111111111111'), 1, 'and A''s draft line is still there');
 
 -- 3. Mutation: a policy that lets B read A's ledger turns the first group red. The block is rolled back; the ledger is not touched ----------------------------------------------
 create function pg_temp.mutated_a_rows() returns text language plpgsql as $$

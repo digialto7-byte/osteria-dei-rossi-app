@@ -37,6 +37,17 @@ insert into p27_objs values
 -- Step 4 (20261206210100_stock_movement_opening_shape.sql): the shape CHECK of an opening ledger row.
 insert into p27_objs values
   ('constraint', 'stock_movement.stock_movement_opening_ck');
+-- Step 5 (20261206210200_stock_opening_tables.sql): the operation and draft tables (their columns, constraints, triggers, policies and indexes go with the table names).
+insert into p27_objs values
+  ('table', 'stock_opening'), ('table', 'opening_draft_line');
+-- Step 6 (20261206210300_stock_opening_draft.sql): the helpers, the cut-off and the draft procedures.
+insert into p27_objs values
+  ('app_fn', 'require_opening_writer'), ('app_fn', 'opening_max_lines'), ('app_fn', 'opening_location_state'), ('app_fn', 'opening_check_bookable'),
+  ('app_fn', 'opening_check_date'), ('app_fn', 'opening_line_values'), ('app_fn', 'opening_draft_line_json'),
+  ('public_fn', 'opening_draft'), ('public_fn', 'opening_draft_put'), ('public_fn', 'opening_draft_remove'), ('public_fn', 'opening_draft_clear');
+-- Step 7 (20261206210400_post_opening_stock.sql): the confirm and the two reads of the screen.
+insert into p27_objs values
+  ('public_fn', 'post_opening_stock'), ('public_fn', 'opening_history'), ('public_fn', 'opening_stock_summary');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -85,7 +96,7 @@ insert into unchanged values
   ('app.reservations_day_json(uuid, text, date, timestamp with time zone)', '1352702ca1e2e04db40103c899829602'),
   ('app.kpi_sales_lines(uuid, date, date)', '062abe6d320266baa73fd790a495bb74'),
   ('app.order_line_portions(numeric, integer, integer)', 'd2aa06dd9d58279d904107b6bf0f9bb4'),
-  ('app.demo_purge_tables()', '5a0d9d6ebf852c5955d1b935bbcbfbe8'),
+  ('app.demo_purge_tables()', '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */),
   ('app.tenant_has_operational_data(uuid)', '79f31c13b79b96ff0cecd8b38a3507b5'),
   ('app.payload_money_keys(jsonb)', '028401e1ca05beeced0dc1a7fb66572f'),
   ('app.tenant_id()', '9120a54efc015457eae0667af6f4fe60'),
@@ -95,8 +106,8 @@ select is((select count(*)::int from unchanged u where to_regprocedure(u.sig) is
 select is((select string_agg(u.sig, ', ' order by u.sig) from unchanged u where md5(pg_get_functiondef(to_regprocedure(u.sig))) <> u.md5), null,
           'each equals its value on main (demo_purge_tables: its value after P2-7 S3, which adds invoice_vat_summary to the list): approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
 -- Re-pinned on purpose by P2-7 S3 (was 244dbb02cefe9a6ea25146717a2bcbb4 and 58 names on main): invoice_vat_summary joins the list right before invoice (ADR-018; pgTAP 362 checks the position).
-select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '5a0d9d6ebf852c5955d1b935bbcbfbe8', 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
-select is(cardinality(app.demo_purge_tables()), 59, 'and the purge list holds 59 names (main''s 58 and the new table)');
+select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
+select is(cardinality(app.demo_purge_tables()), 61 /* re-pinned on purpose by opening stock (step 5; was 59) */, 'and the purge list holds 61 names (main''s 58, the P2-7 table and opening stock''s two)');
 
 -- 2. The function catalogue: main's plus the 22 new functions -----------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p

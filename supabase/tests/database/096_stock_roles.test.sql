@@ -310,7 +310,7 @@ select is_empty($$ select a.attname from pg_attribute a where a.attrelid = 'publ
     and a.attname ~* '(cost|margin|price|prezz|gp_pct|_eur$|amount|total|importo)' $$, 'no readable raw_lot column has a cost-like name');
 select is((select array_agg(c.relname::text order by c.relname::text collate "C") from pg_class c
             where c.relnamespace = 'public'::regnamespace and c.relkind in ('r', 'p', 'v', 'm') and c.relname ~ '(stock|lot)'),
-  array['raw_lot', 'stock_movement', 'v_stock_on_hand'], 'M12 added no relation: the stock relations are the three of M5');
+  array['raw_lot', 'stock_movement', 'stock_opening', 'v_stock_on_hand'] /* on purpose by opening stock (step 5; was {raw_lot,stock_movement,v_stock_on_hand}) */, 'M12 added no relation: the stock relations are the three of M5');
 -- What the chef is handed carries no cost key and no euro sign.
 select pg_temp.as_chef();
 create temporary table chef_answers (k text, r jsonb);

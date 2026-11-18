@@ -102,6 +102,11 @@ begin
       values (pg_temp.id(p_tag, 'mov' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'receipt', 2, 5, 'invoice_line', pg_temp.id(p_tag, 'line' || k), '1998-10-01', v_owner);
     insert into public.stock_movement (id, tenant_id, ingredient_id, raw_lot_id, location_id, type, qty, unit_cost, ref_type, ref_id, effective_on, created_by)
       values (pg_temp.id(p_tag, 'use' || k), p_tenant, pg_temp.id(p_tag, 'ing' || k), pg_temp.id(p_tag, 'lot' || k), pg_temp.id(p_tag, 'loc' || k), 'consumption', -1, 5, 'batch', pg_temp.id(p_tag, 'bat' || k), '1998-10-02', v_owner);
+    -- opening stock (step 5 of docs/plans/2026-11-18-opening-stock.md): one operation and one draft line per location, so both tables have two rows per tenant
+    insert into public.stock_opening (id, tenant_id, location_id, effective_on, request_id, line_count, created_by)
+      values (pg_temp.id(p_tag, 'opn' || k), p_tenant, pg_temp.id(p_tag, 'loc' || k), '1998-09-30', pg_temp.id(p_tag, 'oreq' || k), 1, v_owner);
+    insert into public.opening_draft_line (id, tenant_id, location_id, ingredient_id, qty, unit_cost, created_by, updated_by)
+      values (pg_temp.id(p_tag, 'odl' || k), p_tenant, pg_temp.id(p_tag, 'loc' || k), pg_temp.id(p_tag, 'ing' || k), 1, 0.8, v_owner, v_owner);
 
     -- counts
     insert into public.count_session (id, tenant_id, location_id, type, started_by) values (pg_temp.id(p_tag, 'cs' || k), p_tenant, pg_temp.id(p_tag, 'loc' || k), 'daily', v_owner);
