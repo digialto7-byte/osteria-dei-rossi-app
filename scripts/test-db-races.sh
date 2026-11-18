@@ -196,6 +196,20 @@
 #   kitchen-mark-vs-close-table, kitchen-mark-vs-fire-replay, kitchen-close-vs-close-table, kitchen-close-table-vs-close: see the comment above the cases at the end of this file.
 #   (M25c) services-save, override-vs-close, close-vs-override: see the comment above the cases at the end of this file.
 #   (reservations) resv_slot_limit, resv_accept_same_table, resv_seat_vs_close, resv_seat_vs_open_joined: see the comment above the cases at the end of this file.
+# Opening stock (docs/plans/2026-11-18-opening-stock.md section 5 step 8; migration 20261206210400: post_opening_stock locks the location's
+# draft rows FOR UPDATE, then the stock locks of its ingredients, and only then checks the cut-off and the date). Each case builds its own
+# stock ingredient with no stock at Cella, an owner's draft line of 25 kg at 0,80 there, and (cases 2 and 3) a monthly count:
+#   opening-double-confirm:  the owner confirms Cella's draft (request r1) and is parked; a second device confirms the same lines (request r2)
+#                            and waits for the draft row locks; after the first commits the second finds the draft gone and gets
+#                            opening_draft_changed. One operation, one movement; no deadlock.
+#   opening-vs-count-close:  a monthly count of Cella is open with the ingredient entered (the draft was written before it started). The
+#                            close is parked holding the stock lock; the owner's confirm waits for that lock, then finds the closed
+#                            monthly count and gets opening_location_counted: no opening row. (Checked once with a mutated copy of the
+#                            migrations in which the stock locks come after the cut-off check: the confirm no longer waits, reads the
+#                            count as still open and answers opening_count_open, so two checks of this case fail.)
+#   count-entry-vs-opening:  no count is open. The owner's confirm is parked after its cut-off check, holding the stock lock; the chef
+#                            starts a monthly count (it commits), then enters the ingredient and waits for the stock lock; after the
+#                            confirm commits, the line's expected_qty is 25 (the carico is in the snapshot, never counted twice).
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2900,6 +2914,79 @@ check "settings-vs-fk-insert: the switch-off commits" "$rc1" 0
 check "settings-vs-fk-insert: the insert did not wait (FOR KEY SHARE does not conflict with FOR NO KEY UPDATE)" "$s2_blocked" 0
 check "settings-vs-fk-insert: the insert commits" "$rc2" 0
 check "settings-vs-fk-insert: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+# Opening stock (step 8 of docs/plans/2026-11-18-opening-stock.md). A fixture per case, as the database owner: one stock ingredient with no stock
+# at Cella, and the owner's draft line of 25 kg at 0,80 there. The date of the carico is today's business date, or Cella's first receipt date if
+# that is earlier (the fixture's invoices), so the date rule never answers first.
+OP_ING=1a0e0000-0000-4000-8000-0000000000e1
+OP_LINE=0d0e0000-0000-4000-8000-0000000000e1
+OP_LINES="[{\"id\":\"$OP_LINE\",\"ingredientId\":\"$OP_ING\",\"qty\":25,\"unitCostEur\":0.8}]"
+opening_setup() { # opening_setup: the ingredient, the owner's draft at Cella, and OP_DATE
+  query "insert into public.ingredient (id, tenant_id, name, base_unit, is_stock) values ('$OP_ING', '$TENANT_A', 'Farina 00 carico (demo)', 'kg', true);" >/dev/null
+  as_run "$OWNER" "select public.opening_draft_put('[{\"id\":\"$OP_LINE\",\"locationId\":\"$CELLA\",\"ingredientId\":\"$OP_ING\",\"qty\":25,\"unitCostEur\":0.8}]'::jsonb);"
+  OP_DATE=$(query "select least(app.business_date('$TENANT_A', now()),
+                                coalesce((select min(effective_on) from public.stock_movement where location_id = '$CELLA' and type = 'receipt'), 'infinity'::date))")
+}
+opening_sql() { echo "select public.post_opening_stock('$CELLA', '$OP_DATE', '$1', '$OP_LINES'::jsonb);"; }
+opening_rows() { query "select (select count(*) from public.stock_opening) || '/' || (select count(*) from public.stock_movement where ingredient_id = '$OP_ING' and type = 'opening')"; }
+op_count_line_sql() { echo "select public.count_record_lines('$SID', '[{\"ingredient_id\":\"$OP_ING\",\"qty\":$1,\"unit\":\"kg\"}]'::jsonb);"; }
+
+CASE=opening-double-confirm
+fresh_db opening_double_confirm
+opening_setup
+two_sessions_as "$OWNER" "$(opening_sql e0e00000-0000-4000-8000-0000000000e1)" "$OWNER" "$(opening_sql e0e00000-0000-4000-8000-0000000000e2)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "opening-double-confirm: the first confirm commits" "$rc1" 0
+check "opening-double-confirm: the second waited for the draft row locks" "$s2_blocked" 1
+check "opening-double-confirm: and not for an advisory lock" "$s2_advisory" 0
+check "opening-double-confirm: the second fails with opening_draft_changed" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" opening_draft_changed)" yes
+check "opening-double-confirm: one operation, one movement" "$(opening_rows)" 1/1
+check "opening-double-confirm: the draft is empty" "$(query "select count(*) from public.opening_draft_line")" 0
+check "opening-double-confirm: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=opening-vs-count-close
+fresh_db opening_vs_count_close
+opening_setup
+as_run "$CHEF" "select public.count_start('monthly', '$CELLA');"
+SID=$(query "select id from public.count_session where status = 'open'")
+as_run "$CHEF" "$(op_count_line_sql 0)"
+two_sessions_as "$CHEF" "select public.count_close('$SID');" "$OWNER" "$(opening_sql e0e00000-0000-4000-8000-0000000000e3)"
+[ "$rc1" = 0 ] || cat "$WORK/s1.out" >&2
+check "opening-vs-count-close: the close commits" "$rc1" 0
+check "opening-vs-count-close: the confirm waited for the stock lock" "$s2_advisory" 1
+check "opening-vs-count-close: then it fails with opening_location_counted" "$([ "$rc2" != 0 ] && failed_with "$WORK/s2.out" opening_location_counted)" yes
+check "opening-vs-count-close: no opening row" "$(opening_rows)" 0/0
+check "opening-vs-count-close: the draft line is still there" "$(query "select count(*) from public.opening_draft_line")" 1
+check "opening-vs-count-close: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=count-entry-vs-opening
+fresh_db count_entry_vs_opening
+opening_setup
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $OWNER $(opening_sql e0e00000-0000-4000-8000-0000000000e4) $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+# The confirm has passed its cut-off check (no count was open) and holds the stock lock. The chef starts a count: it commits.
+as_run "$CHEF" "select public.count_start('monthly', '$CELLA');"
+SID=$(query "select id from public.count_session where status = 'open'")
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; $CHEF $(op_count_line_sql 25) commit;" >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+s2_advisory=$(query "select count(*) from pg_locks l join pg_stat_activity a on a.pid = l.pid where a.datname = '$DB' and a.application_name = 's2' and l.locktype = 'advisory' and not l.granted")
+query "insert into race.gate values (true)" >/dev/null
+rc1=0 rc2=0
+wait "$s1" || rc1=$?
+wait "$s2" || rc2=$?
+[ "$rc1$rc2" = 00 ] || cat "$WORK/s1.out" "$WORK/s2.out" >&2
+check "count-entry-vs-opening: the confirm commits" "$rc1" 0
+check "count-entry-vs-opening: the count line waited for the stock lock" "$s2_advisory" 1
+check "count-entry-vs-opening: then it commits" "$rc2" 0
+check "count-entry-vs-opening: its expected_qty is 25 (the carico is in the snapshot)" \
+  "$(query "select expected_qty from public.count_line where session_id = '$SID' and ingredient_id = '$OP_ING'")" 25.0000
+check "count-entry-vs-opening: one operation, one movement" "$(opening_rows)" 1/1
+check "count-entry-vs-opening: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
