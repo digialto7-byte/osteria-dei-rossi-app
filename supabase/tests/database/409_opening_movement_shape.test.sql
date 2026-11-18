@@ -2,7 +2,7 @@
 -- opening row yet; this file writes them as the table owner to prove the CHECK, the mirror guard and the append-only triggers. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(26);
+select plan(28);
 
 
 insert into auth.users (id, email) values ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test');
@@ -64,7 +64,26 @@ select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a2', 'opening', 2, null
 select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a3', 'opening', 2, 0, 'opening'), 'ok', 'unit_cost 0 is accepted (a typed 0,00 EUR is a statement, null is not)');
 -- Refused (23514, by the opening check itself).
 select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a4', 'opening', -1, 0.8, 'opening'), '23514 stock_movement_opening_ck', 'qty -1 without reverses_id is refused');
-select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a5', 'opening', 0, 0.8, 'opening'), '23514 stock_movement_opening_ck', 'qty 0 is refused (the opening check answers first; the ledger''s own stock_movement_qty_check also refuses it)');
+-- qty 0 breaks two CHECKs (the ledger's stock_movement_qty_check and the opening one), and which one Postgres reports first is not a contract. So: the row is refused by one of them,
+-- and, with stock_movement_qty_check dropped inside a block that is rolled back, the opening check refuses it on its own.
+select ok(pg_temp.put('0a000000-0000-4000-8000-0000000000a5', 'opening', 0, 0.8, 'opening') in ('23514 stock_movement_opening_ck', '23514 stock_movement_qty_check'),
+  'qty 0 is refused (23514, by the opening check or by the ledger''s own stock_movement_qty_check)');
+create function pg_temp.put_without_qty_check() returns text language plpgsql as $$
+declare
+  v text;
+begin
+  begin
+    alter table public.stock_movement drop constraint stock_movement_qty_check;
+    v := pg_temp.put('0a000000-0000-4000-8000-0000000000a5', 'opening', 0, 0.8, 'opening');
+    raise exception 'scenario_rollback' using errcode = 'RB001';
+  exception when sqlstate 'RB001' then
+    null;
+  end;
+  return v;
+end
+$$;
+select is(pg_temp.put_without_qty_check(), '23514 stock_movement_opening_ck', 'and without stock_movement_qty_check, the opening check alone refuses qty 0');
+select ok(exists (select 1 from pg_constraint where conname = 'stock_movement_qty_check' and conrelid = 'public.stock_movement'::regclass), 'stock_movement_qty_check is back (the block was rolled back)');
 select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a6', 'opening', 2, 0.8, 'opening', '10700000-0000-4000-8000-0000000000a1'), '23514 stock_movement_opening_ck', 'a row with a lot set is refused (carico stock is unlotted)');
 select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a7', 'opening', 2, 0.8, 'opening', null, 'spoilage'), '23514 stock_movement_opening_ck', 'a row with a reason code is refused');
 select is(pg_temp.put('0a000000-0000-4000-8000-0000000000a8', 'opening', 2, 0.8, 'manual'), '23514 stock_movement_opening_ck', 'ref_type manual is refused');

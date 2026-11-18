@@ -12,6 +12,8 @@
 -- Dispensa. The mutation block at the end proves the purchases pin can fail: one more received kilo changes its md5.
 begin;
 create extension if not exists pgtap with schema extensions;
+-- PR 1 review: the session time zone is fixed, so no pin can depend on the runner's zone (dates and times rendered as text, business dates).
+set local timezone = 'UTC';
 select plan(12);
 
 insert into auth.users (id, email) values
