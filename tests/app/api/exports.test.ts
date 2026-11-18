@@ -6,6 +6,7 @@ import {
   routeContext,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../helpers/fake-supabase";
 import {
   EXPORT_QUERIES,
@@ -135,7 +136,7 @@ describe("a successful export", () => {
 
   it("passes the parsed query on to the same RPC as the JSON endpoint", async () => {
     await get("kpis.csv", "?period=month&date=2026-10-15");
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(dataRpcCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("kpi_report", {
       p_period: "month",
       p_date: "2026-10-15",
@@ -149,7 +150,7 @@ describe("a successful export", () => {
     async (slug) => {
       const response = await get(`${slug}.csv`, EXPORT_QUERIES[slug]);
       expect(response.status).toBe(200);
-      expect(client.rpc).toHaveBeenCalledTimes(slug === "count-variance" ? 2 : 1);
+      expect(dataRpcCalls(client)).toHaveLength(slug === "count-variance" ? 2 : 1);
       expect(await firstBytes(response)).toEqual([0xef, 0xbb, 0xbf]);
       expect(response.headers.get("content-disposition")).toMatch(
         new RegExp(`^attachment; filename="report-${slug}-[0-9_-]+\\.csv"$`),

@@ -6,6 +6,8 @@ import { enforceMfaGate } from "@/server/auth/mfa-gate";
 import { t } from "@/lib/i18n";
 import { reportError } from "@/lib/observability/report";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import type { VenueSettings } from "@/lib/venue/settings";
+import { readTenantSettings } from "@/server/venue-settings/read";
 
 export const APP_ROLES = ["owner", "chef", "waiter", "admin"] as const;
 export type AppRole = (typeof APP_ROLES)[number];
@@ -57,6 +59,11 @@ export interface ApiContext<
   params: P extends z.ZodType ? z.infer<P> : undefined;
   session: SessionFor<A>;
   supabase: SupabaseClient;
+  /**
+   * The tenant's venue settings (zone, locale, currency, receipt and payment codes), read once per request on first use and never
+   * when unused. Server code passes `(await tenantSettings()).timeZone` to the formatters explicitly (SP1 plan §3.5).
+   */
+  tenantSettings: () => Promise<VenueSettings>;
   /** `performance.now()` when the request entered the wrapper and when its session check finished (Server-Timing, M18). */
   timing: { startedAt: number; authDoneAt: number };
 }
@@ -242,9 +249,11 @@ export function withApi<
       const authDoneAt = performance.now();
       const params = options.params ? await readParams(routeContext, options.params) : undefined;
       const body = options.body ? await readBody(request, options.body) : undefined;
+      let settings: Promise<VenueSettings> | null = null;
       response = await handler({
         request,
         supabase,
+        tenantSettings: () => (settings ??= readTenantSettings(supabase)),
         session: session as SessionFor<A>,
         body: body as ApiContext<A, S, P>["body"],
         params: params as ApiContext<A, S, P>["params"],

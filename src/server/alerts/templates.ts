@@ -23,13 +23,13 @@ export interface AlertFormatters {
   qty(qty: number, unit: QuantityUnit): string;
   /** A measured quantity with at least one decimal ("5,0 kg"), for readings and requirements (M16). */
   measuredQty(qty: number, unit: QuantityUnit): string;
-  /** The short weekday and clock time of an instant in Europe/Rome: "mar 11:00" / "Tue 11:00" (M16). */
+  /** The short weekday and clock time of an instant in the tenant's zone: "mar 11:00" / "Tue 11:00" (M16). */
   weekdayTime(iso: string): string;
   /** The short weekday of a calendar date: "gio" / "Thu" (M16). */
   weekday(isoDate: string): string;
   /** A calendar date (`<name>_date`, YYYY-MM-DD). */
   date(isoDate: string): string;
-  /** An instant (`<name>_at`, ISO with zone), shown in Europe/Rome. */
+  /** An instant (`<name>_at`, ISO with zone), shown in the tenant's zone. */
   instant(iso: string): string;
   /** A percentage given in percent units (`<name>_pct`): 77.7 -> "77,7 %". */
   pct(value: number): string;
@@ -37,6 +37,8 @@ export interface AlertFormatters {
   signedPct(value: number): string;
   /** The reader's locale, for a template that composes sentences from several messages. */
   locale: Locale;
+  /** The tenant's IANA zone, for a template that formats an instant itself. */
+  zone: string;
 }
 
 const MINUS = "\u2212";
@@ -60,18 +62,19 @@ function formatPct(value: number, locale: Locale, signed: boolean): string {
   return `${sign}${magnitude}${locale === "it" ? "\u00a0%" : "%"}`;
 }
 
-export function formattersFor(locale: Locale): AlertFormatters {
+export function formattersFor(locale: Locale, zone: string): AlertFormatters {
   return {
     eur: (amount) => formatEuro(amount, locale),
     qty: (qty, unit) => formatQty(qty, unit, locale),
     measuredQty: (qty, unit) => formatMeasuredQty(qty, unit, locale),
-    weekdayTime: (iso) => formatWeekdayTime(new Date(iso), locale),
+    weekdayTime: (iso) => formatWeekdayTime(new Date(iso), locale, zone),
     weekday: (isoDate) => formatWeekday(isoDate, locale),
     date: (isoDate) => formatCalendarDate(isoDate, locale),
-    instant: (iso) => formatDateTime(new Date(iso), locale),
+    instant: (iso) => formatDateTime(new Date(iso), locale, zone),
     pct: (value) => formatPct(value, locale, false),
     signedPct: (value) => formatPct(value, locale, true),
     locale,
+    zone,
   };
 }
 

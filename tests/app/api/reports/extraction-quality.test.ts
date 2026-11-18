@@ -4,6 +4,7 @@ import {
   fakeSupabase,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../../helpers/fake-supabase";
 import { dbError, ok } from "../../../helpers/review-data";
 
@@ -59,7 +60,7 @@ describe("GET /api/reports/extraction-quality", () => {
   it("defaults to the last 30 days ending today in Europe/Rome", async () => {
     const response = await get();
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(dataRpcCalls(client)).toHaveLength(1);
     // 23:30 UTC on 25 October is already 26 October in Rome (CET).
     expect(client.rpc).toHaveBeenCalledWith("extraction_quality", {
       p_from: "2026-09-27",
@@ -118,7 +119,7 @@ describe("GET /api/reports/extraction-quality", () => {
     const response = await get(query);
     expect(response.status).toBe(400);
     expect((await response.json()).error.code).toBe("invalid_request");
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it("maps a database range_too_long to 400", async () => {

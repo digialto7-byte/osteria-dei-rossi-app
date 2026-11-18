@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimsFor,
+  dataRpcCalls,
   fakeSupabase,
   type FakeResult,
   type FakeSupabase,
@@ -98,7 +99,7 @@ const get = (query = "", key = KEY) =>
     params: Promise.resolve({ key }),
   });
 const noQueries = () => {
-  expect(client.rpc).not.toHaveBeenCalled();
+  expect(dataRpcCalls(client)).toEqual([]); // the zone read (tenant_settings) is not a data read
   expect(client.from).not.toHaveBeenCalled();
 };
 const keysOf = (value: unknown): string[] =>

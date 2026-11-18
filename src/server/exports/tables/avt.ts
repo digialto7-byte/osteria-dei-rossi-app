@@ -26,5 +26,5 @@ export const avtExport = defineExport<AvtQuery, AvtOutput, AvtRow>({
     { header: "costo_unitario_eur", cell: (r) => cell.number(r.unitCostEur) },
     { header: "scostamento_eur", cell: (r) => cell.number(r.varianceEur) },
   ],
-  range: (output) => venueDate(new Date(output.count.closedAt)),
+  range: (output, zone) => venueDate(new Date(output.count.closedAt), zone),
 });

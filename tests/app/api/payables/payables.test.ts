@@ -6,6 +6,7 @@ import {
   routeContext,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../../helpers/fake-supabase";
 
 let client: FakeSupabase;
@@ -221,27 +222,35 @@ describe("PATCH /api/payables/:id", () => {
   it("calls set_payable_status once with the five arguments, then re-reads the detail", async () => {
     const response = await patch({ status: "scheduled", reason: "Pagamento concordato" });
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(2);
-    expect(client.rpc).toHaveBeenNthCalledWith(1, "set_payable_status", {
-      p_payable: ID,
-      p_status: "scheduled",
-      p_paid_on: null,
-      p_reason: "Pagamento concordato",
-      p_reversal: false,
-    });
-    expect(client.rpc).toHaveBeenNthCalledWith(2, "payable_detail", { p_payable: ID });
+    expect(dataRpcCalls(client)).toHaveLength(2);
+    expect(dataRpcCalls(client)).toEqual([
+      [
+        "set_payable_status",
+        {
+          p_payable: ID,
+          p_status: "scheduled",
+          p_paid_on: null,
+          p_reason: "Pagamento concordato",
+          p_reversal: false,
+        },
+      ],
+      ["payable_detail", { p_payable: ID }],
+    ]);
     expect(await response.json()).toEqual({ payable: DETAIL.payable, changed: true });
   });
 
   it("passes the paid date and the reversal flag", async () => {
     await patch({ status: "paid", paidOn: "2026-10-20" });
-    expect(client.rpc).toHaveBeenNthCalledWith(1, "set_payable_status", {
-      p_payable: ID,
-      p_status: "paid",
-      p_paid_on: "2026-10-20",
-      p_reason: null,
-      p_reversal: false,
-    });
+    expect(dataRpcCalls(client)[0]).toEqual([
+      "set_payable_status",
+      {
+        p_payable: ID,
+        p_status: "paid",
+        p_paid_on: "2026-10-20",
+        p_reason: null,
+        p_reversal: false,
+      },
+    ]);
     await patch({ status: "open", reversal: true, reason: "Errore" });
     expect(client.rpc).toHaveBeenCalledWith("set_payable_status", {
       p_payable: ID,

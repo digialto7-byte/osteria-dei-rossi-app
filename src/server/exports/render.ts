@@ -6,10 +6,12 @@ export function renderCsv<Q, O, R>(
   table: ExportTable<Q, O, R>,
   output: O,
   role: ExportRole,
+  zone: string,
 ): string {
   const columns = table.columns(role);
   return toCsv(
     columns.map((c) => c.header),
     table.rows(output).map((row) => columns.map((c) => c.cell(row))),
+    { zone },
   );
 }

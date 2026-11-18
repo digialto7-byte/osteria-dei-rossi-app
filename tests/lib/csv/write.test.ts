@@ -118,17 +118,25 @@ describe("formatCsvInstant (Europe/Rome)", () => {
     ["2026-12-31T23:30:00Z", "01/01/2027 00:30"],
     ["2026-11-04T19:00:59.999+00:00", "04/11/2026 20:00"],
   ])("%s -> %s", (iso, expected) => {
-    expect(formatCsvInstant(iso)).toBe(expected);
+    expect(formatCsvInstant(iso, "Europe/Rome")).toBe(expected);
+  });
+
+  it("writes the clock of the zone it is given, and toCsv passes the zone to its instant cells", () => {
+    expect(formatCsvInstant("2026-11-04T19:00:00Z", "Europe/Lisbon")).toBe("04/11/2026 19:00");
+    expect(formatCsvInstant("2026-11-04T19:00:00Z", "Europe/Rome")).toBe("04/11/2026 20:00");
+    const rows = [[cell.instant("2026-11-04T19:00:00Z")]];
+    expect(toCsv(["t"], rows, { zone: "Europe/Lisbon" })).toContain("04/11/2026 19:00");
+    expect(toCsv(["t"], rows, { zone: "Europe/Rome" })).toContain("04/11/2026 20:00");
   });
 
   it.each(["", "not a date", "2026-13-45T00:00:00Z"])("%j is refused", (input) => {
-    expect(() => formatCsvInstant(input)).toThrow(RangeError);
+    expect(() => formatCsvInstant(input, "Europe/Rome")).toThrow(RangeError);
   });
 });
 
 describe("toCsv", () => {
   it("starts with a BOM, ends every row with CRLF and has the header first", () => {
-    const csv = toCsv(["a", "b"], [[cell.text("x"), cell.number(1)]]);
+    const csv = toCsv(["a", "b"], [[cell.text("x"), cell.number(1)]], { zone: "Europe/Rome" });
     expect(csv.startsWith(BOM)).toBe(true);
     expect(csv).toBe(`${BOM}a;b\r\nx;1\r\n`);
     expect(csv.endsWith("\r\n")).toBe(true);
@@ -136,16 +144,20 @@ describe("toCsv", () => {
   });
 
   it("writes only the header for no rows", () => {
-    expect(toCsv(["a", "b"], [])).toBe(`${BOM}a;b\r\n`);
+    expect(toCsv(["a", "b"], [], { zone: "Europe/Rome" })).toBe(`${BOM}a;b\r\n`);
   });
 
   it("writes a text cell starting with - as an escaped, quoted field (AT2)", () => {
-    const csv = toCsv(["nome"], [[cell.text("-Burro (demo)")], [cell.text("=1+1 (demo)")]]);
+    const csv = toCsv(["nome"], [[cell.text("-Burro (demo)")], [cell.text("=1+1 (demo)")]], {
+      zone: "Europe/Rome",
+    });
     expect(lines(csv)).toEqual(["nome", `"'-Burro (demo)"`, `"'=1+1 (demo)"`]);
   });
 
   it("never escapes numbers, so a negative stays a number", () => {
-    const csv = toCsv(["n"], [[cell.number(-3.5)], [cell.number(1234.5)], [cell.number(38.0002)]]);
+    const csv = toCsv(["n"], [[cell.number(-3.5)], [cell.number(1234.5)], [cell.number(38.0002)]], {
+      zone: "Europe/Rome",
+    });
     expect(lines(csv)).toEqual(["n", "-3,5", "1234,5", "38,0002"]);
   });
 
@@ -157,27 +169,34 @@ describe("toCsv", () => {
       cell.instant(null),
       cell.bool(null),
     ];
-    expect(lines(toCsv(["a", "b", "c", "d", "e"], [row]))[1]).toBe(";;;;");
+    expect(lines(toCsv(["a", "b", "c", "d", "e"], [row], { zone: "Europe/Rome" }))[1]).toBe(";;;;");
   });
 
   it("writes an empty text as an empty cell", () => {
-    expect(lines(toCsv(["a", "b"], [[cell.text(""), cell.text("x")]]))[1]).toBe(";x");
+    expect(
+      lines(toCsv(["a", "b"], [[cell.text(""), cell.text("x")]], { zone: "Europe/Rome" }))[1],
+    ).toBe(";x");
   });
 
   it("quotes a separator, a double quote and a line break", () => {
     const csv = toCsv(
       ["a"],
       [[cell.text("Pane; burro (demo)")], [cell.text('Il "Rosso" (demo)')], [cell.text("a\nb")]],
+      { zone: "Europe/Rome" },
     );
     expect(csv).toBe(`${BOM}a\r\n"Pane; burro (demo)"\r\n"Il ""Rosso"" (demo)"\r\n"a\nb"\r\n`);
   });
 
   it("quotes a CR inside a field", () => {
-    expect(toCsv(["a"], [[cell.text("a\rb")]])).toBe(`${BOM}a\r\n"a\rb"\r\n`);
+    expect(toCsv(["a"], [[cell.text("a\rb")]], { zone: "Europe/Rome" })).toBe(
+      `${BOM}a\r\n"a\rb"\r\n`,
+    );
   });
 
   it("does not quote a comma (the separator is a semicolon)", () => {
-    expect(lines(toCsv(["a"], [[cell.text("burro, sale")]]))[1]).toBe("burro, sale");
+    expect(lines(toCsv(["a"], [[cell.text("burro, sale")]], { zone: "Europe/Rome" }))[1]).toBe(
+      "burro, sale",
+    );
   });
 
   it("writes dates, instants and booleans through their formatters", () => {
@@ -191,17 +210,22 @@ describe("toCsv", () => {
           cell.bool(false),
         ],
       ],
+      { zone: "Europe/Rome" },
     );
     expect(lines(csv)[1]).toBe("04/11/2026;04/11/2026 20:00;sì;no");
   });
 
   it("refuses a row whose length differs from the header", () => {
-    expect(() => toCsv(["a", "b"], [[cell.text("x")]])).toThrow(RangeError);
-    expect(() => toCsv(["a"], [[cell.text("x"), cell.text("y")]])).toThrow(RangeError);
+    expect(() => toCsv(["a", "b"], [[cell.text("x")]], { zone: "Europe/Rome" })).toThrow(
+      RangeError,
+    );
+    expect(() => toCsv(["a"], [[cell.text("x"), cell.text("y")]], { zone: "Europe/Rome" })).toThrow(
+      RangeError,
+    );
   });
 
   it("propagates a non-finite number as a RangeError", () => {
-    expect(() => toCsv(["a"], [[cell.number(NaN)]])).toThrow(RangeError);
+    expect(() => toCsv(["a"], [[cell.number(NaN)]], { zone: "Europe/Rome" })).toThrow(RangeError);
   });
 
   it("round trip: parseCsvRecords gives back the header and every cell as written", () => {
@@ -212,7 +236,7 @@ describe("toCsv", () => {
       [cell.text("a\nb"), cell.number(0), cell.date("2026-10-26"), cell.bool(true)],
       [cell.text("-Burro (demo)"), cell.number(1234.5), cell.date("2026-10-27"), cell.bool(true)],
     ];
-    const records = parseCsvRecords(toCsv(["nome", "n", "d", "b"], rows));
+    const records = parseCsvRecords(toCsv(["nome", "n", "d", "b"], rows, { zone: "Europe/Rome" }));
     expect(records[0]!.cells).toEqual(["nome", "n", "d", "b"]);
     expect(records.slice(1).map((r) => r.cells)).toEqual([
       ["'=1+1 (demo)", "-3,5", "04/11/2026", "sì"],

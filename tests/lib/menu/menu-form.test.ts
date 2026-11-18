@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
-  bodyFromForm,
+  bodyFromForm as bodyFromFormWith,
   emptyMenuForm,
   formFromItem,
   parsePrice,
-  patchFromForm,
+  patchFromForm as patchFromFormWith,
   setByWeight,
+  vatRateOptions,
   type MenuFormState,
 } from "@/lib/menu/menu-form";
+import type { Locale } from "@/lib/i18n/locale";
 import type { MenuItem } from "@/server/menu/output";
 
 const KEY = "ec000000-0000-4000-8000-0000000000e1";
@@ -44,6 +46,13 @@ const FILLED: MenuFormState = {
   byWeight: false,
   portionWeightG: "",
 };
+
+// The sale list of a tenant that has today's five rates (SP1 step 10: the forms validate against the list they are given).
+const ALL_RATES = [0, 4, 5, 10, 22];
+const bodyFromForm = (state: MenuFormState, locale?: Locale) =>
+  bodyFromFormWith(state, ALL_RATES, locale);
+const patchFromForm = (state: MenuFormState, item: MenuItem, locale?: Locale) =>
+  patchFromFormWith(state, item, ALL_RATES, locale);
 
 const WEIGHTED: MenuItem = { ...ITEM, price: 4.25, priceUnit: "etto", portionWeightG: 400 };
 
@@ -291,5 +300,60 @@ describe("setByWeight: a unit switch clears the price (P-3)", () => {
   it("setting the switch to the value it has keeps the form as it is", () => {
     const state = formFromItem(ITEM);
     expect(setByWeight(state, false)).toBe(state);
+  });
+});
+
+// SP1 step 10 (H15, Q12 note). The tenant's sale list comes with the payload. A rate that has left the list stays valid for an item
+// that already carries it, so editing the item never silently changes or drops its rate.
+describe("the VAT rates of the tenant's list", () => {
+  const LIST = [10, 22];
+
+  it("refuses a NEW 4 % when the list is [10, 22], and accepts 10", () => {
+    const refused = bodyFromFormWith({ ...FILLED, vatRate: "4" }, LIST);
+    expect(refused.ok).toBe(false);
+    expect(refused.ok === false && Object.keys(refused.errors)).toEqual(["vatRate"]);
+    expect(bodyFromFormWith({ ...FILLED, vatRate: "10" }, LIST)).toMatchObject({ ok: true });
+  });
+
+  it("a rate outside the list is refused even if it is a statutory one", () => {
+    expect(bodyFromFormWith({ ...FILLED, vatRate: "22" }, [10]).ok).toBe(false);
+    expect(bodyFromFormWith({ ...FILLED, vatRate: "" }, LIST).ok).toBe(false);
+  });
+
+  const OLD_FOUR: MenuItem = { ...ITEM, vatRate: 4 };
+
+  it("an existing price stored at 4 % with a list [10, 22] shows 4 % as its current option", () => {
+    const state = formFromItem(OLD_FOUR);
+    expect(state.vatRate).toBe("4");
+    expect(vatRateOptions(LIST, OLD_FOUR.vatRate)).toEqual([4, 10, 22]);
+  });
+
+  it("saving the item unchanged keeps 4 % (no patch at all, no silent change)", () => {
+    expect(patchFromFormWith(formFromItem(OLD_FOUR), OLD_FOUR, LIST)).toEqual({
+      ok: true,
+      patch: {},
+    });
+  });
+
+  it("editing another field keeps 4 %: the patch has no vatRate", () => {
+    const state = { ...formFromItem(OLD_FOUR), name: "Spezzatino (demo)" };
+    expect(patchFromFormWith(state, OLD_FOUR, LIST)).toEqual({
+      ok: true,
+      patch: { name: "Spezzatino (demo)" },
+    });
+  });
+
+  it("moving the item to another rate outside the list is refused; only its own stored rate is exempt", () => {
+    const state = { ...formFromItem(OLD_FOUR), vatRate: "5" };
+    expect(patchFromFormWith(state, OLD_FOUR, LIST).ok).toBe(false);
+    expect(patchFromFormWith({ ...formFromItem(OLD_FOUR), vatRate: "10" }, OLD_FOUR, LIST)).toEqual(
+      { ok: true, patch: { vatRate: 10 } },
+    );
+  });
+
+  it("the options are the list when the stored rate is in it, or there is none (a new item), and are sorted", () => {
+    expect(vatRateOptions(LIST, 10)).toEqual([10, 22]);
+    expect(vatRateOptions(LIST, null)).toEqual([10, 22]);
+    expect(vatRateOptions([22, 10], 0)).toEqual([0, 10, 22]);
   });
 });

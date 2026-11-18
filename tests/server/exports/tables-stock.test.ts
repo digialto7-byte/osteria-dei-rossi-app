@@ -64,7 +64,7 @@ describe("waste-costs", () => {
     expect(() => registry["waste-costs"].parse(url("?from=2026-13-01"))).toThrow();
   });
 
-  const csv = records(renderCsv(registry["waste-costs"], WASTE_EDGE, "owner"));
+  const csv = records(renderCsv(registry["waste-costs"], WASTE_EDGE, "owner", "Europe/Rome"));
 
   it("snapshots the header", () => {
     expect(registry["waste-costs"].columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -104,12 +104,14 @@ describe("waste-costs", () => {
   });
 
   it("the range is the reply's from_to", () => {
-    expect(registry["waste-costs"].range(WASTE_EDGE)).toBe("2026-10-01_2026-10-31");
+    expect(registry["waste-costs"].range(WASTE_EDGE, "Europe/Rome")).toBe("2026-10-01_2026-10-31");
   });
 
   it("a reply with no reasons is a header only", () => {
     const empty = { ...WASTE_EDGE, reasons: [] };
-    expect(records(renderCsv(registry["waste-costs"], empty, "owner"))).toHaveLength(1);
+    expect(records(renderCsv(registry["waste-costs"], empty, "owner", "Europe/Rome"))).toHaveLength(
+      1,
+    );
   });
 });
 
@@ -136,7 +138,7 @@ describe("count-variance", () => {
   });
 
   const output = { variance: VARIANCE_EDGE, costs: VARIANCE_COSTS_EDGE };
-  const csv = records(renderCsv(registry["count-variance"], output, "owner"));
+  const csv = records(renderCsv(registry["count-variance"], output, "owner", "Europe/Rome"));
 
   it("snapshots the header", () => {
     expect(registry["count-variance"].columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -187,7 +189,7 @@ describe("count-variance", () => {
   });
 
   it("the range is the Rome date the count was closed", () => {
-    expect(registry["count-variance"].range(output)).toBe("2026-10-31");
+    expect(registry["count-variance"].range(output, "Europe/Rome")).toBe("2026-10-31");
     const after = {
       ...output,
       variance: {
@@ -195,7 +197,7 @@ describe("count-variance", () => {
         session: { ...VARIANCE_EDGE.session, closedAt: "2026-10-31T23:30:00+00:00" },
       },
     };
-    expect(registry["count-variance"].range(after)).toBe("2026-11-01");
+    expect(registry["count-variance"].range(after, "Europe/Rome")).toBe("2026-11-01");
   });
 });
 
@@ -209,7 +211,9 @@ describe("reconciliation", () => {
     expect(getReconciliation).toHaveBeenCalledWith(supabase, query);
   });
 
-  const csv = records(renderCsv(registry.reconciliation, RECONCILIATION_EDGE, "owner"));
+  const csv = records(
+    renderCsv(registry.reconciliation, RECONCILIATION_EDGE, "owner", "Europe/Rome"),
+  );
 
   it("snapshots the header", () => {
     expect(registry.reconciliation.columns("owner").map((c) => c.header)).toMatchSnapshot();
@@ -245,6 +249,8 @@ describe("reconciliation", () => {
   });
 
   it("the range is the reply's from_to", () => {
-    expect(registry.reconciliation.range(RECONCILIATION_EDGE)).toBe("2026-10-01_2026-10-31");
+    expect(registry.reconciliation.range(RECONCILIATION_EDGE, "Europe/Rome")).toBe(
+      "2026-10-01_2026-10-31",
+    );
   });
 });

@@ -1,8 +1,9 @@
+import { currentVenueSettings } from "@/lib/venue/current";
 import { isMessageKey, t, type MessageKey } from "@/lib/i18n";
 import { parseDecimal, type DecimalResult } from "@/lib/numbers/parse-decimal";
 import { RULES_LEVEL_MAX } from "@/server/rules/constants";
 import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
-import { formatWeekday, VENUE_TIME_ZONE } from "@/lib/time/format";
+import { formatWeekday } from "@/lib/time/format";
 
 // Presentation helpers for the reorder, prep and purchase rule screens. Pure: they only word what the API already
 // decided; nothing here computes a window, a status or a quantity. The role lists mirror the routes.
@@ -37,14 +38,16 @@ export function weekdayLabels(locale: Locale = DEFAULT_LOCALE): { value: number;
   }));
 }
 
-const orderByFormatters = new Map<Locale, Intl.DateTimeFormat>();
+const orderByFormatters = new Map<string, Intl.DateTimeFormat>();
 
 // "mar 03/11, 11:00" in venue time: short weekday, day/month, then the clock time.
 function formatOrderBy(instant: Date, locale: Locale): string {
-  let formatter = orderByFormatters.get(locale);
+  const zone = currentVenueSettings().timeZone;
+  const key = `${locale}|${zone}`;
+  let formatter = orderByFormatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       weekday: "short",
       day: "2-digit",
       month: "2-digit",
@@ -52,7 +55,7 @@ function formatOrderBy(instant: Date, locale: Locale): string {
       minute: "2-digit",
       hourCycle: "h23",
     });
-    orderByFormatters.set(locale, formatter);
+    orderByFormatters.set(key, formatter);
   }
   const part = (type: Intl.DateTimeFormatPartTypes) =>
     formatter.formatToParts(instant).find((p) => p.type === type)?.value ?? "";

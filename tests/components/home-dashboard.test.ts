@@ -32,6 +32,7 @@ const apiJson = vi.fn((path: string): Promise<Reply> => {
     data: {
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo: false },
+      settings: ME_SETTINGS,
     },
   });
 });
@@ -41,9 +42,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
 
 import HomePage from "@/app/(owner)/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
-const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 const reply =
   (data: unknown): (() => Promise<Reply>) =>
   () =>

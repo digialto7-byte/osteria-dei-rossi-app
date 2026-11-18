@@ -20,6 +20,7 @@ export async function raiseTestAlert(
   body: TestAlertBody,
   role: AppRole,
   locale: Locale,
+  zone: string,
 ): Promise<TestAlertResult> {
   const { data, error } = await supabase.rpc("raise_test_alert", {
     p_include_kitchen: body.includeKitchen ?? false,
@@ -27,7 +28,7 @@ export async function raiseTestAlert(
   if (error) throw mapAlertError(error);
   const raised = data as { alertId: string; inserted: boolean };
   return {
-    alert: await getAlert(supabase, raised.alertId, role, locale),
+    alert: await getAlert(supabase, raised.alertId, role, locale, zone),
     deduplicated: !raised.inserted,
   };
 }

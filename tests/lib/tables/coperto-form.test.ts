@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { copertoBodyFromForm, copertoFormFromRead } from "@/lib/tables/coperto-form";
+import {
+  copertoBodyFromForm as copertoBodyFromFormWith,
+  copertoFormFromRead,
+} from "@/lib/tables/coperto-form";
+
+// A tenant with today's five rates and no coperto yet (SP1 step 10: the form validates against the list it is given).
+const copertoBodyFromForm = (form: { amount: string; vatRate: string }) =>
+  copertoBodyFromFormWith(form, [0, 4, 5, 10, 22], null);
 
 describe("copertoFormFromRead", () => {
   it("shows a set coperto with a decimal comma and its own rate", () => {
@@ -47,5 +54,27 @@ describe("copertoBodyFromForm", () => {
       ok: false,
       error: "Il coperto va da 0,01 a 100,00 € e ha bisogno della sua aliquota IVA.",
     });
+  });
+});
+
+// SP1 step 10 (H15, Q12 note).
+describe("the coperto's rate against the tenant's list", () => {
+  const LIST = [10, 22];
+  it("refuses a NEW 4 % when the list is [10, 22], and accepts 10", () => {
+    expect(copertoBodyFromFormWith({ amount: "1,50", vatRate: "4" }, LIST, null).ok).toBe(false);
+    expect(copertoBodyFromFormWith({ amount: "1,50", vatRate: "10" }, LIST, null)).toMatchObject({
+      ok: true,
+    });
+  });
+  it("a coperto stored at 4 % shows 4 % as its option and saving it unchanged keeps 4 %", () => {
+    const form = copertoFormFromRead({ amount: 2.5, vatRate: 4 }, 10);
+    expect(form.vatRate).toBe("4");
+    expect(copertoBodyFromFormWith(form, LIST, 4)).toEqual({
+      ok: true,
+      body: { copertoAmount: 2.5, copertoVatRate: 4 },
+    });
+  });
+  it("only the stored rate is exempt: another rate outside the list is refused", () => {
+    expect(copertoBodyFromFormWith({ amount: "2,50", vatRate: "5" }, LIST, 4).ok).toBe(false);
   });
 });

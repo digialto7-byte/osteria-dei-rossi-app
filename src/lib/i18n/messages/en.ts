@@ -2277,6 +2277,8 @@ export const en: Record<MessageKey, string> = {
   "bill.offline": "A connection is needed to see the bill.",
   "bill.loading": "Loading the bill…",
   "bill.close.total": "Total {amount}",
+  "bill.close.settingsMissing":
+    "The venue settings are not available: the document and payment choices cannot be shown. Try again shortly.",
   "bill.close.document": "Document",
   "bill.close.number": "Number",
   "bill.close.numberHint": "The number printed by the register",

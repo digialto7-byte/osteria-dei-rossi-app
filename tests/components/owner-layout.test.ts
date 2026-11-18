@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 import OwnerLayout from "@/app/(owner)/layout";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 let role = "owner";
 let isDemo = false;
@@ -23,6 +24,7 @@ beforeEach(() => {
         JSON.stringify({
           user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
           tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo },
+          settings: ME_SETTINGS,
         }),
         { status: 200 },
       ),

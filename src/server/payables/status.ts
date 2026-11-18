@@ -13,6 +13,7 @@ export async function setPayableStatus(
   supabase: SupabaseClient,
   id: string,
   body: PatchPayableBody,
+  zone: string,
 ): Promise<{ payable: PayableDetail["payable"]; changed: boolean }> {
   const { data, error } = await supabase.rpc("set_payable_status", {
     p_payable: id,
@@ -22,6 +23,6 @@ export async function setPayableStatus(
     p_reversal: body.reversal ?? false,
   });
   if (error) throw mapPayableDbError(error);
-  const detail = await getPayableDetail(supabase, id);
+  const detail = await getPayableDetail(supabase, id, zone);
   return { payable: detail.payable, changed: (data as { changed: boolean }).changed };
 }

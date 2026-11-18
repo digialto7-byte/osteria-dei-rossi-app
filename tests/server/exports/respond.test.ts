@@ -29,7 +29,7 @@ describe("csvFileName (plan §6: the name is a slug and ISO dates only)", () => 
 
 describe("csvResponse", () => {
   it("is a 200 UTF-8 CSV attachment with the timing header", async () => {
-    const response = csvResponse(registry.kpis, KPI_REPORT, "owner", "auth;dur=1.0");
+    const response = csvResponse(registry.kpis, KPI_REPORT, "owner", "auth;dur=1.0", "Europe/Rome");
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("text/csv; charset=utf-8");
     expect(response.headers.get("content-disposition")).toBe(

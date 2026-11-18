@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isMessageKey, messages } from "@/lib/i18n";
+import { INTL_LOCALE } from "@/lib/i18n/locale";
 import {
   dayLabel,
   errorMessage,
@@ -54,6 +55,28 @@ describe("dayLabel", () => {
     expect(dayLabel("2026-11-20", "it")).toBe("ven 20 novembre 2026");
     expect(dayLabel("2026-11-20", "en")).toMatch(/Fri,? 20 November 2026/);
   });
+
+  // SP1 step 12 (H10): the date is a calendar date read at noon UTC, so the label is the same on both clock-change days, whatever the zone.
+  it.each([
+    ["2026-03-29", "it", "dom 29 marzo 2026"],
+    ["2026-03-29", "en", "Sun, 29 March 2026"],
+    ["2026-10-25", "it", "dom 25 ottobre 2026"],
+    ["2026-10-25", "en", "Sun, 25 October 2026"],
+  ] as const)(
+    "%s in %s on a DST day is exactly %j, as with the old Rome zone",
+    (date, locale, expected) => {
+      expect(dayLabel(date, locale)).toBe(expected);
+      // The rendering before SP1 (zone Europe/Rome on the same noon-UTC instant): the same string.
+      const before = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
+        weekday: "short",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "Europe/Rome",
+      }).format(new Date(`${date}T12:00:00Z`));
+      expect(dayLabel(date, locale)).toBe(before);
+    },
+  );
 });
 
 describe("errorMessage", () => {

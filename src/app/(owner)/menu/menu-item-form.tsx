@@ -12,7 +12,12 @@ import {
   TextInput,
 } from "@/components/ui";
 import { t } from "@/lib/i18n";
-import { setByWeight, type MenuFormErrors, type MenuFormState } from "@/lib/menu/menu-form";
+import {
+  setByWeight,
+  vatRateOptions,
+  type MenuFormErrors,
+  type MenuFormState,
+} from "@/lib/menu/menu-form";
 import { courseWord } from "@/lib/menu/menu-view";
 
 export interface RecipeChoice {
@@ -35,6 +40,7 @@ export function MenuItemForm({
   recipes,
   currentRecipe,
   vatRates,
+  storedVatRate,
   courses,
   categories,
   busy,
@@ -49,6 +55,8 @@ export function MenuItemForm({
   /** The recipe the item is mapped to, kept as an option even when it is no longer an active plate. */
   currentRecipe?: RecipeChoice | null;
   vatRates: readonly number[];
+  /** The rate the edited item is stored at (null or absent for a new one): offered even when it has left `vatRates`. */
+  storedVatRate?: number | null;
   courses: readonly string[];
   categories: readonly string[];
   busy: boolean;
@@ -177,7 +185,7 @@ export function MenuItemForm({
             onChange={(event) => set("vatRate", event.target.value)}
           >
             {state.vatRate === "" && <option value="">{t("menu.form.vatRate.choose")}</option>}
-            {vatRates.map((rate) => (
+            {vatRateOptions(vatRates, storedVatRate ?? null).map((rate) => (
               <option key={rate} value={String(rate)}>
                 {t("menu.form.vatRate.option", { rate })}
               </option>

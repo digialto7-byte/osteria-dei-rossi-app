@@ -64,19 +64,23 @@ beforeEach(() => vi.mocked(reportError).mockClear());
 
 describe("renderAlert: registered kinds", () => {
   it("renders the test alert in Italian by default and in English on request", () => {
-    expect(renderAlert(row("test_alert"))).toEqual({
+    expect(renderAlert(row("test_alert"), "it", "Europe/Rome")).toEqual({
       title: "Avviso di prova",
       body: "Se leggi questo avviso, gli avvisi funzionano.",
     });
-    expect(renderAlert(row("test_alert"), "en")).toEqual({
+    expect(renderAlert(row("test_alert"), "en", "Europe/Rome")).toEqual({
       title: "Test alert",
       body: "If you can read this, alerts work.",
     });
   });
 
   it("renders the kitchen test alert", () => {
-    expect(renderAlert(row("test_alert_kitchen")).title).toBe("Avviso di prova per la cucina");
-    expect(renderAlert(row("test_alert_kitchen"), "en").title).toBe("Kitchen test alert");
+    expect(renderAlert(row("test_alert_kitchen"), "it", "Europe/Rome").title).toBe(
+      "Avviso di prova per la cucina",
+    );
+    expect(renderAlert(row("test_alert_kitchen"), "en", "Europe/Rome").title).toBe(
+      "Kitchen test alert",
+    );
     expect(reportError).not.toHaveBeenCalled();
   });
 });
@@ -95,20 +99,28 @@ describe("renderAlert: negative_stock (M12)", () => {
   };
 
   it("renders the names, the signed quantity and the advice, in Italian", () => {
-    expect(renderAlert(row("negative_stock", payload), "it", undefined, names)).toEqual({
+    expect(
+      renderAlert(row("negative_stock", payload), "it", "Europe/Rome", undefined, names),
+    ).toEqual({
       title: "Scorta negativa: Manzo muscolo (demo)",
       body: "Cella (demo): giacenza \u22121\u00a0kg. Fai un conteggio o approva la fattura mancante.",
     });
   });
 
   it("renders in English", () => {
-    const { title, body } = renderAlert(row("negative_stock", payload), "en", undefined, names);
+    const { title, body } = renderAlert(
+      row("negative_stock", payload),
+      "en",
+      "Europe/Rome",
+      undefined,
+      names,
+    );
     expect(title).toBe("Negative stock: Manzo muscolo (demo)");
     expect(body).toContain("Cella (demo): on hand \u22121\u00a0kg.");
   });
 
   it("a missing name shows a neutral word, never the id", () => {
-    const { title, body } = renderAlert(row("negative_stock", payload), "it");
+    const { title, body } = renderAlert(row("negative_stock", payload), "it", "Europe/Rome");
     expect(title).toBe("Scorta negativa: ingrediente non disponibile");
     expect(body).toContain("ubicazione non disponibile");
     expect(title + body).not.toContain(payload.ingredient_id);
@@ -119,16 +131,24 @@ describe("renderAlert: negative_stock (M12)", () => {
       ingredient: new Map([[payload.ingredient_id, "<script>alert(1)</script>"]]),
       location: names.location,
     };
-    const { title, body } = renderAlert(row("negative_stock", payload), "it", undefined, hostile);
+    const { title, body } = renderAlert(
+      row("negative_stock", payload),
+      "it",
+      "Europe/Rome",
+      undefined,
+      hostile,
+    );
     expect(title).toBe("Scorta negativa: <script>alert(1)</script>");
     expect(title + body).not.toMatch(/€|eur/i);
-    expect(renderAlert(row("negative_stock", payload), "it", undefined, names).body).not.toMatch(
-      /€/,
-    );
+    expect(
+      renderAlert(row("negative_stock", payload), "it", "Europe/Rome", undefined, names).body,
+    ).not.toMatch(/€/);
   });
 
   it("a payload that fails the schema shows the fallback", () => {
-    expect(renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it").title).toBe("Avviso");
+    expect(
+      renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it", "Europe/Rome").title,
+    ).toBe("Avviso");
   });
 });
 
@@ -145,7 +165,9 @@ describe("renderAlert: negative_stock batch shortage (M19)", () => {
   const names = { recipe: new Map([[KEY, "Spezzatino (demo)"]]) };
 
   it("renders the dish, the missing portions and the balance with U+2212, in Italian", () => {
-    expect(renderAlert(row("negative_stock", payload), "it", undefined, names)).toEqual({
+    expect(
+      renderAlert(row("negative_stock", payload), "it", "Europe/Rome", undefined, names),
+    ).toEqual({
       title: "Scorta negativa: Spezzatino (demo)",
       body: "Spezzatino (demo): mancano 3 porzioni al momento dell'invio (saldo \u22123)",
     });
@@ -153,24 +175,30 @@ describe("renderAlert: negative_stock batch shortage (M19)", () => {
 
   it("uses the singular for one portion and a decimal for half a portion", () => {
     const one = { ...payload, short_portions_qty: 1, remaining_portions_qty: -1 };
-    expect(renderAlert(row("negative_stock", one), "it", undefined, names).body).toBe(
-      "Spezzatino (demo): manca 1 porzione al momento dell'invio (saldo \u22121)",
-    );
+    expect(
+      renderAlert(row("negative_stock", one), "it", "Europe/Rome", undefined, names).body,
+    ).toBe("Spezzatino (demo): manca 1 porzione al momento dell'invio (saldo \u22121)");
     const half = { ...payload, short_portions_qty: 0.5, remaining_portions_qty: -0.5 };
-    expect(renderAlert(row("negative_stock", half), "it", undefined, names).body).toContain(
-      "mancano 0,5 porzioni",
-    );
+    expect(
+      renderAlert(row("negative_stock", half), "it", "Europe/Rome", undefined, names).body,
+    ).toContain("mancano 0,5 porzioni");
   });
 
   it("says that no batch was recorded when batch_id is null", () => {
     const none = { ...payload, batch_id: null, movement_id: null, remaining_portions_qty: 0 };
-    expect(renderAlert(row("negative_stock", none), "it", undefined, names).body).toBe(
-      "Spezzatino (demo): mancano 3 porzioni al momento dell'invio (nessun lotto registrato)",
-    );
+    expect(
+      renderAlert(row("negative_stock", none), "it", "Europe/Rome", undefined, names).body,
+    ).toBe("Spezzatino (demo): mancano 3 porzioni al momento dell'invio (nessun lotto registrato)");
   });
 
   it("renders in English", () => {
-    const { title, body } = renderAlert(row("negative_stock", payload), "en", undefined, names);
+    const { title, body } = renderAlert(
+      row("negative_stock", payload),
+      "en",
+      "Europe/Rome",
+      undefined,
+      names,
+    );
     expect(title).toBe("Negative stock: Spezzatino (demo)");
     expect(body).toBe(
       "Spezzatino (demo): 3 portions short when the dish was sent (balance \u22123)",
@@ -178,14 +206,16 @@ describe("renderAlert: negative_stock batch shortage (M19)", () => {
   });
 
   it("a missing name shows a neutral word, never the key, and no euro sign appears", () => {
-    const { title, body } = renderAlert(row("negative_stock", payload), "it");
+    const { title, body } = renderAlert(row("negative_stock", payload), "it", "Europe/Rome");
     expect(title).toBe("Scorta negativa: ricetta non disponibile");
     expect(title + body).not.toContain(KEY);
     expect(title + body).not.toMatch(/\u20ac/);
   });
 
   it("an extra key in the batch payload shows the fallback", () => {
-    expect(renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it").title).toBe("Avviso");
+    expect(
+      renderAlert(row("negative_stock", { ...payload, extra: 1 }), "it", "Europe/Rome").title,
+    ).toBe("Avviso");
   });
 
   it("the M12 ingredient payload still renders as before", () => {
@@ -196,7 +226,7 @@ describe("renderAlert: negative_stock batch shortage (M19)", () => {
       unit: "kg",
       movement_id: "0e000000-0000-4000-8000-0000000000e1",
     };
-    expect(renderAlert(row("negative_stock", ingredient), "it").title).toBe(
+    expect(renderAlert(row("negative_stock", ingredient), "it", "Europe/Rome").title).toBe(
       "Scorta negativa: ingrediente non disponibile",
     );
   });
@@ -212,7 +242,7 @@ describe("renderAlert: ledger_drift (M13)", () => {
   };
 
   it("names every failing check in Italian", () => {
-    expect(renderAlert(row("ledger_drift", payload), "it")).toEqual({
+    expect(renderAlert(row("ledger_drift", payload), "it", "Europe/Rome")).toEqual({
       title: "Controllo notturno: 2 problemi nei registri",
       body: "lotti senza carico; attività pianificata ferma: alert-rules. Contatta l'assistenza.",
     });
@@ -220,10 +250,10 @@ describe("renderAlert: ledger_drift (M13)", () => {
 
   it("uses the singular for one check, and renders in English", () => {
     const one = { ...payload, checks: [payload.checks[0]] };
-    expect(renderAlert(row("ledger_drift", one), "it").title).toBe(
+    expect(renderAlert(row("ledger_drift", one), "it", "Europe/Rome").title).toBe(
       "Controllo notturno: 1 problema nei registri",
     );
-    const { title, body } = renderAlert(row("ledger_drift", payload), "en");
+    const { title, body } = renderAlert(row("ledger_drift", payload), "en", "Europe/Rome");
     expect(title).toBe("Nightly check: 2 problems in the records");
     expect(body).toContain("lots without a receipt");
     expect(body).toContain("scheduled job stopped: alert-rules");
@@ -240,7 +270,7 @@ describe("renderAlert: ledger_drift (M13)", () => {
         },
       ],
     };
-    const { title, body } = renderAlert(row("ledger_drift", withIds), "it");
+    const { title, body } = renderAlert(row("ledger_drift", withIds), "it", "Europe/Rome");
     expect(title + body).not.toMatch(/€|10700000/);
   });
 
@@ -255,35 +285,40 @@ describe("renderAlert: ledger_drift (M13)", () => {
       ],
       checked_at: "2026-11-07T02:45:00Z",
     };
-    expect(renderAlert(row("ledger_drift", fire), "it").body).toBe(
+    expect(renderAlert(row("ledger_drift", fire), "it", "Europe/Rome").body).toBe(
       "piatti inviati con scarichi non coerenti. Contatta l'assistenza.",
     );
-    expect(renderAlert(row("ledger_drift", fire), "en").body).toContain(
+    expect(renderAlert(row("ledger_drift", fire), "en", "Europe/Rome").body).toContain(
       "sent plates whose stock movements do not match",
     );
   });
 
   it("a payload that fails the schema shows the fallback", () => {
     const bad = { ...payload, checks: [{ check_key: "nope", rows_count: 1, sample_ids: [] }] };
-    expect(renderAlert(row("ledger_drift", bad), "it").title).toBe("Avviso");
+    expect(renderAlert(row("ledger_drift", bad), "it", "Europe/Rome").title).toBe("Avviso");
   });
 });
 
 describe("renderAlert: payload conventions", () => {
   it("formats money, quantity, calendar date and instant in Italian", () => {
-    const { title, body } = renderAlert(row(FIXTURE, FIXTURE_PAYLOAD), "it", REGISTRY);
+    const { title, body } = renderAlert(
+      row(FIXTURE, FIXTURE_PAYLOAD),
+      "it",
+      "Europe/Rome",
+      REGISTRY,
+    );
     expect(title).toBe("Prova Fornitore Demo");
     expect(body).toBe("1.234,50 € · 5 kg · entro 10/12/2026 · visto 25/10/2026, 02:30");
   });
 
   it("formats them the English way", () => {
-    const { body } = renderAlert(row(FIXTURE, FIXTURE_PAYLOAD), "en", REGISTRY);
+    const { body } = renderAlert(row(FIXTURE, FIXTURE_PAYLOAD), "en", "Europe/Rome", REGISTRY);
     expect(body).toBe("€1,234.50 · 5 kg · by 10/12/2026 · seen 25/10/2026, 02:30");
   });
 
   it("keeps markup in a payload string as plain text (React escapes it on screen)", () => {
     const payload = { ...FIXTURE_PAYLOAD, supplier_name: "<script>alert(1)</script>" };
-    expect(renderAlert(row(FIXTURE, payload), "it", REGISTRY).title).toBe(
+    expect(renderAlert(row(FIXTURE, payload), "it", "Europe/Rome", REGISTRY).title).toBe(
       "Prova <script>alert(1)</script>",
     );
   });
@@ -296,6 +331,7 @@ describe("renderAlert: payload conventions", () => {
     const { body } = renderAlert(
       row(FIXTURE, { ...FIXTURE_PAYLOAD, seen_at: seenAt }),
       "it",
+      "Europe/Rome",
       REGISTRY,
     );
     expect(body).toContain(`visto ${shown}`);
@@ -307,7 +343,9 @@ describe("renderAlert: fallback", () => {
 
   it("an unknown kind shows the fallback and reports the id and the kind only", () => {
     const secret = "SEGRETO-12345";
-    expect(renderAlert(row("no_such_kind", { note: secret }))).toEqual(FALLBACK);
+    expect(renderAlert(row("no_such_kind", { note: secret }), "it", "Europe/Rome")).toEqual(
+      FALLBACK,
+    );
     expect(reportError).toHaveBeenCalledTimes(1);
     const reported = vi.mocked(reportError).mock.calls[0]![0];
     expect(String(reported instanceof Error ? reported.message : reported)).toContain(ID);
@@ -320,7 +358,7 @@ describe("renderAlert: fallback", () => {
   it("a payload that fails its schema shows the fallback; the report has no payload value", () => {
     const secret = "SEGRETO-67890";
     const bad = { ...FIXTURE_PAYLOAD, price_eur: secret };
-    expect(renderAlert(row(FIXTURE, bad), "it", REGISTRY)).toEqual(FALLBACK);
+    expect(renderAlert(row(FIXTURE, bad), "it", "Europe/Rome", REGISTRY)).toEqual(FALLBACK);
     expect(reportError).toHaveBeenCalledTimes(1);
     const reported = vi.mocked(reportError).mock.calls[0]![0] as Error;
     expect(reported.message).toContain(ID);
@@ -330,19 +368,19 @@ describe("renderAlert: fallback", () => {
   });
 
   it("a payload with an unexpected key also falls back", () => {
-    expect(renderAlert(row("test_alert", { extra: 1 }))).toEqual(FALLBACK);
+    expect(renderAlert(row("test_alert", { extra: 1 }), "it", "Europe/Rome")).toEqual(FALLBACK);
     expect(reportError).toHaveBeenCalledTimes(1);
   });
 
   it("the fallback is translated", () => {
-    expect(renderAlert(row("nope"), "en")).toEqual({
+    expect(renderAlert(row("nope"), "en", "Europe/Rome")).toEqual({
       title: "Alert",
       body: "Open the app for details.",
     });
   });
 
   it("an inherited name is not a kind", () => {
-    expect(renderAlert(row("constructor"))).toEqual(FALLBACK);
+    expect(renderAlert(row("constructor"), "it", "Europe/Rome")).toEqual(FALLBACK);
   });
 });
 
@@ -382,7 +420,7 @@ describe("renderAlert: price_variance", () => {
   const NB = "\u00a0";
 
   it("renders the title with the signed change and the body with prices, plates and margins (it)", () => {
-    const { title, body } = renderAlert(row("price_variance", base));
+    const { title, body } = renderAlert(row("price_variance", base), "it", "Europe/Rome");
     expect(title).toBe(`Prezzo cambiato: Manzo muscolo (demo) +11,0${NB}%`);
     expect(body).toBe(
       `Nuovo prezzo 11,10${NB}€/kg, media degli ultimi 3 acquisti 10,00${NB}€/kg (fattura FT 21, Fornitore Demo Srl). ` +
@@ -393,7 +431,7 @@ describe("renderAlert: price_variance", () => {
   });
 
   it("renders the English forms", () => {
-    const { title, body } = renderAlert(row("price_variance", base), "en");
+    const { title, body } = renderAlert(row("price_variance", base), "en", "Europe/Rome");
     expect(title).toBe("Price changed: Manzo muscolo (demo) +11.0%");
     expect(body).toContain("New price €11.10/kg, average of the last 3 purchases €10.00/kg");
     expect(body).toContain("(invoice FT 21, Fornitore Demo Srl). Recipes affected: 2.");
@@ -407,16 +445,22 @@ describe("renderAlert: price_variance", () => {
       recipes_listed: 20,
       recipes: Array.from({ length: 20 }, (_, i) => plate(`Piatto ${i} (demo)`)),
     };
-    expect(renderAlert(row("price_variance", payload)).body.endsWith("; e altre 21 ricette.")).toBe(
-      true,
-    );
     expect(
-      renderAlert(row("price_variance", payload), "en").body.endsWith("; and 21 more recipes."),
+      renderAlert(row("price_variance", payload), "it", "Europe/Rome").body.endsWith(
+        "; e altre 21 ricette.",
+      ),
+    ).toBe(true);
+    expect(
+      renderAlert(row("price_variance", payload), "en", "Europe/Rome").body.endsWith(
+        "; and 21 more recipes.",
+      ),
     ).toBe(true);
     const one = { ...payload, recipes_count: 21 };
-    expect(renderAlert(row("price_variance", one)).body.endsWith("; e altra 1 ricetta.")).toBe(
-      true,
-    );
+    expect(
+      renderAlert(row("price_variance", one), "it", "Europe/Rome").body.endsWith(
+        "; e altra 1 ricetta.",
+      ),
+    ).toBe(true);
   });
 
   it("rounds a 4-decimal change and GP once, to one decimal", () => {
@@ -425,16 +469,16 @@ describe("renderAlert: price_variance", () => {
       change_pct: 11.1458,
       recipes: [plate("Spezzatino al vino (demo)", { gp_pct: 81.1458 })],
     };
-    const { title, body } = renderAlert(row("price_variance", four));
+    const { title, body } = renderAlert(row("price_variance", four), "it", "Europe/Rome");
     expect(title).toBe(`Prezzo cambiato: Manzo muscolo (demo) +11,1${NB}%`);
     expect(body).toContain(`81,1${NB}%`);
     expect(body).not.toContain(`81,2${NB}%`);
   });
 
   it("renders a decrease with a minus sign", () => {
-    expect(renderAlert(row("price_variance", { ...base, change_pct: -12 })).title).toBe(
-      `Prezzo cambiato: Manzo muscolo (demo) \u221212,0${NB}%`,
-    );
+    expect(
+      renderAlert(row("price_variance", { ...base, change_pct: -12 }), "it", "Europe/Rome").title,
+    ).toBe(`Prezzo cambiato: Manzo muscolo (demo) \u221212,0${NB}%`);
   });
 
   it("names plates only and shows a dash for a plate whose cost is unknown", () => {
@@ -456,13 +500,15 @@ describe("renderAlert: price_variance", () => {
         }),
       ],
     };
-    const { body } = renderAlert(row("price_variance", payload));
+    const { body } = renderAlert(row("price_variance", payload), "it", "Europe/Rome");
     expect(body).not.toContain("Spezzatino (demo)");
     expect(body).toContain(`Piatto senza prezzo (demo) — margine —, GP — (Dati incompleti)`);
   });
 
   it("a payload that fails the schema shows the fallback", () => {
-    expect(renderAlert(row("price_variance", { ...base, change_pct: "x" }))).toEqual({
+    expect(
+      renderAlert(row("price_variance", { ...base, change_pct: "x" }), "it", "Europe/Rome"),
+    ).toEqual({
       title: "Avviso",
       body: "Apri l'app per i dettagli.",
     });
@@ -502,7 +548,7 @@ describe("renderAlert: payable kinds (M9)", () => {
   });
 
   it("payable_due_7d: supplier, invoice, amount and due date (it)", () => {
-    const { title, body } = renderAlert(row("payable_due_7d", reminder));
+    const { title, body } = renderAlert(row("payable_due_7d", reminder), "it", "Europe/Rome");
     expect(title).toBe("Pagamento in scadenza");
     expect(body).toBe(
       `Fornitore Demo Srl: fattura FT 123/A, 1.234,50${NB}\u20ac, scade il 10/12/2026.`,
@@ -510,16 +556,16 @@ describe("renderAlert: payable kinds (M9)", () => {
   });
 
   it("payable_due_today and payable_overdue_3d use their own wording", () => {
-    const today = renderAlert(row("payable_due_today", reminder));
+    const today = renderAlert(row("payable_due_today", reminder), "it", "Europe/Rome");
     expect(today.title).toBe("Pagamento alla scadenza");
     expect(today.body).toContain("scadenza 10/12/2026");
-    const late = renderAlert(row("payable_overdue_3d", reminder));
+    const late = renderAlert(row("payable_overdue_3d", reminder), "it", "Europe/Rome");
     expect(late.title).toBe("Pagamento scaduto");
     expect(late.body).toContain("scaduta il 10/12/2026");
   });
 
   it("renders the English forms", () => {
-    const { title, body } = renderAlert(row("payable_due_7d", reminder), "en");
+    const { title, body } = renderAlert(row("payable_due_7d", reminder), "en", "Europe/Rome");
     expect(title).toBe("Payment due soon");
     expect(body).toContain("invoice FT 123/A");
     expect(body).toContain("\u20ac1,234.50");
@@ -529,6 +575,8 @@ describe("renderAlert: payable kinds (M9)", () => {
   it("a supplier name with markup stays text", () => {
     const { body } = renderAlert(
       row("payable_due_7d", { ...reminder, supplier_name: "<script>alert(1)</script>" }),
+      "it",
+      "Europe/Rome",
     );
     expect(body.startsWith("<script>alert(1)</script>: fattura")).toBe(true);
   });
@@ -536,6 +584,8 @@ describe("renderAlert: payable kinds (M9)", () => {
   it("the digest lists the suppliers with amount and count, and the totals", () => {
     const { title, body } = renderAlert(
       row("payables_weekly_digest", digest([entry(1), entry(2, { payables_count: 1 })])),
+      "it",
+      "Europe/Rome",
     );
     expect(title).toBe("Pagamenti della settimana");
     expect(body).toBe(
@@ -546,17 +596,33 @@ describe("renderAlert: payable kinds (M9)", () => {
 
   it("the digest says how many suppliers are not listed: 16 suppliers, 15 listed", () => {
     const listed = Array.from({ length: 15 }, (_, i) => entry(i + 1));
-    const body = renderAlert(row("payables_weekly_digest", digest(listed, 16))).body;
+    const body = renderAlert(
+      row("payables_weekly_digest", digest(listed, 16)),
+      "it",
+      "Europe/Rome",
+    ).body;
     // Singular and plural are separate texts (M8's "e altra 1 ricetta" pattern), not "1 fornitori".
     expect(body.endsWith("; e altro 1 fornitore.")).toBe(true);
-    const two = renderAlert(row("payables_weekly_digest", digest(listed, 17))).body;
+    const two = renderAlert(
+      row("payables_weekly_digest", digest(listed, 17)),
+      "it",
+      "Europe/Rome",
+    ).body;
     expect(two.endsWith("; e altri 2 fornitori.")).toBe(true);
-    const en = renderAlert(row("payables_weekly_digest", digest(listed, 17)), "en").body;
+    const en = renderAlert(
+      row("payables_weekly_digest", digest(listed, 17)),
+      "en",
+      "Europe/Rome",
+    ).body;
     expect(en.endsWith("; and 2 more suppliers.")).toBe(true);
   });
 
   it("a bad payload shows the fallback, reported by id and kind only", () => {
-    const rendered = renderAlert(row("payable_due_7d", { ...reminder, amount_eur: "x" }));
+    const rendered = renderAlert(
+      row("payable_due_7d", { ...reminder, amount_eur: "x" }),
+      "it",
+      "Europe/Rome",
+    );
     expect(rendered).toEqual({ title: "Avviso", body: "Apri l'app per i dettagli." });
     expect(reportError).toHaveBeenCalledTimes(1);
     const text = String(vi.mocked(reportError).mock.calls[0]![0]);
@@ -576,19 +642,23 @@ describe("renderAlert: device_locked (M11)", () => {
   };
 
   it("names the device and the count (it)", () => {
-    const { title, body } = renderAlert(row("device_locked", payload));
+    const { title, body } = renderAlert(row("device_locked", payload), "it", "Europe/Rome");
     expect(title).toBe("Dispositivo bloccato: Telefono sala (demo)");
     expect(body).toBe("20 PIN errati negli ultimi 60 minuti. Sbloccalo o revocalo da Dispositivi.");
   });
 
   it("has the English forms", () => {
-    const { title, body } = renderAlert(row("device_locked", payload), "en");
+    const { title, body } = renderAlert(row("device_locked", payload), "en", "Europe/Rome");
     expect(title).toBe("Device locked: Telefono sala (demo)");
     expect(body).toBe("20 wrong PINs in the last 60 minutes. Unlock or revoke it under Devices.");
   });
 
   it("a payload with a staff name shows the fallback, never the name", () => {
-    const { title, body } = renderAlert(row("device_locked", { ...payload, staff_name: "Mario" }));
+    const { title, body } = renderAlert(
+      row("device_locked", { ...payload, staff_name: "Mario" }),
+      "it",
+      "Europe/Rome",
+    );
     expect(`${title} ${body}`).not.toContain("Mario");
     expect(title).toBe("Avviso");
   });
@@ -619,13 +689,23 @@ describe("renderAlert: M16 rule kinds", () => {
       location: new Map<string, string>(),
       supplier: new Map([[payload.supplier_id, "<img src=x onerror=alert(1)>"]]),
     };
-    const { title } = renderAlert(row("purchase_due", payload), "en", undefined, names);
+    const { title } = renderAlert(
+      row("purchase_due", payload),
+      "en",
+      "Europe/Rome",
+      undefined,
+      names,
+    );
     expect(title).toContain("<script>alert(1)</script>");
     expect(title).toContain("<img src=x onerror=alert(1)>");
   });
 
   it("renders the fallback for a payload that fails the schema, and reports no value", () => {
-    const { title } = renderAlert(row("purchase_due", { ...payload, order_qty: "ten" }), "it");
+    const { title } = renderAlert(
+      row("purchase_due", { ...payload, order_qty: "ten" }),
+      "it",
+      "Europe/Rome",
+    );
     expect(title).toBe("Avviso");
   });
 });

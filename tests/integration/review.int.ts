@@ -165,6 +165,7 @@ describe.skipIf(!env)("invoice review on the real stack", () => {
       { tenantId: a.id },
       { bytes: fakePdf(), declaredMime: PDF_MIME, filename: "fattura-demo.pdf" },
       uploadedAt,
+      "Europe/Rome",
     );
     const fake = fakeAnthropicFetch([reply]);
     const outcome = await runExtractionJob({

@@ -13,7 +13,7 @@ afterEach(cleanup);
 // M25b step 14 (plan §3.1.8): the compact tile and its "Dettagli" disclosure. Closed, the body is not rendered at all, so its links are not
 // in the accessibility tree.
 const payables = () => {
-  const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+  const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
   if (out.role !== "owner") throw new Error("owner expected");
   return out.tiles.payables;
 };

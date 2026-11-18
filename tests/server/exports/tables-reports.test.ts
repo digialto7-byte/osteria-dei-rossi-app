@@ -111,7 +111,7 @@ describe("kpis", () => {
     expect(row.current).toBe(KPI_REPORT.current.revenueNetEur);
     expect(row.previous).toBe(KPI_REPORT.previous.revenueNetEur);
     expect(row.delta).toEqual(KPI_REPORT.delta.revenueNetEur);
-    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner"));
+    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner", "Europe/Rome"));
     const line = csv.find((c) => c[0] === "revenueNetEur")!;
     expect(line[2]).toBe("119,1281");
     expect(line[3]).toBe("45,4545");
@@ -120,14 +120,14 @@ describe("kpis", () => {
   });
 
   it("copertoNetEur has empty delta cells (it is not one of the 12 delta keys)", () => {
-    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner"));
+    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner", "Europe/Rome"));
     const line = csv.find((c) => c[0] === "copertoNetEur")!;
     expect(line.slice(4)).toEqual(["", ""]);
     expect(line[2]).toBe("9,0909");
   });
 
   it("only the 12 delta keys fill the delta columns", () => {
-    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner")).slice(1);
+    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner", "Europe/Rome")).slice(1);
     expect(csv.filter((c) => c[4] !== "")).toHaveLength(12);
   });
 
@@ -144,12 +144,12 @@ describe("kpis", () => {
       ...KPI_REPORT,
       current: { ...KPI_REPORT.current, avgTicketEur: null },
     };
-    const csv = records(renderCsv(registry.kpis, output, "owner"));
+    const csv = records(renderCsv(registry.kpis, output, "owner", "Europe/Rome"));
     expect(csv.find((c) => c[0] === "avgTicketEur")![2]).toBe("");
   });
 
   it("a null register total and difference are empty cells", () => {
-    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner"));
+    const csv = records(renderCsv(registry.kpis, KPI_REPORT, "owner", "Europe/Rome"));
     const register = csv.find((c) => c[0] === "registerTotalEur")!;
     expect(register[3]).toBe("");
     expect(csv.find((c) => c[0] === "appVsRegisterDiffEur")![3]).toBe("");
@@ -157,12 +157,12 @@ describe("kpis", () => {
 
   it("has the header and range of the plan", () => {
     expect(registry.kpis.columns("owner").map((c) => c.header)).toMatchSnapshot();
-    expect(registry.kpis.range(KPI_REPORT)).toBe("2026-11-04_2026-11-04");
+    expect(registry.kpis.range(KPI_REPORT, "Europe/Rome")).toBe("2026-11-04_2026-11-04");
     const october = {
       ...KPI_REPORT,
       current: { ...KPI_REPORT.current, from: "2026-10-01", to: "2026-10-31" },
     };
-    expect(registry.kpis.range(october)).toBe("2026-10-01_2026-10-31");
+    expect(registry.kpis.range(october, "Europe/Rome")).toBe("2026-10-01_2026-10-31");
   });
 
   it("the admin gets the same columns", () => {
@@ -197,7 +197,7 @@ describe("items", () => {
   });
 
   it("a weighted item has its weight sold and average weight in grams; the others have empty cells", () => {
-    const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin"));
+    const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin", "Europe/Rome"));
     const quoted = csv.find((c) => c[1] === 'Il "Rosso" (demo); riserva')!;
     expect(quoted.slice(12)).toEqual(["2450", "1225"]);
     const formula = csv.find((c) => c[1] === "'=1+1 (demo)")!;
@@ -205,18 +205,18 @@ describe("items", () => {
   });
 
   it("no admin row has more than 14 cells, and no fixed cost reaches the admin file", () => {
-    const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin"));
+    const csv = records(renderCsv(registry.items, ITEMS_ADMIN_EDGE, "admin", "Europe/Rome"));
     for (const line of csv) expect(line).toHaveLength(14);
     expect(csv.flat().join("|")).not.toMatch(/fixed/i);
   });
 
   it("the owner file has 18 cells per row", () => {
-    const csv = records(renderCsv(registry.items, ITEMS_OWNER_EDGE, "owner"));
+    const csv = records(renderCsv(registry.items, ITEMS_OWNER_EDGE, "owner", "Europe/Rome"));
     for (const line of csv) expect(line).toHaveLength(18);
   });
 
   it("null foodCostEur and margin are empty cells; the status and the reason are the raw values", () => {
-    const csv = records(renderCsv(registry.items, ITEMS_OWNER_EDGE, "owner"));
+    const csv = records(renderCsv(registry.items, ITEMS_OWNER_EDGE, "owner", "Europe/Rome"));
     const formula = csv.find((c) => c[1] === "'=1+1 (demo)")!;
     expect(formula[8]).toBe("");
     expect(formula[9]).toBe("");
@@ -227,13 +227,16 @@ describe("items", () => {
   });
 
   it("an owner column on an admin reply is a programming error, not a silent blank", () => {
-    expect(() => renderCsv(registry.items, ITEMS_ADMIN_EDGE, "owner")).toThrow();
+    expect(() => renderCsv(registry.items, ITEMS_ADMIN_EDGE, "owner", "Europe/Rome")).toThrow();
   });
 
   it("the range is the reply's from_to", () => {
-    expect(registry.items.range(ITEMS_ADMIN_EDGE)).toBe("2026-11-04_2026-11-04");
+    expect(registry.items.range(ITEMS_ADMIN_EDGE, "Europe/Rome")).toBe("2026-11-04_2026-11-04");
     expect(
-      registry.items.range({ ...ITEMS_ADMIN_EDGE, from: "2026-11-02", to: "2026-11-08" }),
+      registry.items.range(
+        { ...ITEMS_ADMIN_EDGE, from: "2026-11-02", to: "2026-11-08" },
+        "Europe/Rome",
+      ),
     ).toBe("2026-11-02_2026-11-08");
   });
 });
@@ -241,7 +244,7 @@ describe("items", () => {
 describe("avt", () => {
   it("snapshots the header; a negative variance stays a number and a '-' name is escaped", () => {
     expect(registry.avt.columns("owner").map((c) => c.header)).toMatchSnapshot();
-    const csv = records(renderCsv(registry.avt, AVT_EDGE, "owner"));
+    const csv = records(renderCsv(registry.avt, AVT_EDGE, "owner", "Europe/Rome"));
     const burro = csv.find((c) => c[0] === AVT_EDGE.rows[0]!.ingredientId)!;
     expect(burro[1]).toBe("'-Burro (demo)");
     expect(burro[6]).toBe("-0,5");
@@ -250,25 +253,27 @@ describe("avt", () => {
   });
 
   it("a null unit cost and variance are empty cells", () => {
-    const csv = records(renderCsv(registry.avt, AVT_EDGE, "owner"));
+    const csv = records(renderCsv(registry.avt, AVT_EDGE, "owner", "Europe/Rome"));
     const lievito = csv.find((c) => c[1] === "Lievito (demo)")!;
     expect(lievito.slice(7)).toEqual(["", ""]);
   });
 
   it("the range is the Rome date of the count's close", () => {
-    expect(registry.avt.range(AVT_EDGE)).toBe("2026-11-30");
+    expect(registry.avt.range(AVT_EDGE, "Europe/Rome")).toBe("2026-11-30");
     const late = {
       ...AVT_EDGE,
       count: { ...AVT_EDGE.count, closedAt: "2026-10-31T23:30:00+00:00" },
     };
-    expect(registry.avt.range(late)).toBe("2026-11-01");
+    expect(registry.avt.range(late, "Europe/Rome")).toBe("2026-11-01");
   });
 });
 
 describe("unmapped-items", () => {
   it("snapshots the header; a '=' name is escaped; the last sale is a date", () => {
     expect(registry["unmapped-items"].columns("owner").map((c) => c.header)).toMatchSnapshot();
-    const csv = records(renderCsv(registry["unmapped-items"], UNMAPPED_EDGE, "owner"));
+    const csv = records(
+      renderCsv(registry["unmapped-items"], UNMAPPED_EDGE, "owner", "Europe/Rome"),
+    );
     expect(csv[1]).toEqual([
       "11000000-0000-4000-8000-0000000000f1",
       "'=1+1 (demo)",
@@ -279,6 +284,8 @@ describe("unmapped-items", () => {
   });
 
   it("the range is the ISO week", () => {
-    expect(registry["unmapped-items"].range(UNMAPPED_EDGE)).toBe("2026-11-02_2026-11-08");
+    expect(registry["unmapped-items"].range(UNMAPPED_EDGE, "Europe/Rome")).toBe(
+      "2026-11-02_2026-11-08",
+    );
   });
 });

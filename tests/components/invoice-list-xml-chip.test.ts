@@ -46,6 +46,7 @@ const apiJson = vi.fn((path: string) => {
           role: "owner",
         },
         tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+        settings: ME_SETTINGS,
       },
     });
   }
@@ -61,6 +62,7 @@ vi.mock("next/navigation", () => ({
 
 import InvoicesPage from "@/app/(owner)/fatture/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

@@ -87,6 +87,7 @@ describe.skipIf(!env)("invoice storage on the real stack", () => {
       { tenantId: a.id },
       { bytes: fakePdf(), declaredMime: PDF_MIME, filename: "fattura-demo.pdf" },
       uploadedAt,
+      "Europe/Rome",
     );
     const row = await stack.admin
       .from("invoice")
@@ -156,6 +157,7 @@ describe.skipIf(!env)("invoice storage on the real stack", () => {
           { tenantId: a.id },
           { bytes: fakePdf(), declaredMime: PDF_MIME, filename: "x.pdf" },
           uploadedAt,
+          "Europe/Rome",
         ),
       ).rejects.toBeInstanceOf(ApiError);
       expect(await invoiceCount(a)).toBe(before);

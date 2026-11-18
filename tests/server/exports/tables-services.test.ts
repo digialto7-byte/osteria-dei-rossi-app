@@ -51,7 +51,7 @@ describe("services.csv: same parser, same service (ADR-027)", () => {
 
 describe("services.csv: the table", () => {
   const render = (output: unknown = SERVICES_REPORT, role: "owner" | "admin" = "owner") =>
-    renderCsv(registry.services, output, role);
+    renderCsv(registry.services, output, role, "Europe/Rome");
 
   it("has the header of the plan, the same for owner and admin", () => {
     const header = records(render(SERVICES_REPORT, "owner"))[0];
@@ -124,9 +124,12 @@ describe("services.csv: the table", () => {
   });
 
   it("the file name is report-services-<date> for a day and <from>_<to> for a longer period", () => {
-    expect(registry.services.range(SERVICES_REPORT)).toBe("2026-11-04");
+    expect(registry.services.range(SERVICES_REPORT, "Europe/Rome")).toBe("2026-11-04");
     expect(
-      registry.services.range({ ...SERVICES_REPORT, from: "2026-11-02", to: "2026-11-08" }),
+      registry.services.range(
+        { ...SERVICES_REPORT, from: "2026-11-02", to: "2026-11-08" },
+        "Europe/Rome",
+      ),
     ).toBe("2026-11-02_2026-11-08");
   });
 

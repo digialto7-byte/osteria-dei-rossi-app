@@ -9,8 +9,8 @@ import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
 
 type Reply =
   { ok: true; status: 200; data: unknown } | { ok: false; status: number; error: unknown };
-const GOOD = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+const GOOD = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 let next: () => Promise<Reply>;
 let opensReply: () => Promise<Reply>;
 const apiJson = vi.fn((path: string, _options?: unknown) =>
