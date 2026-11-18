@@ -34,14 +34,14 @@ export function telHref(phone: string): string {
   return `tel:${plus}${phone.replace(/\D/g, "")}`;
 }
 
-/** "ven 20 novembre 2026": a calendar date in the venue's zone, read at noon so no zone moves it. */
+/** "ven 20 novembre 2026": a calendar date (already the venue's local date), read at noon UTC and formatted in UTC on purpose, so no zone can move it to another day (SP1 H10). */
 export function dayLabel(date: string, locale: Locale): string {
   return new Intl.DateTimeFormat(INTL_LOCALE[locale], {
     weekday: "short",
     day: "numeric",
     month: "long",
     year: "numeric",
-    timeZone: "Europe/Rome",
+    timeZone: "UTC",
   }).format(new Date(`${date}T12:00:00Z`));
 }
 

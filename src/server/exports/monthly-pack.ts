@@ -37,6 +37,7 @@ async function monthHasClosedCount(
   supabase: SupabaseClient,
   from: string,
   to: string,
+  zone: string,
 ): Promise<boolean> {
   let before = null;
   for (let page = 0; page < MAX_COUNT_PAGES; page += 1) {
@@ -44,7 +45,7 @@ async function monthHasClosedCount(
     for (const count of sessions) {
       if (count.type !== "monthly" || count.status !== "closed" || count.closedAt === null)
         continue;
-      const day = venueDate(new Date(count.closedAt));
+      const day = venueDate(new Date(count.closedAt), zone);
       if (day >= from && day <= to) return true;
     }
     before = nextCursor === null ? null : parseCursor(nextCursor);
@@ -57,20 +58,25 @@ async function monthHasClosedCount(
  * Which AVT goes in a month's pack (Q175): the latest count closed on a calendar day of the month in Europe/Rome. The latest count overall is asked
  * first; when it belongs to another month, one more call fetches the right one from `availableCounts`. No count in the month: noCount.
  */
-async function varianceFor(supabase: SupabaseClient, from: string, to: string): Promise<Variance> {
+async function varianceFor(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+  zone: string,
+): Promise<Variance> {
   let latest: AvtOutput;
   try {
     latest = await getAvtReport(supabase, {});
   } catch (error) {
     if (error instanceof ApiError && error.code === "avt_no_opening_count") {
-      return (await monthHasClosedCount(supabase, from, to))
+      return (await monthHasClosedCount(supabase, from, to, zone))
         ? { state: "noOpening" }
         : { state: "noCount" };
     }
     return varianceStateOf(error);
   }
   const inMonth = (closedAt: string) => {
-    const day = venueDate(new Date(closedAt));
+    const day = venueDate(new Date(closedAt), zone);
     return day >= from && day <= to;
   };
   const known = [latest.count, ...latest.availableCounts];
@@ -92,6 +98,7 @@ async function varianceFor(supabase: SupabaseClient, from: string, to: string): 
 export async function getMonthlyPack(
   supabase: SupabaseClient,
   query: MonthlyPackQuery,
+  zone: string,
 ): Promise<MonthlyPack> {
   const kpis = await getKpiReport(supabase, {
     period: "month",
@@ -100,7 +107,7 @@ export async function getMonthlyPack(
   const { from, to, final } = kpis.current;
   const [waste, variance] = await Promise.all([
     getWasteCosts(supabase, { from, to }),
-    varianceFor(supabase, from, to),
+    varianceFor(supabase, from, to, zone),
   ]);
   return parseReport("monthly_pack", monthlyPackOutput, {
     month: monthOf(from),

@@ -38,8 +38,8 @@ describe("the output schemas", () => {
   });
 
   it("the owner schema does carry fixedCosts, and the rendered fixtures validate", () => {
-    const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(ownerDashboardSchema.safeParse(owner).success).toBe(true);
     expect(adminDashboardSchema.safeParse(admin).success).toBe(true);
     expect(dashboardOutput.safeParse(owner).success).toBe(true);
@@ -49,8 +49,8 @@ describe("the output schemas", () => {
   });
 
   it("the yesterday tile is in both outputs, and the comingSoon enum is exactly pushList", () => {
-    const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(owner.tiles.yesterday.href).toBe("/report");
     expect(admin.tiles.yesterday.href).toBe("/report");
     const json = z.toJSONSchema(adminDashboardSchema) as unknown as {
@@ -60,7 +60,7 @@ describe("the output schemas", () => {
   });
 
   it("the yesterday tile is strict: an injected key fails", () => {
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     const bad = {
       ...admin,
       tiles: { ...admin.tiles, yesterday: { ...admin.tiles.yesterday, unit_cost: 1 } },
@@ -69,7 +69,7 @@ describe("the output schemas", () => {
   });
 
   it("the yesterday tile needs byService, and an entry is strict (no cost rides along)", () => {
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     const { byService: _b, ...rest } = admin.tiles.yesterday;
     expect(
       dashboardOutput.safeParse({ ...admin, tiles: { ...admin.tiles, yesterday: rest } }).success,
@@ -88,7 +88,7 @@ describe("the output schemas", () => {
   });
 
   it("an extra key on the admin output is refused", () => {
-    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     const withFixed = { ...admin, tiles: { ...admin.tiles, fixedCosts: {} } };
     expect(dashboardOutput.safeParse(withFixed).success).toBe(false);
   });
@@ -98,7 +98,7 @@ describe("the output schemas", () => {
     sql.stockAtRisk.expiringBatches.items[0]!.portions = 3.5;
     sql.plates.worst[0]!.gpPct = -3900;
     sql.foodCost.overallPct = 1450.25;
-    const out = renderDashboard(dashboardSqlSchema.parse(sql), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(sql), "it", "Europe/Rome");
     expect(dashboardOutput.safeParse(out).success).toBe(true);
     if (out.role !== "owner") throw new Error("owner expected");
     expect(out.tiles.stockAtRisk.expiringLots.items[0]!.lotCode).toBeNull();
@@ -107,7 +107,7 @@ describe("the output schemas", () => {
   });
 
   it("still refuses a non-finite percentage or a negative portion count", () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
     if (out.role !== "owner") throw new Error("owner expected");
     const bad = structuredClone(out);
     bad.tiles.foodCost.overallPct = Number.NaN;

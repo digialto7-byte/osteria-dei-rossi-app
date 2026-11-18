@@ -14,8 +14,9 @@ export async function acknowledgeAlert(
   id: string,
   role: AppRole,
   locale: Locale,
+  zone: string,
 ): Promise<AlertItem> {
   const { error } = await supabase.rpc("acknowledge_alert", { p_alert: id });
   if (error) throw mapAlertError(error);
-  return getAlert(supabase, id, role, locale);
+  return getAlert(supabase, id, role, locale, zone);
 }

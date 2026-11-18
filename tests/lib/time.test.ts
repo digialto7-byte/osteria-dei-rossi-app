@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { formatCalendarDate, formatDateTime, formatTime } from "@/lib/time/format";
+import {
+  formatCalendarDate,
+  formatDateTime,
+  formatTime,
+  formatWeekdayTime,
+} from "@/lib/time/format";
 
 describe("formatDateTime (Europe/Rome)", () => {
   it("shows summer time (UTC+2) before the 2026-10-25 change", () => {
@@ -66,5 +71,32 @@ describe("formatTime (Europe/Rome)", () => {
   it("is 24-hour in both languages and refuses an invalid date", () => {
     expect(formatTime(new Date("2026-10-23T21:05:00Z"), "en")).toBe("23:05");
     expect(() => formatTime(new Date("nope"))).toThrow(RangeError);
+  });
+});
+
+describe("the zone argument (SP1 step 8)", () => {
+  it("formatDateTime(2026-07-01T10:00Z, 'it', 'Europe/Lisbon') renders 11:00", () => {
+    expect(formatDateTime(new Date("2026-07-01T10:00:00Z"), "it", "Europe/Lisbon")).toBe(
+      "01/07/2026, 11:00",
+    );
+  });
+});
+
+describe("the zone argument, more cases (SP1 step 8)", () => {
+  it("keeps two zones distinct when they are asked in a row (the cache keys by zone)", () => {
+    const instant = new Date("2026-07-01T10:00:00Z");
+    expect(formatDateTime(instant, "it", "Europe/Lisbon")).toBe("01/07/2026, 11:00");
+    expect(formatDateTime(instant, "it", "Europe/Rome")).toBe("01/07/2026, 12:00");
+    expect(formatDateTime(instant, "it", "Europe/Lisbon")).toBe("01/07/2026, 11:00");
+    expect(formatTime(instant, "it", "Europe/Lisbon")).toBe("11:00");
+    expect(formatTime(instant, "it", "Europe/Rome")).toBe("12:00");
+    expect(formatWeekdayTime(instant, "en", "Europe/Lisbon")).toBe("Wed 11:00");
+    expect(formatWeekdayTime(instant, "en", "Europe/Rome")).toBe("Wed 12:00");
+  });
+
+  it("an invalid zone is an error, not a silent default", () => {
+    expect(() => formatDateTime(new Date("2026-07-01T10:00:00Z"), "it", "Not/AZone")).toThrow(
+      RangeError,
+    );
   });
 });

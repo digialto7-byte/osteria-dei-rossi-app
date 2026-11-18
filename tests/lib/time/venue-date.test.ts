@@ -51,3 +51,22 @@ describe("addDays and daysInclusive", () => {
     expect(daysInclusive("2026-10-27", "2026-10-26")).toBe(0);
   });
 });
+
+describe("the zone argument (SP1 step 8)", () => {
+  it("venueDate gives Lisbon's day at 23:30 UTC in summer, and Rome's is the next one", () => {
+    const instant = new Date("2026-07-01T23:30:00Z");
+    expect(venueDate(instant, "Europe/Lisbon")).toBe("2026-07-02");
+    expect(venueDate(instant, "Europe/Rome")).toBe("2026-07-02");
+    const earlier = new Date("2026-07-01T22:30:00Z");
+    expect(venueDate(earlier, "Europe/Lisbon")).toBe("2026-07-01");
+    expect(venueDate(earlier, "Europe/Rome")).toBe("2026-07-02");
+    expect(venueDate(earlier, "Europe/Lisbon")).toBe("2026-07-01");
+  });
+
+  it("venueYear takes a zone too, and the zones stay distinct", () => {
+    const instant = new Date("2026-12-31T23:30:00Z");
+    expect(venueYear(instant, "Europe/Lisbon")).toBe(2026);
+    expect(venueYear(instant, "Europe/Rome")).toBe(2027);
+    expect(venueYear(instant, "Europe/Lisbon")).toBe(2026);
+  });
+});

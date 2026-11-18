@@ -8,7 +8,7 @@ import {
   MENU_NAME_MAX,
   MENU_POSITION_MAX,
   MENU_PRICE_MAX,
-  VAT_RATES,
+  STATUTORY_VAT_RATES, // re-pinned on purpose by SP1 (step 10, plan §3.8): renamed from VAT_RATES
 } from "@/server/menu/constants";
 import {
   MAX_COPERTO_EUR,
@@ -105,6 +105,6 @@ describe("limits match the migration", () => {
     );
     const list = /allowed_vat_rates\(\)[\s\S]*?array\[([^\]]*)\]/.exec(rates);
     expect(list).not.toBeNull();
-    expect(list![1]!.split(",").map((s) => Number(s.trim()))).toEqual([...VAT_RATES]);
+    expect(list![1]!.split(",").map((s) => Number(s.trim()))).toEqual([...STATUTORY_VAT_RATES]); // re-pinned on purpose by SP1 (step 10, plan §3.8): same assertion, new name
   });
 });

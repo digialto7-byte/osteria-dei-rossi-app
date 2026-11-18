@@ -6,13 +6,14 @@ import { idParams } from "@/server/master/schemas";
 
 export const POST = withApi(
   { roles: ["owner", "chef"], params: idParams, body: z.object({}) },
-  async ({ request, supabase, session, params }) =>
+  async ({ request, supabase, session, params, tenantSettings }) =>
     Response.json({
       alert: await acknowledgeAlert(
         supabase,
         params.id,
         session.role,
         parseLocaleQuery(new URL(request.url)),
+        (await tenantSettings()).timeZone,
       ),
     }),
 );

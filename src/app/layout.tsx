@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { COSTI_ICONS, COSTI_SVG } from "@/lib/brand/costi-assets";
 import { requireVenueBand, VENUE_LAYER_DEFAULT } from "@/lib/design/venue-layer";
 import { t } from "@/lib/i18n";
+import { DEFAULT_LOCALE } from "@/lib/i18n/locale";
 import { nonceOrNull } from "@/lib/security/nonce";
 import "./globals.css";
 
@@ -59,7 +60,7 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   nonceOrNull(await headers());
   return (
-    <html lang="it" className={`${montserrat.variable} ${inter.variable}`}>
+    <html lang={DEFAULT_LOCALE} className={`${montserrat.variable} ${inter.variable}`}>
       <body className="group/body min-h-dvh text-ink antialiased">{children}</body>
     </html>
   );

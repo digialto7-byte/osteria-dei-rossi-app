@@ -6,7 +6,8 @@ import { setPayableStatus } from "@/server/payables/status";
 
 export const GET = withApi(
   { roles: ["owner", "admin"], params: idParams },
-  async ({ supabase, params }) => Response.json(await getPayableDetail(supabase, params.id)),
+  async ({ supabase, params, tenantSettings }) =>
+    Response.json(await getPayableDetail(supabase, params.id, (await tenantSettings()).timeZone)),
 );
 
 export const PATCH = withApi(
@@ -16,6 +17,8 @@ export const PATCH = withApi(
     body: patchPayableBody,
     maxBodyBytes: MAX_PAYABLE_BODY_BYTES,
   },
-  async ({ supabase, params, body }) =>
-    Response.json(await setPayableStatus(supabase, params.id, body)),
+  async ({ supabase, params, body, tenantSettings }) =>
+    Response.json(
+      await setPayableStatus(supabase, params.id, body, (await tenantSettings()).timeZone),
+    ),
 );

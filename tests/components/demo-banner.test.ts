@@ -13,11 +13,16 @@ vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) })
 
 import { DemoBanner, DemoBannerView } from "@/app/(owner)/demo-banner";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 const me = (role: string, isDemo: boolean): Result => ({
   ok: true,
   status: 200,
-  data: { user: { role }, tenant: { id: "t", name: "Osteria Demo (dati di prova)", isDemo } },
+  data: {
+    user: { role },
+    tenant: { id: "t", name: "Osteria Demo (dati di prova)", isDemo },
+    settings: ME_SETTINGS,
+  },
 });
 
 beforeEach(() => {

@@ -354,6 +354,7 @@ describe.skipIf(!env)("XML e-invoice upload on the real stack", () => {
         { tenantId: a.id },
         { bytes: fakePdf(), declaredMime: "application/pdf", filename: "fattura-demo.pdf" },
         new Date(),
+        "Europe/Rome",
       );
       const reply = await call(a.owner, fileUrlRoute.GET, `/api/invoices/${stored.id}/file-url`, {
         params: { id: stored.id },

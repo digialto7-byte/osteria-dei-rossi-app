@@ -110,6 +110,7 @@ export async function storeXmlUpload(
   session: Pick<TenantSession, "tenantId">,
   file: UploadedFile,
   now: Date,
+  zone: string,
 ): Promise<XmlUploadResult> {
   const recent = await recentUploadCount(supabase, now);
   if (recent >= MAX_UPLOADS_PER_HOUR) throw rateLimited();
@@ -153,7 +154,7 @@ export async function storeXmlUpload(
   }
 
   // Ids and paths first, so the payload is checked against its strict schema before the first byte is stored.
-  const year = venueYear(now);
+  const year = venueYear(now, zone);
   const stored = mapped.bodies.map((_, index) => {
     const id = randomUUID();
     return { id, bodyIndex: index + 1, path: `${session.tenantId}/${year}/${id}.${checked.ext}` };

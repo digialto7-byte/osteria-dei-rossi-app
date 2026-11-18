@@ -33,6 +33,7 @@ const apiJson = vi.fn((path: string) => {
       data: {
         user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
         tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+        settings: ME_SETTINGS,
       },
     });
   }
@@ -59,6 +60,7 @@ vi.mock("next/navigation", () => ({
 
 import PayablesPage from "@/app/(owner)/pagamenti/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 const reads = () => calls.filter((c) => c.startsWith("/api/payables"));
 

@@ -3,8 +3,6 @@
 // Cells are typed so that formula escaping applies to text only: a number is written by a formatter whose output can only be -?\d+(,\d{1,4})?,
 // so a negative amount stays a number. Unknown is an empty cell, never 0.
 
-import { VENUE_TIME_ZONE } from "@/lib/time/format";
-
 export const CSV_FORMAT = { separator: ";", decimal: ",", bom: "﻿", eol: "\r\n" } as const;
 
 export type Cell =
@@ -49,27 +47,40 @@ export function formatCsvDate(isoDate: string): string {
   return `${match[3]}/${match[2]}/${match[1]}`;
 }
 
-const instantFormatter = new Intl.DateTimeFormat("en-GB", {
-  timeZone: VENUE_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  hourCycle: "h23",
-});
+const instantFormatters = new Map<string, Intl.DateTimeFormat>();
 
-/** "2026-11-04T19:00:00Z" -> "04/11/2026 20:00" in Europe/Rome (DST through Intl). */
-export function formatCsvInstant(iso: string): string {
+function instantFormatter(zone: string): Intl.DateTimeFormat {
+  let formatter = instantFormatters.get(zone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: zone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    instantFormatters.set(zone, formatter);
+  }
+  return formatter;
+}
+
+/** "2026-11-04T19:00:00Z" -> "04/11/2026 20:00" in the given zone (DST through Intl), e.g. the tenant's, Europe/Rome for tenant #1. */
+export function formatCsvInstant(iso: string, zone: string): string {
   const date = new Date(iso);
   if (iso === "" || Number.isNaN(date.getTime())) {
     throw new RangeError(`CSV instant is not a date-time: ${JSON.stringify(iso)}`);
   }
-  const p = Object.fromEntries(instantFormatter.formatToParts(date).map((x) => [x.type, x.value]));
+  const p = Object.fromEntries(
+    instantFormatter(zone)
+      .formatToParts(date)
+      .map((x) => [x.type, x.value]),
+  );
   return `${p.day}/${p.month}/${p.year} ${p.hour}:${p.minute}`;
 }
 
-function render(c: Cell): { text: string; forceQuote: boolean } {
+function render(c: Cell, zone: string): { text: string; forceQuote: boolean } {
   if (c.value === null) return { text: "", forceQuote: false };
   switch (c.kind) {
     case "text": {
@@ -81,7 +92,7 @@ function render(c: Cell): { text: string; forceQuote: boolean } {
     case "date":
       return { text: formatCsvDate(c.value), forceQuote: false };
     case "instant":
-      return { text: formatCsvInstant(c.value), forceQuote: false };
+      return { text: formatCsvInstant(c.value, zone), forceQuote: false };
     case "bool":
       return { text: c.value ? "sì" : "no", forceQuote: false };
   }
@@ -92,8 +103,12 @@ function field(text: string, forceQuote: boolean): string {
   return needsQuote ? `"${text.replaceAll('"', '""')}"` : text;
 }
 
-/** The whole file: BOM, header row, then one CRLF-ended row per entry. */
-export function toCsv(header: readonly string[], rows: readonly (readonly Cell[])[]): string {
+/** The whole file: BOM, header row, then one CRLF-ended row per entry. `zone` is the tenant's zone, for the instant cells. */
+export function toCsv(
+  header: readonly string[],
+  rows: readonly (readonly Cell[])[],
+  options: { zone: string },
+): string {
   const out: string[] = [header.map((h) => field(h, false)).join(CSV_FORMAT.separator)];
   for (const row of rows) {
     if (row.length !== header.length) {
@@ -102,7 +117,7 @@ export function toCsv(header: readonly string[], rows: readonly (readonly Cell[]
     out.push(
       row
         .map((c) => {
-          const r = render(c);
+          const r = render(c, options.zone);
           return field(r.text, r.forceQuote);
         })
         .join(CSV_FORMAT.separator),

@@ -20,6 +20,7 @@ export interface CostCheckResponse extends CostCheckResult {
 export async function runCostCheck(
   supabase: SupabaseClient,
   body: z.infer<typeof costCheckBody>,
+  zone: string,
   now: Date = new Date(),
 ): Promise<CostCheckResponse> {
   if (body.format === "csv" && body.csv.length > MAX_COST_CHECK_CHARS) {
@@ -47,5 +48,5 @@ export async function runCostCheck(
       foodCostEur: row.food_cost_eur,
     })),
   );
-  return { at: venueDate(now), ...result };
+  return { at: venueDate(now, zone), ...result };
 }

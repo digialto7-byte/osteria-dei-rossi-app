@@ -56,6 +56,6 @@ export const countVarianceExport = defineExport<
     { header: "registrato", cell: (r) => cell.number(r.postedQty) },
     { header: "valore_eur", cell: (r) => cell.number(r.valueEur) },
   ],
-  range: ({ variance }) =>
-    venueDate(new Date(variance.session.closedAt ?? variance.session.startedAt)),
+  range: ({ variance }, zone) =>
+    venueDate(new Date(variance.session.closedAt ?? variance.session.startedAt), zone),
 });

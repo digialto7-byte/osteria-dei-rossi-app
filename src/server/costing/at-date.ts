@@ -29,13 +29,13 @@ export function assertNoQuery(url: URL): void {
  * the query, a malformed or repeated `at` is a 400; a date after today in Rome is a 422. `now` is
  * injected so tests do not depend on the clock.
  */
-export function parseAtDate(url: URL, now: Date = new Date()): string | null {
+export function parseAtDate(url: URL, zone: string, now: Date = new Date()): string | null {
   for (const key of url.searchParams.keys()) if (key !== "at") throw invalid();
   const values = url.searchParams.getAll("at");
   if (values.length === 0) return null;
   const value = values[0]!;
   if (values.length > 1 || !isRealDate(value)) throw invalid();
-  if (value > venueDate(now)) {
+  if (value > venueDate(now, zone)) {
     throw new ApiError(422, "date_in_future", t("costError.date_in_future"));
   }
   return value;

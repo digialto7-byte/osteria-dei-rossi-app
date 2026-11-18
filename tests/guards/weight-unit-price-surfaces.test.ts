@@ -263,6 +263,8 @@ const SURFACES: Surface[] = [
     name: "close sheet (the total only)",
     element: () =>
       createElement(CloseSheet, {
+        receiptTypes: ["scontrino", "fattura"], // SP1 step 10: the sheet takes its options as props
+        paymentTypes: ["cash", "card", "other"],
         total: 108,
         form: EMPTY_CLOSE_FORM,
         onForm: noop,

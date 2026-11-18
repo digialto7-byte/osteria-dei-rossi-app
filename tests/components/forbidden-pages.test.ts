@@ -27,6 +27,7 @@ const apiJson = vi.fn((path: string) => {
     return ok({
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     });
   }
   if (path === "/api/invoices") return ok({ invoices: [] });
@@ -45,6 +46,7 @@ vi.mock("next/navigation", () => ({
 
 import ImportPage from "@/app/(owner)/anagrafiche/importa/page";
 import InvoicesPage from "@/app/(owner)/fatture/page";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

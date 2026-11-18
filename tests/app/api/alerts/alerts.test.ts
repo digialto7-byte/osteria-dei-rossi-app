@@ -6,6 +6,7 @@ import {
   routeContext,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../../helpers/fake-supabase";
 import { dbError, ok } from "../../../helpers/review-data";
 
@@ -232,7 +233,7 @@ describe("POST /api/alerts/:id/ack", () => {
     as("owner", { alert: [ok(ACKED_ROW)], rpc: ackRpc() });
     const response = await ack();
     expect(response.status).toBe(200);
-    expect(client.rpc).toHaveBeenCalledTimes(1);
+    expect(dataRpcCalls(client)).toHaveLength(1);
     expect(client.rpc).toHaveBeenCalledWith("acknowledge_alert", { p_alert: ALERT_ID });
     const { alert } = await response.json();
     expect(alert.acknowledged).toEqual({ at: ACKED_ROW.acknowledged_at, byName: "Titolare Demo" });

@@ -1,7 +1,6 @@
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { parsePrice } from "@/lib/menu/menu-form";
-import { VAT_RATES } from "@/server/menu/constants";
 import type { CopertoBody } from "@/server/tables/schemas";
 import { MAX_COPERTO_EUR } from "@/server/tables/constants";
 
@@ -27,9 +26,15 @@ export function copertoFormFromRead(
   return { amount: "", vatRate: defaultVatRate === null ? "" : String(defaultVatRate) };
 }
 
-/** The PATCH body, or the Italian message. Empty amount: null and null (no coperto). */
+/**
+ * The PATCH body, or the Italian message. Empty amount: null and null (no coperto). The rate must be in the tenant's list (the
+ * payload's `vatRates`) or be the rate the coperto already has (`storedVatRate`, which may have left the list): saving unchanged
+ * keeps it (SP1 Q12 note).
+ */
 export function copertoBodyFromForm(
   form: CopertoFormState,
+  vatRates: readonly number[],
+  storedVatRate: number | null,
   locale: Locale = DEFAULT_LOCALE,
 ): { ok: true; body: CopertoBody } | { ok: false; error: string } {
   const invalid = { ok: false, error: t("tableError.coperto_invalid", {}, locale) } as const;
@@ -38,7 +43,7 @@ export function copertoBodyFromForm(
   }
   const amount = parsePrice(form.amount);
   const rate = Number(form.vatRate);
-  const rateOk = form.vatRate.trim() !== "" && (VAT_RATES as readonly number[]).includes(rate);
+  const rateOk = form.vatRate.trim() !== "" && (vatRates.includes(rate) || rate === storedVatRate);
   if (!amount.ok || amount.value === null || amount.value <= 0 || amount.value > MAX_COPERTO_EUR) {
     return invalid;
   }

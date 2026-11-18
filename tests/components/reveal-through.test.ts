@@ -8,6 +8,7 @@ import { PeriodPanel } from "@/app/(owner)/report/period-picker";
 import type { MeState } from "@/components/use-me";
 import { KPI_REPORT } from "../helpers/report-data";
 import { SERVICES_REPORT } from "../helpers/services-data";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 // The report's period tabpanel wraps the content under the picker. `.reveal > *` only reaches direct children of main, so globals.css has a
 // matching rule for the children of a [data-reveal-through] box: the k-th child gets the delay that child (panel index + k - 1) of main gets,
@@ -31,6 +32,7 @@ vi.mock("@/components/use-me", () => ({
     me: {
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Titolare", role: "owner" },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     },
     retry: () => undefined,
   }),
@@ -105,6 +107,7 @@ describe("the rise through a wrapper box", () => {
     me: {
       user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Titolare", role: "owner" },
       tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo" },
+      settings: ME_SETTINGS,
     },
   };
   const SIGNED_OUT: MeState = { status: "signedOut", me: null };

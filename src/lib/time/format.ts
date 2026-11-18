@@ -1,14 +1,21 @@
-import { DEFAULT_LOCALE, INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { INTL_LOCALE, type Locale } from "@/lib/i18n/locale";
+import { currentVenueSettings } from "@/lib/venue/current";
+import { DEFAULT_TIME_ZONE } from "@/lib/venue/settings";
 
-export const VENUE_TIME_ZONE = "Europe/Rome";
+/** The platform console's zone (SP3). Venue code reads the tenant's zone from the store or the caller. */
+export const VENUE_TIME_ZONE = DEFAULT_TIME_ZONE;
 
-const formatters = new Map<Locale, Intl.DateTimeFormat>();
+const storeLocale = (): Locale => currentVenueSettings().locale;
+const storeZone = (): string => currentVenueSettings().timeZone;
 
-function dateTimeFormatter(locale: Locale): Intl.DateTimeFormat {
-  let formatter = formatters.get(locale);
+const formatters = new Map<string, Intl.DateTimeFormat>();
+
+function dateTimeFormatter(locale: Locale, zone: string): Intl.DateTimeFormat {
+  const key = `${locale}|${zone}`;
+  let formatter = formatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -16,17 +23,21 @@ function dateTimeFormatter(locale: Locale): Intl.DateTimeFormat {
       minute: "2-digit",
       hourCycle: "h23",
     });
-    formatters.set(locale, formatter);
+    formatters.set(key, formatter);
   }
   return formatter;
 }
 
-/** Formats an instant in venue time (Europe/Rome), e.g. "25/10/2026, 02:30". */
-export function formatDateTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+/** Formats an instant in the venue's time (the tenant's zone, Europe/Rome for tenant #1), e.g. "25/10/2026, 02:30". */
+export function formatDateTime(
+  instant: Date,
+  locale: Locale = storeLocale(),
+  zone: string = storeZone(),
+): string {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("formatDateTime: invalid date");
   }
-  return dateTimeFormatter(locale).format(instant);
+  return dateTimeFormatter(locale, zone).format(instant);
 }
 
 const CALENDAR_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
@@ -36,7 +47,7 @@ const calendarFormatters = new Map<Locale, Intl.DateTimeFormat>();
  * Formats a date without a time ("2026-10-15", as an invoice date or due date) as the venue
  * writes it, e.g. "15/10/2026". It is a calendar date, not an instant, so no zone shifts it.
  */
-export function formatCalendarDate(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
+export function formatCalendarDate(isoDate: string, locale: Locale = storeLocale()): string {
   const parts = CALENDAR_DATE.exec(isoDate);
   const [year, month, day] = parts ? parts.slice(1).map(Number) : [];
   const date = parts ? new Date(Date.UTC(year!, month! - 1, day!)) : null;
@@ -56,43 +67,53 @@ export function formatCalendarDate(isoDate: string, locale: Locale = DEFAULT_LOC
   return formatter.format(date);
 }
 
-const timeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+const timeFormatters = new Map<string, Intl.DateTimeFormat>();
 
-/** Formats the clock time of an instant in venue time (Europe/Rome), e.g. "21:15". */
-export function formatTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+/** Formats the clock time of an instant in the venue's zone, e.g. "21:15". */
+export function formatTime(
+  instant: Date,
+  locale: Locale = storeLocale(),
+  zone: string = storeZone(),
+): string {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("formatTime: invalid date");
   }
-  let formatter = timeFormatters.get(locale);
+  const key = `${locale}|${zone}`;
+  let formatter = timeFormatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
     });
-    timeFormatters.set(locale, formatter);
+    timeFormatters.set(key, formatter);
   }
   return formatter.format(instant);
 }
 
-const weekdayTimeFormatters = new Map<Locale, Intl.DateTimeFormat>();
+const weekdayTimeFormatters = new Map<string, Intl.DateTimeFormat>();
 
 /** The short weekday and clock time of an instant in venue time (Europe/Rome), e.g. "mar 11:00" / "Tue 11:00". */
-export function formatWeekdayTime(instant: Date, locale: Locale = DEFAULT_LOCALE): string {
+export function formatWeekdayTime(
+  instant: Date,
+  locale: Locale = storeLocale(),
+  zone: string = storeZone(),
+): string {
   if (Number.isNaN(instant.getTime())) {
     throw new RangeError("formatWeekdayTime: invalid date");
   }
-  let formatter = weekdayTimeFormatters.get(locale);
+  const key = `${locale}|${zone}`;
+  let formatter = weekdayTimeFormatters.get(key);
   if (!formatter) {
     formatter = new Intl.DateTimeFormat(INTL_LOCALE[locale], {
-      timeZone: VENUE_TIME_ZONE,
+      timeZone: zone,
       weekday: "short",
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",
     });
-    weekdayTimeFormatters.set(locale, formatter);
+    weekdayTimeFormatters.set(key, formatter);
   }
   return formatter
     .formatToParts(instant)
@@ -103,7 +124,7 @@ export function formatWeekdayTime(instant: Date, locale: Locale = DEFAULT_LOCALE
 const weekdayFormatters = new Map<Locale, Intl.DateTimeFormat>();
 
 /** The short weekday of a calendar date ("2026-11-05" is "gio" / "Thu"); a calendar date has no zone. */
-export function formatWeekday(isoDate: string, locale: Locale = DEFAULT_LOCALE): string {
+export function formatWeekday(isoDate: string, locale: Locale = storeLocale()): string {
   const parts = CALENDAR_DATE.exec(isoDate);
   const [year, month, day] = parts ? parts.slice(1).map(Number) : [];
   const date = parts ? new Date(Date.UTC(year!, month! - 1, day!)) : null;

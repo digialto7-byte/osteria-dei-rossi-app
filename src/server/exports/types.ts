@@ -40,7 +40,7 @@ export interface ExportTable<Q, O, R> {
   rows(output: O): readonly R[];
   columns(role: ExportRole): readonly Column<R>[];
   /** The part of the file name after the slug: "2026-10-01_2026-10-31" or "2026-11-04". */
-  range(output: O): string;
+  range(output: O, zone: string): string;
 }
 
 export type AnyExportTable = ExportTable<unknown, unknown, unknown>;

@@ -501,6 +501,7 @@ describe("rule kinds (M16)", () => {
     const out = renderAlert(
       { id: "a1a1a1a1-0000-4000-8000-000000000001", kind, payload },
       locale,
+      "Europe/Rome",
       TEMPLATES,
       names,
     );
@@ -825,21 +826,30 @@ describe("rule kinds (M16)", () => {
   });
 
   it("AT6: weekdayTime reads the Rome clock across the DST change", () => {
-    const f = formattersFor("it");
+    const f = formattersFor("it", "Europe/Rome");
     expect(f.weekdayTime("2026-10-25T10:00:00Z")).toBe("dom 11:00");
     expect(f.weekdayTime("2026-10-24T09:00:00Z")).toBe("sab 11:00");
     expect(f.weekdayTime("2027-03-28T09:00:00Z")).toBe("dom 11:00");
-    expect(formattersFor("en").weekdayTime("2026-11-03T10:00:00Z")).toBe("Tue 11:00");
+    expect(formattersFor("en", "Europe/Rome").weekdayTime("2026-11-03T10:00:00Z")).toBe(
+      "Tue 11:00",
+    );
     expect(f.weekday("2026-11-05")).toBe("gio");
-    expect(formattersFor("en").weekday("2026-11-05")).toBe("Thu");
+    expect(formattersFor("en", "Europe/Rome").weekday("2026-11-05")).toBe("Thu");
+  });
+
+  it("the formatters read the zone they are given, and expose it", () => {
+    const lisbon = formattersFor("en", "Europe/Lisbon");
+    expect(lisbon.weekdayTime("2026-11-03T10:00:00Z")).toBe("Tue 10:00");
+    expect(lisbon.instant("2026-11-03T10:00:00Z")).toBe("03/11/2026, 10:00");
+    expect(lisbon.zone).toBe("Europe/Lisbon");
   });
 
   it("measuredQty always shows at least one decimal", () => {
-    const f = formattersFor("it");
+    const f = formattersFor("it", "Europe/Rome");
     expect(plain(f.measuredQty(5, "kg"))).toBe("5,0 kg");
     expect(plain(f.measuredQty(12.3, "kg"))).toBe("12,3 kg");
     expect(plain(f.measuredQty(0.125, "l"))).toBe("0,125 l");
-    expect(plain(formattersFor("en").measuredQty(1234.5, "kg"))).toBe("1,234.5 kg");
+    expect(plain(formattersFor("en", "Europe/Rome").measuredQty(1234.5, "kg"))).toBe("1,234.5 kg");
   });
 
   it("keeps markup in a name as text", () => {

@@ -20,6 +20,7 @@ const apiJson = vi.fn((path: string) => {
       data: {
         user: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Utente Demo", role },
         tenant: { id: "b0000000-0000-4000-8000-000000000001", name: "Osteria Demo", isDemo: false },
+        settings: ME_SETTINGS,
       },
     });
   }
@@ -29,6 +30,7 @@ vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) })
 
 import AltroPage from "@/app/(owner)/altro/page";
 import { resetMe } from "@/components/use-me";
+import { ME_SETTINGS } from "../helpers/me-data";
 
 beforeEach(() => {
   resetMe();

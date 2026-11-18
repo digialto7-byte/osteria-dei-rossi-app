@@ -32,14 +32,18 @@ const invalid = (message: string) => new ApiError(400, "invalid_request", messag
  * the last 30 days ending today in Europe/Rome; a missing bound is derived from the other. The
  * clock is a parameter so tests can fix it.
  */
-export function parseExtractionQualityQuery(url: URL, now: Date): ExtractionQualityQuery {
+export function parseExtractionQualityQuery(
+  url: URL,
+  now: Date,
+  zone: string,
+): ExtractionQualityQuery {
   const parsed = reportQuery.safeParse(Object.fromEntries(url.searchParams));
   if (!parsed.success) {
     const fields = [...new Set(parsed.error.issues.map((issue) => issue.path.join(".")))];
     throw invalid(`Filtri non validi: ${fields.join(", ")}`);
   }
   const { from: givenFrom, to: givenTo, supplierId, status } = parsed.data;
-  const to = givenTo ?? venueDate(now);
+  const to = givenTo ?? venueDate(now, zone);
   const from = givenFrom ?? addDays(to, 1 - DEFAULT_REPORT_DAYS);
   const days = daysInclusive(from, to);
   if (days === 0) throw invalid("La data iniziale deve essere precedente a quella finale.");

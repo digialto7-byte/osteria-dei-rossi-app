@@ -99,7 +99,7 @@ describe("parseListAlertsQuery limit (M25b)", () => {
 
 describe("buildAlertList", () => {
   it("builds items for the owner, who may raise the test alert", () => {
-    const list = buildAlertList([row(1)], "owner", "it");
+    const list = buildAlertList([row(1)], "owner", "it", "Europe/Rome");
     expect(list.canRaiseTest).toBe(true);
     expect(list.nextCursor).toBeNull();
     expect(list.alerts).toEqual([
@@ -126,13 +126,14 @@ describe("buildAlertList", () => {
         [row(1, { kind, entity_type, entity_id: entity, cost_bearing: true })],
         "owner",
         "it",
+        "Europe/Rome",
       ).alerts[0]!.href;
     expect(hrefs("payable_due_7d", payable)).toBe(`/pagamenti/${payable}`);
     expect(hrefs("payable_due_today", payable)).toBe(`/pagamenti/${payable}`);
     expect(hrefs("payable_overdue_3d", payable)).toBe(`/pagamenti/${payable}`);
     expect(hrefs("payables_weekly_digest", uuid(900), "tenant")).toBe("/pagamenti");
     expect(hrefs("price_variance", payable)).toBeNull();
-    expect(buildAlertList([row(1)], "owner", "it").alerts[0]!.href).toBeNull();
+    expect(buildAlertList([row(1)], "owner", "it", "Europe/Rome").alerts[0]!.href).toBeNull();
   });
 
   it("links the five rule alerts to the screen that fixes them (M16)", () => {
@@ -141,6 +142,7 @@ describe("buildAlertList", () => {
         [row(1, { kind, entity_type: "recipe_key", entity_id: uuid(600) })],
         "owner",
         "it",
+        "Europe/Rome",
       ).alerts[0]!.href;
     expect(href("prep_due")).toBe("/produzione/nuova");
     expect(href("prep_raw_short")).toBe("/produzione/nuova");
@@ -154,6 +156,7 @@ describe("buildAlertList", () => {
       [row(1, { kind: "payable_due_7d", entity_id: null, cost_bearing: true })],
       "owner",
       "it",
+      "Europe/Rome",
     ).alerts[0]!;
     expect(item.href).toBeNull();
   });
@@ -164,22 +167,33 @@ describe("buildAlertList", () => {
       row(2, { kind: "payables_weekly_digest", cost_bearing: true }),
       row(3),
     ];
-    expect(buildAlertList(rows, "chef", "it").alerts.map((a) => a.id)).toEqual([uuid(3)]);
-    expect(buildAlertList(rows, "owner", "it").alerts).toHaveLength(3);
+    expect(buildAlertList(rows, "chef", "it", "Europe/Rome").alerts.map((a) => a.id)).toEqual([
+      uuid(3),
+    ]);
+    expect(buildAlertList(rows, "owner", "it", "Europe/Rome").alerts).toHaveLength(3);
   });
 
   it("renders in the requested locale", () => {
-    expect(buildAlertList([row(1)], "owner", "en").alerts[0]!.title).toBe("Test alert");
+    expect(buildAlertList([row(1)], "owner", "en", "Europe/Rome").alerts[0]!.title).toBe(
+      "Test alert",
+    );
   });
 
   it("the chef cannot raise the test alert and loses any cost-bearing row (defence in depth)", () => {
-    const list = buildAlertList([row(1, { cost_bearing: true }), row(2)], "chef", "it");
+    const list = buildAlertList(
+      [row(1, { cost_bearing: true }), row(2)],
+      "chef",
+      "it",
+      "Europe/Rome",
+    );
     expect(list.canRaiseTest).toBe(false);
     expect(list.alerts.map((a) => a.id)).toEqual([uuid(2)]);
   });
 
   it("the owner keeps a cost-bearing row", () => {
-    expect(buildAlertList([row(1, { cost_bearing: true })], "owner", "it").alerts).toHaveLength(1);
+    expect(
+      buildAlertList([row(1, { cost_bearing: true })], "owner", "it", "Europe/Rome").alerts,
+    ).toHaveLength(1);
   });
 
   it("shows who acknowledged only where the join returned a name", () => {
@@ -190,7 +204,7 @@ describe("buildAlertList", () => {
       acknowledger: { display_name: "Titolare Demo" },
     });
     const hidden = row(2, { acknowledged_at: at, acknowledged_by: uuid(50), acknowledger: null });
-    const { alerts } = buildAlertList([withName, hidden, row(3)], "owner", "it");
+    const { alerts } = buildAlertList([withName, hidden, row(3)], "owner", "it", "Europe/Rome");
     expect(alerts[0]!.acknowledged).toEqual({ at, byName: "Titolare Demo" });
     expect(alerts[1]!.acknowledged).toEqual({ at, byName: null });
     expect(alerts[2]!.acknowledged).toBeNull();
@@ -201,6 +215,7 @@ describe("buildAlertList", () => {
       [row(1, { payload: { note: SECRET } }), row(2, { kind: "test_alert_kitchen" })],
       "owner",
       "it",
+      "Europe/Rome",
     );
     const json = JSON.stringify(list);
     expect(json).not.toContain(SECRET);
@@ -211,7 +226,7 @@ describe("buildAlertList", () => {
     const rows = Array.from({ length: ALERT_LIST_PAGE_SIZE + 1 }, (_, i) =>
       row(i + 1, { created_at: `2026-10-25T00:00:${String(59 - (i % 60)).padStart(2, "0")}Z` }),
     );
-    const list = buildAlertList(rows, "owner", "it");
+    const list = buildAlertList(rows, "owner", "it", "Europe/Rome");
     expect(list.alerts).toHaveLength(ALERT_LIST_PAGE_SIZE);
     const last = rows[ALERT_LIST_PAGE_SIZE - 1]!;
     expect(list.nextCursor).toBe(cursorOf(last));
@@ -221,13 +236,13 @@ describe("buildAlertList", () => {
     const rows = Array.from({ length: ALERT_LIST_PAGE_SIZE + 1 }, (_, i) =>
       row(i + 1, { cost_bearing: i === ALERT_LIST_PAGE_SIZE - 1 }),
     );
-    const list = buildAlertList(rows, "chef", "it");
+    const list = buildAlertList(rows, "chef", "it", "Europe/Rome");
     expect(list.alerts).toHaveLength(ALERT_LIST_PAGE_SIZE - 1);
     expect(list.nextCursor).toBe(cursorOf(rows[ALERT_LIST_PAGE_SIZE - 1]!));
   });
 
   it("an empty page is an empty list", () => {
-    expect(buildAlertList([], "owner", "it")).toEqual({
+    expect(buildAlertList([], "owner", "it", "Europe/Rome")).toEqual({
       alerts: [],
       nextCursor: null,
       canRaiseTest: true,
@@ -242,7 +257,12 @@ describe("listAlerts (query)", () => {
   });
 
   it("reads the newest first, one more than a page, open ones only by default", async () => {
-    await listAlerts(client as never, "owner", { filter: "open", before: null, locale: "it" });
+    await listAlerts(
+      client as never,
+      "owner",
+      { filter: "open", before: null, locale: "it" },
+      "Europe/Rome",
+    );
     expect(client.from).toHaveBeenCalledWith("alert");
     expect(client.query.select).toHaveBeenCalledWith(ALERT_COLUMNS);
     expect(client.query.is).toHaveBeenCalledWith("acknowledged_at", null);
@@ -252,27 +272,42 @@ describe("listAlerts (query)", () => {
   });
 
   it("filter=all does not filter on the acknowledgement", async () => {
-    await listAlerts(client as never, "owner", { filter: "all", before: null, locale: "it" });
+    await listAlerts(
+      client as never,
+      "owner",
+      { filter: "all", before: null, locale: "it" },
+      "Europe/Rome",
+    );
     expect(client.query.is).not.toHaveBeenCalled();
   });
 
   it("a cursor reads strictly after that (created_at, id)", async () => {
-    await listAlerts(client as never, "owner", {
-      filter: "all",
-      before: { createdAt: "2026-10-25T00:30:00.123456Z", id: uuid(7) },
-      locale: "it",
-    });
+    await listAlerts(
+      client as never,
+      "owner",
+      {
+        filter: "all",
+        before: { createdAt: "2026-10-25T00:30:00.123456Z", id: uuid(7) },
+        locale: "it",
+      },
+      "Europe/Rome",
+    );
     expect(client.query.or).toHaveBeenCalledWith(
       `created_at.lt."2026-10-25T00:30:00.123456Z",and(created_at.eq."2026-10-25T00:30:00.123456Z",id.lt."${uuid(7)}")`,
     );
   });
 
   it("quotes the cursor values, also with a numeric zone offset", async () => {
-    await listAlerts(client as never, "owner", {
-      filter: "all",
-      before: { createdAt: "2026-10-25T02:30:00+02:00", id: uuid(7) },
-      locale: "it",
-    });
+    await listAlerts(
+      client as never,
+      "owner",
+      {
+        filter: "all",
+        before: { createdAt: "2026-10-25T02:30:00+02:00", id: uuid(7) },
+        locale: "it",
+      },
+      "Europe/Rome",
+    );
     expect(client.query.or).toHaveBeenCalledWith(
       `created_at.lt."2026-10-25T02:30:00+02:00",and(created_at.eq."2026-10-25T02:30:00+02:00",id.lt."${uuid(7)}")`,
     );
@@ -281,7 +316,12 @@ describe("listAlerts (query)", () => {
   it("a database error becomes an error that names only the SQLSTATE", async () => {
     client = fakeSupabase({ results: { alert: [dbError("57014", `boom ${SECRET}`)] } });
     await expect(
-      listAlerts(client as never, "owner", { filter: "open", before: null, locale: "it" }),
+      listAlerts(
+        client as never,
+        "owner",
+        { filter: "open", before: null, locale: "it" },
+        "Europe/Rome",
+      ),
     ).rejects.toThrowError("Unexpected database error 57014");
   });
 });
@@ -311,11 +351,16 @@ describe("listAlerts with names (M12)", () => {
         location: [ok([{ id: LOC, name: "Cella (demo)" }])],
       },
     });
-    const list = await listAlerts(client as never, "chef", {
-      filter: "open",
-      before: null,
-      locale: "it",
-    });
+    const list = await listAlerts(
+      client as never,
+      "chef",
+      {
+        filter: "open",
+        before: null,
+        locale: "it",
+      },
+      "Europe/Rome",
+    );
     expect(list.alerts[0]?.title).toBe("Scorta negativa: Manzo muscolo (demo)");
     expect(list.alerts[0]?.body).toContain("Cella (demo)");
     expect(list.alerts[1]?.title).toBe("Avviso di prova");
@@ -324,7 +369,12 @@ describe("listAlerts with names (M12)", () => {
 
   it("makes no name query when no row needs a name (other kinds render as before)", async () => {
     const client = fakeSupabase({ results: { alert: [ok([row(1)])] } });
-    await listAlerts(client as never, "owner", { filter: "open", before: null, locale: "it" });
+    await listAlerts(
+      client as never,
+      "owner",
+      { filter: "open", before: null, locale: "it" },
+      "Europe/Rome",
+    );
     expect(client.from).toHaveBeenCalledTimes(1);
   });
 
@@ -336,7 +386,7 @@ describe("listAlerts with names (M12)", () => {
         location: [ok([{ id: LOC, name: "Cella (demo)" }])],
       },
     });
-    const item = await getAlert(client as never, uuid(5), "chef", "it");
+    const item = await getAlert(client as never, uuid(5), "chef", "it", "Europe/Rome");
     expect(item.title).toBe("Scorta negativa: Manzo muscolo (demo)");
   });
 });
@@ -344,21 +394,25 @@ describe("listAlerts with names (M12)", () => {
 describe("getAlert", () => {
   it("returns one rendered item", async () => {
     const client = fakeSupabase({ results: { alert: [ok(row(1))] } });
-    const item = await getAlert(client as never, uuid(1), "owner", "en");
+    const item = await getAlert(client as never, uuid(1), "owner", "en", "Europe/Rome");
     expect(item.title).toBe("Test alert");
     expect(client.query.eq).toHaveBeenCalledWith("id", uuid(1));
   });
 
   it("a row that is not visible is a 404", async () => {
     const client = fakeSupabase({ results: { alert: [ok(null)] } });
-    await expect(getAlert(client as never, uuid(1), "owner", "it")).rejects.toMatchObject({
+    await expect(
+      getAlert(client as never, uuid(1), "owner", "it", "Europe/Rome"),
+    ).rejects.toMatchObject({
       status: 404,
     });
   });
 
   it("a cost-bearing row is never shown to the chef", async () => {
     const client = fakeSupabase({ results: { alert: [ok(row(1, { cost_bearing: true }))] } });
-    await expect(getAlert(client as never, uuid(1), "chef", "it")).rejects.toMatchObject({
+    await expect(
+      getAlert(client as never, uuid(1), "chef", "it", "Europe/Rome"),
+    ).rejects.toMatchObject({
       status: 404,
     });
   });

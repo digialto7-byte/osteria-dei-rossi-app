@@ -39,7 +39,7 @@ function setup(replies: Record<string, FakeResult[]>) {
   });
 }
 const run = (query: { month?: string } = { month: "2026-10" }) =>
-  getMonthlyPack(client as unknown as SupabaseClient, query);
+  getMonthlyPack(client as unknown as SupabaseClient, query, "Europe/Rome");
 const rpcNames = () => client.rpc.mock.calls.map((c) => c[0]);
 
 const person = { name: "Titolare Demo", me: true };

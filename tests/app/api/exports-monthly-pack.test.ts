@@ -4,6 +4,7 @@ import {
   fakeSupabase,
   type FakeResult,
   type FakeSupabase,
+  dataRpcCalls,
 } from "../../helpers/fake-supabase";
 import {
   PACK_KPI,
@@ -59,7 +60,7 @@ describe("GET /api/exports/monthly-pack", () => {
   ])("%s is a 400 without an RPC", async (query) => {
     const response = await get(query);
     expect(response.status).toBe(400);
-    expect(client.rpc).not.toHaveBeenCalled();
+    expect(dataRpcCalls(client)).toEqual([]);
   });
 
   it.each(["owner", "admin"])("%s: 200 JSON, no-store, Server-Timing", async (role) => {
@@ -73,7 +74,7 @@ describe("GET /api/exports/monthly-pack", () => {
     const body = (await response.json()) as { month: string; variance: { state: string } };
     expect(body.month).toBe("2026-10");
     expect(body.variance.state).toBe("ok");
-    expect(client.rpc).toHaveBeenCalledTimes(3);
+    expect(dataRpcCalls(client)).toHaveLength(3);
   });
 
   it("no month is allowed", async () => {

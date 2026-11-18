@@ -58,6 +58,7 @@ function toRow(sql: SqlAlertRow): AlertRow {
 function renderAlerts(
   rows: SqlAlertRow[],
   locale: Locale,
+  zone: string,
   names: LoadedAlertNames,
 ): DashboardAlertItem[] {
   const items: DashboardAlertItem[] = [];
@@ -66,7 +67,7 @@ function renderAlerts(
       reportError(new Error(`Dashboard alert ${row.id}: unknown kind ${row.kind.slice(0, 41)}`));
       continue;
     }
-    const item = toAlertItem(toRow(row), locale, names);
+    const item = toAlertItem(toRow(row), locale, zone, names);
     items.push({
       ...item,
       acknowledged: item.acknowledged && { at: item.acknowledged.at, byName: null },
@@ -113,7 +114,7 @@ function sharedTiles(sql: DashboardSql): AdminDashboard["tiles"] {
   };
 }
 
-function renderOwner(sql: OwnerSql, locale: Locale): OwnerDashboard {
+function renderOwner(sql: OwnerSql, locale: Locale, zone: string): OwnerDashboard {
   const names = namesOf(sql.names);
   return {
     role: "owner",
@@ -128,15 +129,15 @@ function renderOwner(sql: OwnerSql, locale: Locale): OwnerDashboard {
       priceVariance: {
         href: HREF.priceVariance,
         count: sql.priceVariance.count,
-        items: renderAlerts(sql.priceVariance.items, locale, names),
+        items: renderAlerts(sql.priceVariance.items, locale, zone, names),
       },
       todayLists: {
         href: HREF.todayLists,
         businessDate: sql.todayLists.businessDate,
         prepCount: sql.todayLists.prepCount,
-        prep: renderAlerts(sql.todayLists.prep, locale, names),
+        prep: renderAlerts(sql.todayLists.prep, locale, zone, names),
         purchaseCount: sql.todayLists.purchaseCount,
-        purchase: renderAlerts(sql.todayLists.purchase, locale, names),
+        purchase: renderAlerts(sql.todayLists.purchase, locale, zone, names),
       },
       // platesSold stays in the SQL document; the tile needs only the reason.
       fixedCosts: {
@@ -151,8 +152,8 @@ function renderOwner(sql: OwnerSql, locale: Locale): OwnerDashboard {
   };
 }
 
-export function renderDashboard(sql: DashboardSql, locale: Locale): DashboardOutput {
-  if (sql.role === "owner") return renderOwner(sql, locale);
+export function renderDashboard(sql: DashboardSql, locale: Locale, zone: string): DashboardOutput {
+  if (sql.role === "owner") return renderOwner(sql, locale, zone);
   return {
     role: "admin",
     asOf: sql.asOf,

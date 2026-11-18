@@ -13,6 +13,8 @@ const FILLED = {
   paymentType: "card",
 } as const;
 const base: Props = {
+  receiptTypes: ["scontrino", "fattura"],
+  paymentTypes: ["cash", "card", "other"],
   total: 100,
   form: EMPTY_CLOSE_FORM,
   onForm: () => undefined,
@@ -167,5 +169,18 @@ describe("CloseSheet", () => {
       expect(radio.closest("label")?.className).toContain("min-h-tap");
     }
     expect(container.querySelector('input[type="text"]')?.className).toContain("min-h-tap");
+  });
+});
+
+describe("CloseSheet options (SP1 step 10)", () => {
+  it("renders exactly the options given, in the order given", () => {
+    show({ receiptTypes: ["scontrino"], paymentTypes: ["card", "cash"] });
+    expect(screen.queryByRole("radio", { name: "Fattura" })).toBeNull();
+    expect(screen.queryByRole("radio", { name: "Altro" })).toBeNull();
+    const payment = screen.getByRole("radiogroup", { name: "Pagamento" });
+    expect(
+      Array.from(payment.querySelectorAll("input")).map((i) => (i as HTMLInputElement).value),
+    ).toEqual(["card", "cash"]);
+    expect(screen.getAllByRole("radio", { name: "Scontrino" })).toHaveLength(1);
   });
 });
