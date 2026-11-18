@@ -261,7 +261,21 @@ export type ErrorCode =
   | "link_invalid"
   | "cancel_closed"
   | "locale_invalid"
-  | "settings_list_empty";
+  | "settings_list_empty"
+  // opening stock (plan 2026-11-18 §3.9)
+  | "opening_draft_changed"
+  | "opening_location_counted"
+  | "opening_count_open"
+  | "opening_draft_not_empty"
+  | "opening_request_reused"
+  | "opening_qty_invalid"
+  | "opening_cost_invalid"
+  | "opening_line_duplicate"
+  | "opening_draft_full"
+  | "opening_date_in_future"
+  | "opening_date_too_old"
+  | "opening_date_after_receipt"
+  | "opening_reason_invalid";
 
 /** A per-item problem attached to an error, e.g. one invalid row of an import. */
 export type ErrorDetail = Record<string, string | number>;

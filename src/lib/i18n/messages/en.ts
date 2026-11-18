@@ -624,6 +624,34 @@ export const en: Record<MessageKey, string> = {
   "stock.type.count": "Count",
   "stock.type.reversal": "Reversal",
   "stock.type.opening": "Opening stock",
+  // opening stock (plan 2026-11-18 §3.9; Italian wording da approvare, Q15)
+  "openingError.opening_draft_changed":
+    "The draft changed in the meantime. Reload and check it before confirming.",
+  "openingError.opening_location_counted":
+    "This location was counted on {date}: the opening stock can no longer be entered.",
+  "openingError.opening_count_open": "A count is open at this location: close or cancel it first.",
+  "openingError.opening_draft_not_empty":
+    "Confirm or clear this location's draft before correcting.",
+  "openingError.already_reversed": "This opening stock was already corrected.",
+  "openingError.opening_request_reused":
+    "This confirmation was already used for another location. Try again.",
+  "openingError.opening_qty_invalid":
+    "Invalid quantity: above zero, at most 100,000, with at most 4 decimals.",
+  "openingError.opening_cost_invalid": "Invalid cost: from 0 to €100,000, with at most 4 decimals.",
+  "openingError.opening_line_duplicate": "This ingredient is already in this location's draft.",
+  "openingError.opening_draft_full": "At most 200 lines per location.",
+  "openingError.opening_date_in_future": "The date cannot be in the future.",
+  "openingError.opening_date_too_old": "The date cannot be more than a year ago.",
+  "openingError.opening_date_after_receipt":
+    "The date must be before the first invoice received ({date}).",
+  "openingError.opening_reason_invalid": "Invalid reason.",
+  "openingError.ingredient_not_stock": "This ingredient is not kept in stock.",
+  "openingError.location_not_found": "Location not found.",
+  "openingError.ingredient_not_found": "Ingredient not found.",
+  "openingError.opening_not_found": "Opening stock not found.",
+  "openingError.not_found": "Not found.",
+  "opening.lines.one": "{count} line",
+  "opening.lines.other": "{count} lines",
   "stockError.lot_empty": "The chosen lot is empty in this location.",
   "stockError.insufficient_stock": "The records show less than you want to move: do a count first.",
   "stockError.already_reversed": "This movement has already been reversed.",
