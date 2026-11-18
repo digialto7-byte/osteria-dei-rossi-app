@@ -606,6 +606,7 @@ Each moved pin is commented "re-pinned on purpose by opening stock (step N; was 
 | `tests/config/m25b-preserves.test.ts` page list | one new page `/magazzino/avvio` | 21 |
 | `169` t15–16, `179` t32–33, `207` t18–19, `214` t12–13, `222` t25, `229` t25–26, `240` t26, `255` t28, `286` t26, `296` t23, `327` t11, `346` t26–27 | `audit_event` entity-type and action check md5s (found in PR2; lead ruling 2026-11-18, option A) | 5 |
 | `296` t27; `346` t1–2 | purge-list count 59 → 61; `demo_purge_tables` md5 in 346's unchanged list (found in PR2; option A) | 5 |
+| `004` t1, `059` t1 (fixture completeness: one row per public table); `096` t9 (stock relations gain `stock_opening`) | the two new tables get one fixture row each; the relation list re-pinned (found by CI in PR2) | 5 |
 | `tests/config/check-constraint-union.test.ts:105` | the file of the last `audit_event_entity_type_check` definition → `20261206210200_stock_opening_tables.sql` (union assertions unchanged; found in PR2) | 5 |
 
 **Must pass unchanged:**
