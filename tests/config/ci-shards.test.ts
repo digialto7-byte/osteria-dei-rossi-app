@@ -1,9 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-// M25 step 18 (founder Q180 = B): the heavy `supabase` job is two shards, each with its own stack, build and 30-minute cap. Shard 1 also runs pgTAP and the
-// integration suite (once is enough); both shards run their half of Playwright, which now includes the service simulation. The simulation and the order
-// fixtures call `psql` (e2e/helpers/invariants.ts, seed-order.ts), so the `psql` check runs in BOTH shards.
+// M25 step 18 (founder Q180 = B): the heavy `supabase` job is sharded, each shard with its own stack, build and 30-minute cap. Shard 1 also runs pgTAP and the
+// integration suite (once is enough); every shard runs its part of Playwright, which includes the service simulation. Three shards since 2026-11-18 (lead):
+// on the full Chromium build (#174) shard 1 of two took 24 min 23 s, too close to the cap with SP1's pgTAP files coming. The simulation and the order
+// fixtures call `psql` (e2e/helpers/invariants.ts, seed-order.ts), so the `psql` check runs in EVERY shard.
 const ci = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
 const DRAFT_GATE =
   "if: github.event_name != 'pull_request' || github.event.pull_request.draft == false";
@@ -26,17 +27,17 @@ const supabase = job("supabase");
 const list = steps(supabase);
 const find = (needle: string) => list.findIndex((step) => step.includes(needle));
 
-describe("the supabase job in two shards", () => {
-  it("is a matrix of shards 1 and 2 that stops the other shard on a failure", () => {
+describe("the supabase job in three shards", () => {
+  it("is a matrix of shards 1, 2 and 3 that stops the other shards on a failure", () => {
     expect(supabase).toMatch(
-      /\n {4}strategy:\n {6}fail-fast: true\n {6}matrix:\n {8}shard: \[1, 2\]\n/,
+      /\n {4}strategy:\n {6}fail-fast: true\n {6}matrix:\n {8}shard: \[1, 2, 3\]\n/,
     );
   });
 
-  it("keeps the 30-minute cap and the draft gate, and names the shard in the job name", () => {
+  it("keeps the 30-minute cap and the draft gate, and names the shard out of three in the job name", () => {
     expect(supabase).toMatch(/\n {4}timeout-minutes: 30\n/);
     expect(supabase).toContain(`\n    ${DRAFT_GATE}\n`);
-    expect(supabase).toMatch(/\n {4}name: .*\$\{\{ matrix\.shard \}\}/);
+    expect(supabase).toMatch(/\n {4}name: .*\$\{\{ matrix\.shard \}\}\/3\n/);
   });
 
   it("runs the steps in order: npm ci, stack, pgTAP, settings, psql, integration, build, browsers, Playwright", () => {
@@ -49,22 +50,22 @@ describe("the supabase job in two shards", () => {
       "run: npm run test:integration",
       "run: npm run build",
       "npx playwright install --with-deps chromium webkit",
-      "npx playwright test --shard=${{ matrix.shard }}/2",
+      "npx playwright test --shard=${{ matrix.shard }}/3",
     ].map(find);
     expect(order.every((at) => at >= 0)).toBe(true);
     expect([...order].sort((x, y) => x - y)).toEqual(order);
   });
 
-  it("only pgTAP and the integration suite are limited to shard 1; every other step runs in both", () => {
+  it("only pgTAP and the integration suite are limited to shard 1; every other step runs in every shard", () => {
     const limited = list.filter((step) => /\bif: matrix\.shard\b/.test(step));
     expect(limited).toHaveLength(2);
     expect(limited.some((step) => step.includes("run: npx supabase test db"))).toBe(true);
     expect(limited.some((step) => step.includes("run: npm run test:integration"))).toBe(true);
     expect(supabase.match(/matrix\.shard == 1/g)).toHaveLength(2);
-    expect(supabase.match(/matrix\.shard == 2/g)).toBeNull();
+    expect(supabase.match(/matrix\.shard == [23]/g)).toBeNull();
   });
 
-  it("checks that psql is there in both shards (the simulation and the order fixtures use it)", () => {
+  it("checks that psql is there in every shard (the simulation and the order fixtures use it)", () => {
     const psql = list[find("psql --version")]!;
     expect(psql).toBeDefined();
     expect(psql).not.toContain("if:");

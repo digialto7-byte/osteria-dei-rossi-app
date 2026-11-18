@@ -78,17 +78,17 @@ jobs:
       - run: scripts/test-db-races.sh
 
   supabase:
-    # Two shards (founder Q180 option B, M25 plan): each is a job with its own 30-minute cap and its own stack and
-    # build. Shard 1 also runs pgTAP and the integration suite, which need run only once. fail-fast stops the other
-    # shard when one fails, so a red run costs no more than needed.
-    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/2
+    # Three shards (founder Q180 option B, M25 plan; three since 2026-11-18, lead): each is a job with its own 30-minute cap and
+    # its own stack and build. Shard 1 also runs pgTAP and the integration suite, which need run only once. fail-fast stops the
+    # other shards when one fails, so a red run costs no more than needed.
+    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/3
     if: github.event_name != 'pull_request' || github.event.pull_request.draft == false
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: true
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3]
     env:
       # A fixed fake for the throwaway local stack only (staff PIN login derives passwords with it).
       # Production and Preview values live in Vercel and are never in the repo (ADR-010).
@@ -190,7 +190,7 @@ jobs:
         run: |
           sudo find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' -exec cp -t /var/cache/apt/archives {} +
           npx playwright install-deps chromium webkit
-      - run: npx playwright test --shard=${{ matrix.shard }}/2
+      - run: npx playwright test --shard=${{ matrix.shard }}/3
       # The report artifact cannot always be fetched (M25, 2026-11-07): print each failed test's page snapshot (Playwright's
       # error-context.md, an accessibility tree of the fake CI data) into the log.
       - name: Page snapshots of the failed tests (on failure)

@@ -58,17 +58,17 @@ describe("CI budget", () => {
     expect(ci.split(DRAFT_GATE)).toHaveLength(HEAVY.length + 1);
   });
 
-  // Founder Q180 option B (M25 plan, 2026-11-01): Playwright runs in two shards, each a job with its own 30-minute cap,
-  // so the suite no longer shares one cap with pgTAP, integration and the build.
-  describe("Playwright in two shards", () => {
+  // Founder Q180 option B (M25 plan, 2026-11-01): Playwright runs in shards, each a job with its own 30-minute cap,
+  // so the suite no longer shares one cap with pgTAP, integration and the build. Three since 2026-11-18 (lead; re-pinned on purpose).
+  describe("Playwright in three shards", () => {
     const supabase = job("supabase");
 
-    it("the supabase job is a two-shard matrix that stops both shards on the first failure", () => {
+    it("the supabase job is a three-shard matrix that stops every shard on the first failure", () => {
       expect(supabase).toMatch(
-        /\n {4}strategy:\n {6}fail-fast: true\n {6}matrix:\n {8}shard: \[1, 2\]\n/,
+        /\n {4}strategy:\n {6}fail-fast: true\n {6}matrix:\n {8}shard: \[1, 2, 3\]\n/,
       );
       expect(supabase).toContain(
-        "\n    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/2\n",
+        "\n    name: Database (pgTAP) and E2E (Playwright) ${{ matrix.shard }}/3\n",
       );
     });
 
@@ -76,8 +76,8 @@ describe("CI budget", () => {
       expect(supabase).toMatch(/\n {4}timeout-minutes: 30\n/);
     });
 
-    it("runs its own half of the Playwright suite", () => {
-      expect(supabase).toContain("run: npx playwright test --shard=${{ matrix.shard }}/2");
+    it("runs its own third of the Playwright suite", () => {
+      expect(supabase).toContain("run: npx playwright test --shard=${{ matrix.shard }}/3");
       expect(ci.match(/npx playwright test/g)).toHaveLength(1);
     });
 
