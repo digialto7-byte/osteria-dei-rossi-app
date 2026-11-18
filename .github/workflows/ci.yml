@@ -187,7 +187,16 @@ jobs:
         run: |
           sudo find ~/.cache/playwright-debs -maxdepth 1 -name '*.deb' -exec cp -t /var/cache/apt/archives {} +
           npx playwright install-deps chromium webkit
-      - run: npx playwright test --shard=${{ matrix.shard }}/2
+      # TEMPORARY (segfault probe for #169, revert this commit): the crashing spec 60 times on phone in each shard. Shard 1 keeps headless_shell
+      # (the baseline), shard 2 runs the full Chromium build in new headless mode (channel "chromium"), so one run compares the two binaries.
+      - run: npx playwright test --project=phone --repeat-each=60 e2e/reservations-staff.spec.ts
+        env:
+          PW_PROBE_CHANNEL: ${{ matrix.shard == 2 && 'chromium' || '' }}
+      - name: PROBE browser binary and segfaults (always)
+        if: always()
+        run: |
+          ls ~/.cache/ms-playwright || true
+          sudo dmesg --ctime 2>/dev/null | grep -E 'segfault' || echo "no segfault in dmesg"
       # The report artifact cannot always be fetched (M25, 2026-11-07): print each failed test's page snapshot (Playwright's
       # error-context.md, an accessibility tree of the fake CI data) into the log.
       - name: Page snapshots of the failed tests (on failure)

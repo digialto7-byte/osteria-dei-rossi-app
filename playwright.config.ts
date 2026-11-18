@@ -26,7 +26,12 @@ export default defineConfig({
     {
       name: "phone",
       testIgnore: NOT_ORDINARY,
-      use: { ...devices["Pixel 7"], viewport: { width: 360, height: 740 } },
+      // TEMPORARY (segfault probe, revert this commit): PW_PROBE_CHANNEL=chromium runs the full Chromium build in new headless mode instead of headless_shell.
+      use: {
+        ...devices["Pixel 7"],
+        viewport: { width: 360, height: 740 },
+        ...(process.env.PW_PROBE_CHANNEL ? { channel: process.env.PW_PROBE_CHANNEL } : {}),
+      },
     },
     // M18: the order screen also runs on WebKit (an iPhone), the waiter's other likely phone. M19 adds the firing spec
     // (send and void on the same screen). Only those specs: the rest of the suite stays on Chromium to keep the CI minutes
