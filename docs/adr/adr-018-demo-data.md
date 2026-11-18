@@ -90,3 +90,7 @@ Consequences: no second tenant and no `tenant.is_demo`; "at most one demo tenant
   - a need for several demo tenants, or for demo data on production (plan V3);
   - Supabase allowing Auth and Storage deletion from SQL;
   - the founder approving the secret-key exception for the app route (plan V1).
+
+## Note (2026-11-18, SP1 per-tenant configuration)
+
+Tenant configuration tables are not operational data under this ADR, so a demo purge keeps them and `app.tenant_has_operational_data` ignores them. The first is `public.tenant_vat_rate` (the tenant's sale VAT list, seeded for every tenant); `public.tenant_close_code` follows in SP1 step 5. They are deliberately not in `app.demo_purge_tables()`: listing them would make every seeded tenant count as having operational data (so `begin_demo_data` would refuse) and would delete the tenant's lists on a reset. pgTAP `194` exempts them by an exact list, and pgTAP `193` asserts that a purge leaves a tenant's `tenant_vat_rate` rows intact. Their `updated_by` key is `on delete set null (updated_by)`, so a row a demo user last edited keeps its values and loses only its author when the purge deletes the demo users; with a plain key the purge would abort (23503), which `193` also covers. A reset therefore also keeps any change made to the configuration while the demo ran: the configuration is the venue's real setup, not demo data, so the reset leaves it as the venue set it (lead decision Q-b, 2026-11-18). The purge functions and their md5 pins are unchanged. (Lead decision, 2026-11-18.)

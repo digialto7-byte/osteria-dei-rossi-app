@@ -142,18 +142,26 @@ platform plan §5.4.
 `(tenant_id uuid not null references public.tenant (id), rate numeric(5,2) not null check (rate = any (app.allowed_vat_rates())),
 is_active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now(),
 updated_by uuid null, primary key (tenant_id, rate), constraint tenant_vat_rate_updated_by_fkey foreign key (tenant_id, updated_by)
-references public.app_user (tenant_id, id))`.
-- `updated_by` is null for seeded rows (no `app_user` exists when a tenant is created).
+references public.app_user (tenant_id, id) on delete set null (updated_by))`.
+- `updated_by` is null for seeded rows (no `app_user` exists when a tenant is created). `on delete set null (updated_by)` (PG15+): the demo
+  purge deletes the demo users but keeps this row, so a rate a demo user last edited loses only its author and the purge does not abort
+  (code review 2026-11-18; pgTAP 193 has the case).
+- `app.sale_vat_rates` returns `trim_scale`d values, so `to_jsonb` of the list is the same text as `to_jsonb(app.allowed_vat_rates())`
+  (`[0, 4, 5, 10, 22]`): the `vatRates` payloads keep their text when step 4 reads this list (pgTAP 391 asserts the text).
 - RLS on. One policy, `tenant_vat_rate_select`: `for select to authenticated using (tenant_id = (select app.tenant_id()))`.
 - No insert, update or delete grant to `anon`, `authenticated` or `service_role`. Rows are written only by `app.seed_tenant_settings` and
   `public.set_tenant_settings` (definers).
+- **Not operational data (lead, 2026-11-18, ADR-018 note):** the table is tenant configuration. It is not in `app.demo_purge_tables()`, a demo
+  purge keeps its rows and `app.tenant_has_operational_data` ignores it (listing it would make `begin_demo_data` refuse every seeded tenant).
+  pgTAP 194 exempts configuration tables by an exact list (`tenant_vat_rate`; step 5 adds `tenant_close_code`); pgTAP 193 asserts a purge leaves
+  the rows intact. The same holds for `tenant_close_code` (§3.1.2).
 - Rows are never deleted: a removed rate becomes `is_active = false`. The `rate` CHECK calls an immutable function, so the rule "a CHECK
   never reads a table" holds (AT1, last clause).
 
 **3.1.2 `public.tenant_close_code` (step 5).**
 `(tenant_id uuid not null references public.tenant (id), kind text not null check (kind in ('receipt', 'payment')), code text not null,
 position smallint not null check (position between 1 and 20), is_active boolean not null default true, created_at, updated_at, updated_by
-uuid null (FK as above), primary key (tenant_id, kind, code),
+uuid null (FK as above, `on delete set null (updated_by)`), primary key (tenant_id, kind, code),
 constraint tenant_close_code_catalogue_ck check ((kind = 'receipt' and code = any (app.receipt_types()))
 or (kind = 'payment' and code = any (app.payment_type_codes()))))`.
 - RLS, policy, grants and no-delete exactly as 3.1.1.
@@ -184,7 +192,7 @@ service_role`. **Naming:** no new public name matches `cost|margin|price|service
 | Function | Kind | Step | Body | Grants |
 |---|---|---|---|---|
 | `app.sale_vat_rates(p_tenant uuid) returns numeric[]` | new, stable | 3 | active rates of the tenant, ascending | none |
-| `app.check_sale_vat_rate() returns trigger` | new | 3 | `TG_TABLE_NAME` picks the column (`vat_rate` / `coperto_vat_rate`); null passes; else `if not (v = any (app.sale_vat_rates(new.tenant_id))) then raise exception 'vat_rate_invalid' using errcode = 'P0001'`. Reads `new.tenant_id`, never the token, so it also holds for table-owner inserts | none |
+| `app.check_sale_vat_rate() returns trigger` | new | 3 | `TG_TABLE_NAME` picks the column (`vat_rate` / `coperto_vat_rate`) with an `if`, not a `case` (a plpgsql `case` naming `new.coperto_vat_rate` fails with 42703 on the other table); null passes; a rate outside the statutory list **falls through** so the column CHECK raises 23514 as today (pgTAP 150 unchanged; lead, 2026-11-18); else `if v = any (app.allowed_vat_rates()) and not (v = any (app.sale_vat_rates(new.tenant_id))) then raise exception 'vat_rate_invalid' using errcode = 'P0001'`. Reads `new.tenant_id`, never the token, so it also holds for table-owner inserts | none |
 | triggers `menu_item_price_sale_vat` (`before insert or update of vat_rate on public.menu_item_price`) and `sale_settings_sale_vat` (`before insert or update of coperto_vat_rate on public.sale_settings`, `when (new.coperto_vat_rate is not null)`) | new | 3 | as above | — |
 | `app.seed_tenant_settings() returns trigger` + trigger `tenant_seed_settings` | new; re-created in step 5 | 3, 5 | §3.1.4 | none |
 | `app.default_vat_rate(uuid)` | re-created, same signature | 4 | `where c.sale_vat_pct = any (app.sale_vat_rates(p_tenant))` (was `menu_tables_helpers.sql:121`) | unchanged (none) |
@@ -354,6 +362,8 @@ argument.
 | same `:130` triggers | count | 127 → 130 | 3 |
 | same `:135` policies | count | 72 → 74 | 3, 5 |
 | `286_m25c_preserves.test.sql:51–52` | public table list | add `tenant_close_code`, `tenant_vat_rate` | 3, 5 |
+| `194_demo_purge_tables_complete.test.sql` test 1 | "every table with a tenant_id is in the purge list" | exact-list exemption of configuration tables: `tenant_vat_rate` (step 5 adds `tenant_close_code`); purge functions and 359's md5 pins untouched; 193 gains one assertion that a purge keeps `tenant_vat_rate` (plan 89 to 90). Added by the builder, lead-approved 2026-11-18 | 3, 5 |
+| `207_dashboard_preserves` t16, `214_m20_preserves` t14, `229_m19b_preserves` t27, `296_reservations_preserves` t25 | public table list | add `tenant_vat_rate` (step 5 adds `tenant_close_code`), commented "re-pinned on purpose by SP1". Missed by the first draft of this plan, lead-approved 2026-11-18 | 3, 5 |
 | `tests/config/m25-preserves.test.ts:23`, `m25a-preserves.test.ts:29`, `ux-quick-wins-preserves.test.ts:13` | newest migration | each SP1 file in turn, last `20261206200400_tenant_locale_settings.sql` | each migration step |
 | `tests/config/m25b-preserves.test.ts:177` | `ALLOWED_NEW_MIGRATIONS` | append each SP1 file | same |
 | `tests/config/ds-bq2-preserves.test.ts:17` and self-test `:48–58` | the `20261206*` claim | narrow the filter to `startsWith("2026120610")` (DS-BQ-2's own hour); the self-test gains a `20261206200000_x.sql` file that must be ignored. **Needs the lead's ratification** | 3 |
@@ -363,7 +373,7 @@ argument.
 | same route list | cost guard | add `PATCH /api/settings/venue` | 13 |
 
 **Must pass unchanged:**
-- pgTAP 001, 002, 003, 005, 021 (statutory list), 085, 151, 153, 154, 215, 220, 321, 341, 342, 346:12 (hook), 359 values, 386, 388.
+- pgTAP 150 (a rate of 12 % still meets the CHECK, 23514: the trigger lets non-statutory rates fall through), 001, 002, 003, 005, 021 (statutory list), 085, 151, 153, 154, 215, 220, 321, 341, 342, 346:12 (hook), 359 values, 386, 388.
 - `tests/parity/review-sql-parity.test.ts`; `tests/lint/offline-cache-allowlist.test.ts`; `tests/config/sp3-preserves.test.ts` (the
   wordmark and `venue.name` are untouched).
 - Every prefix-scoped preserves test; `tests/server/extraction/*`.
@@ -500,7 +510,7 @@ renumber (V1).
 | 2 | **X: cross-tenant suite on Demo A/B** (§6.5 rule 4) | `390_sp1_cross_tenant.test.sql` | Fixture "Osteria Demo A" (coperto 2,50 at 10 %) and "Osteria Demo B" (no coperto), owners on `example.test`. A catalogue loop over every `public` table with `tenant_id`: as B's owner, A's rows read 0; an insert with A's `tenant_id` → 42501 or RLS violation. Passes on main by design; its mutation case grants B a read on A in a temp policy and must fail. Later steps add rows to the fixture (B's list `[10, 22]` from step 3) |
 | 3 | **Sale VAT list, trigger, seed** (§3.1.1, §3.1.4, §3.2) | `supabase/migrations/20261206200000_tenant_sale_vat.sql`; `391_sp1_sale_vat.test.sql`; `396_sp1_preserves.test.sql` (new); `tests/config/sp1-preserves.test.ts` (new); `ds-bq2-preserves.test.ts:17, 48–58`; 359, 365, 286 rows; newest-migration pins | **391 first test: "tenant B with sale list [10, 22] refuses a direct `menu_item_price` insert at 4 % with P0001 `vat_rate_invalid`" (fails: the row is accepted).** Then (AT1): <br>• `create_menu_item` at 4 % for B → the same code; for A → accepted; <br>• `set_sale_settings` coperto at 4 % for B → refused, for A → accepted; <br>• a direct `sale_settings` insert at 4 % for B → refused; <br>• an `invoice_line` of B at 4 % → `app.line_checks` gives no `vat_rate_unexpected`; <br>• inserting rate 12 into `tenant_vat_rate` → 23514; <br>• an open `table_session` of B keeps `coperto_vat_rate` 4 after 4 is deactivated, and still closes; <br>• a new tenant gets five active rates; existing tenants are backfilled; <br>• RLS and grants as §3.1.1; the two functions are closed to API roles. <br>**396 first test:** "no CHECK constraint in `public` or `app` depends on a function that is not immutable" (via `pg_depend` between `pg_constraint` and `pg_proc`); fails if a constraint ever calls `sale_vat_rates`. Then: no write grant on either new table. **Vitest `sp1-preserves`:** the file-list rules of §5 |
 | 4 | **Default rate and sale reads on the tenant list** | `…20261206200100_sale_vat_reads.sql`; `392_sp1_sale_vat_reads.test.sql`; 327 `:37` | **392 first test: "`menu_items_manage()` for B lists `vatRates` [10, 22]" (fails: five).** Then: `sale_settings_read()` the same; `default_vat_rate` for B with `sale_vat_pct` 4 → null, with 10 → 10; for A unchanged (151:163–165 green); G (389) unchanged |
-| 5 | **Receipt and payment codes per tenant** (§3.1.2) | `…20261206200200_tenant_close_codes.sql` (table, helpers, seed fn re-created, backfill); `393_sp1_close_codes.test.sql`; `close-sql-parity.test.ts`; 359, 365, 286 rows | **393 first test: "a new tenant gets receipt codes [scontrino, fattura] and payment codes [cash, card, other] in that order" (fails: table missing).** Then: `tenant_receipt_types(B)` follows `position` and skips inactive codes; a code outside the catalogue → 23514; RLS and grants. **Parity:** the seed lists equal `RECEIPT_TYPES` / `PAYMENT_TYPES` |
+| 5 | **Receipt and payment codes per tenant** (§3.1.2) | `…20261206200200_tenant_close_codes.sql` (table, helpers, seed fn re-created, backfill); `393_sp1_close_codes.test.sql`; `close-sql-parity.test.ts`; 359, 365, 286 rows | **393 first test: "a new tenant gets receipt codes [scontrino, fattura] and payment codes [cash, card, other] in that order" (fails: table missing).** Then: `tenant_receipt_types(B)` follows `position` and skips inactive codes; a code outside the catalogue → 23514; RLS and grants. **Parity:** the seed lists equal `RECEIPT_TYPES` / `PAYMENT_TYPES`; `scripts/spike/sp00/sql/04_t4.sql` adds `tenant_close_code` to `c_seeded` (the clone's own insert seeds it; SP0 self-check D3, found on #173) |
 | 6 | **Close and day report on the tenant lists** | `…20261206200300_close_with_tenant_codes.sql`; `394_sp1_close_codes_procs.test.sql`; 327 `:20, :21` | **394 first test: "`close_table` for B with `fattura` inactive → P0001 `receipt_type_invalid`, the session stays open" (fails: it closes).** Then: an unknown payment code still fails first with the catalogue check (error order unchanged); a replay of a session closed with `fattura` before deactivation → `changed: false`; `app_vs_register_json` for B lists its active codes in order and still shows a deactivated code used that day; for A identical to 389's pin; 215 and 220 green |
 | 7 | **Locale, `tenant_settings`, `set_tenant_settings`** (§3.1.3, §3.3) | `…20261206200400_tenant_locale_settings.sql`; `395_sp1_tenant_settings.test.sql`; 327 `:125–128`; 346 `:64–68`; 229 `:72–73`; 359; `tests/parity/locale-sql-parity.test.ts` (new) | **395 first test: "`tenant_settings()` as B's waiter returns exactly the keys timeZone, locale, currency, receiptTypes, paymentTypes" (fails: function missing).** Then: <br>• no key matches `/vat|cost|price/`; <br>• without a tenant → 42501; <br>• `set_tenant_settings` as owner at `aal2` changes the locale and lists and writes one `tenant.settings_changed` row; a second identical call → `changed: false`, no row; <br>• as chef or waiter → 42501; an owner with a verified factor at `aal1` under `required` → gated (#79); an admin at `aal1` → gated (FD31); <br>• empty list → `settings_list_empty`; duplicate, out-of-catalogue or out-of-statute value → its code; unknown key → 22023; <br>• B cannot change A (X row); the audit row holds no `@` and no name; <br>• both functions are definers with an empty `search_path`, executable by `authenticated` only; 341 green unchanged. <br>**Parity:** the CHECK list equals `LOCALES` |
 | 8 | **Venue settings module and formatter zone** (§3.4; AT2) | `src/lib/venue/settings.ts`, `src/lib/venue/current.ts` (new); `src/lib/time/format.ts`; `src/lib/time/venue-date.ts`; `src/lib/money/format.ts`; `src/lib/i18n/index.ts`; `tests/lib/time.test.ts`; `tests/lib/venue/current.test.ts` (new); `tests/lib/money/format.test.ts` | **First test: "`formatDateTime(2026-07-01T10:00Z, 'it', 'Europe/Lisbon')` renders 11:00" (fails: the argument is ignored, 12:00).** Then: <br>• the M0 DST cases (2026-10-25, 2027-03-28) are unchanged with the default (AT2); <br>• `venueDate` with a zone; the cache keys by zone (two zones in a row stay distinct); <br>• the store returns defaults on the server even after `apply` (simulated `window` absent); in the browser, `apply` → read, and `reset` → defaults and the `localStorage` key removed; a corrupt `localStorage` value → defaults; <br>• `t()` follows the store's locale; <br>• `venueSettingsSchema` refuses currency `USD`, an unknown zone, an empty list |
@@ -586,7 +596,7 @@ follow the tenant's list · Replaces: AT1's invoice clause and the "not re-creat
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | A seed or backfill gap leaves a tenant with no sale rates, so every menu write fails | seed trigger plus backfill in the same migration; 391 asserts every existing tenant has five rates after the migration; `set_tenant_settings` refuses an empty list |
-| R2 | A rate removed while menu prices use it: the next price edit is refused | intended; the error text says the rate is not allowed; runbook note (step 17); Q12 |
+| R2 | A rate removed while menu prices use it | a price edit that keeps the stored rate is accepted; setting that rate fresh is refused (vat_rate_invalid); runbook note (step 17); Q12, Q-a |
 | R3 | An offline-cached `/api/me` from before the deploy has no `settings` (`sw.js:24`, unversioned cache) | `settings` optional on the client; defaults are tenant #1's values; test in step 9 |
 | R4 | First render on a new device for a non-default tenant formats with the defaults until `/api/me` answers | `localStorage` warm start; no tenant has non-default zone or locale before SP7 (FD19); later navigations use the store |
 | R5 | A server path forgets the zone | scanner of step 11; the server store always returns defaults, so a miss is today's behaviour, never another tenant's value |
@@ -624,6 +634,14 @@ follow the tenant's list · Replaces: AT1's invoice clause and the "not re-creat
 - **Q12 note (Rule B):** removing a rate is allowed, but the owner's menu form must show the **stored** rate of an existing price even
   when that rate has left the tenant's list, so that editing the price (or anything else on the item) never silently changes or drops its
   rate. Step 10 tests it (below).
+- **Q-a (2026-11-18, after the step-3 review):** the database enforces the tenant's list only on a rate that is **new or changed**. On an
+  UPDATE (the coperto), it checks only when the new rate is distinct from the old one. On a new price version, it checks only when the rate
+  differs from the item's newest existing version. So changing only the coperto amount, or a dish's price, with a stored 4 % keeps working,
+  and setting 4 % fresh is refused. pgTAP 391 tests both directions.
+- **Q-b (2026-11-18):** a demo reset leaves the tenant's configuration (sale VAT list, from step 5 the close codes) as the venue set it: it
+  is their real setup, not demo data (ADR-018 note).
+- **Q-c (2026-11-18):** step 7's `set_tenant_settings` takes the tenant-row lock, so a rate being switched off cannot slip into a concurrent
+  `create_menu_item`; a two-session race test comes with it.
 - **`GET /api/me` overlap with SP2:** separate top-level keys and separate test files, as in §3.10; SP2 adds its counts on its rebase.
 
 ---

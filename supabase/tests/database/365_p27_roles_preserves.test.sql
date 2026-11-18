@@ -124,15 +124,15 @@ select is((select string_agg(u.sch || '.' || u.name, ', ') from unchanged u
             where (select count(*)::int || ',' || coalesce(min(md5(p.prosrc)), '-') from pg_proc p where p.pronamespace = u.sch::regnamespace and p.proname = u.name) <> u.want), null, 'none is named as changed');
 
 -- 4. The catalogue gains only what the plan lists --------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace) and relkind in ('r', 'p', 'v', 'm')), 71, 'the tables and views of public and app: main''s 70 and invoice_vat_summary');
+select is((select count(*)::int from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace) and relkind in ('r', 'p', 'v', 'm')), 72, 'the tables and views of public and app: main''s 70, invoice_vat_summary and tenant_vat_rate'); -- re-pinned on purpose by SP1 (step 3: 71 to 72; step 5 adds tenant_close_code)
 select is((select string_agg(c.relname::text, ',' order by c.relname) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'invoice%'),
           'invoice,invoice_duplicate_decision,invoice_line,invoice_vat_summary', 'the invoice tables are the three of main and the new one');
-select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 127,
-          'the triggers: main''s 124 and three');
+select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 130,
+          'the triggers: main''s 124, three, and SP1''s three (the two sale VAT checks and the tenant seed)'); -- re-pinned on purpose by SP1 (step 3: 127 to 130)
 select is((select string_agg(c.relname || '.' || t.tgname, ',' order by c.relname, t.tgname collate "C") from pg_trigger t join pg_class c on c.oid = t.tgrelid
             where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and (c.relname = 'invoice_vat_summary' or t.tgname = 'invoice_xml_guard')),
           'invoice.invoice_xml_guard,invoice_vat_summary.invoice_vat_summary_append_only,invoice_vat_summary.invoice_vat_summary_no_truncate', 'which are invoice_xml_guard and the two append-only guards of the VAT summary');
-select is((select count(*)::int from pg_policy p join pg_class c on c.oid = p.polrelid where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 72, 'the row-level security policies: main''s 71 and invoice_vat_summary_select');
+select is((select count(*)::int from pg_policy p join pg_class c on c.oid = p.polrelid where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 73, 'the row-level security policies: main''s 71, invoice_vat_summary_select and tenant_vat_rate_select'); -- re-pinned on purpose by SP1 (step 3: 72 to 73; step 5 adds one)
 select is((select string_agg(p.policyname::text || ':' || p.cmd::text, ',' order by p.policyname) from pg_policies p where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname like 'invoices\_%'),
           'invoices_object_insert:INSERT,invoices_object_select:SELECT', 'the Storage policies of the invoices bucket are the same two names (the insert one re-created, no update, no delete)');
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,mfa-failure-retention,reservation-mail,reservation-retention',

@@ -19,6 +19,12 @@ select plan(19);
 -- S3 (20261204100200): the table invoice_vat_summary (its columns, constraints, trigger and policy are left out with it).
 -- S1 (20261204100000): the six XML columns, the nature and details of a line, their checks, the immutability guard and the exact-file index.
 create temp table p27_objs (kind text not null, name text not null);
+-- SP1 (docs/plans/2026-11-15-sp01-tenant-config.md section 3.8), re-pinned on purpose by SP1: its additions since main, in a separate insert so a neighbouring milestone's edits do not touch these lines. Each SP1 migration adds its objects here.
+-- Step 3 (20261206200000_tenant_sale_vat.sql): the tenant sale VAT list.
+insert into p27_objs values
+  ('table', 'tenant_vat_rate'),
+  ('trigger', 'menu_item_price.menu_item_price_sale_vat'), ('trigger', 'sale_settings.sale_settings_sale_vat'), ('trigger', 'tenant.tenant_seed_settings'),
+  ('app_fn', 'sale_vat_rates'), ('app_fn', 'check_sale_vat_rate'), ('app_fn', 'seed_tenant_settings');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

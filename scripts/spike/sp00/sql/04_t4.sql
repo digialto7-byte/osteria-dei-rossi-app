@@ -1,8 +1,8 @@
 select sp0.guard();
 
 -- SP0 scratch 04 (§3.3, §3.7): T4, the RLS cost at SQL level with one tenant and with many.
---  * sp0.t4_tables(): the tables a fill copies: every public table with a tenant_id column except the tenant, its users, devices and the auth
---    and idempotency tables, parents before children;
+--  * sp0.t4_tables(): the tables a fill copies: every public table with a tenant_id column except the tenant, its users, devices, the auth
+--    and idempotency tables and the tenant configuration its own insert seeds (SP1), parents before children;
 --  * sp0.t4_fill(source, count, max_mb): "Spike Demo NNN" tenants (VAT IT99 + 9 digits) holding a copy of the source's rows with new ids, foreign
 --    keys to cloned tables remapped, tenant_id the clone's, every date and timestamp 28 years back (1998: same weekdays). A table whose insert is
 --    refused (a trigger, a constraint) is SKIPPED AND LISTED with the SQLSTATE; the fill stops before the database passes max_mb;
@@ -49,6 +49,9 @@ create function sp0.t4_tables() returns table (ord int, tbl text)
 as $$
 declare
   c_excluded constant text[] := array['tenant', 'app_user', 'venue_device', 'device_enrolment', 'auth_attempt', 'staff_session', 'audit_event', 'applied_op'];
+  -- Tenant configuration seeded by the tenant's own insert (SP1, trigger tenant_seed_settings): a clone already gets it when its tenant row is inserted,
+  -- so a copy would collide on the primary key and the seeded rows would carry today's dates (self-check D3). SP1 step 5 adds tenant_close_code.
+  c_seeded constant text[] := array['tenant_vat_rate'];
   v_set text[];
   v_ordered text[] := '{}';
   v_left text[];
@@ -59,7 +62,7 @@ begin
     from pg_class c
     join pg_namespace n on n.oid = c.relnamespace
     join pg_attribute a on a.attrelid = c.oid and a.attname = 'tenant_id' and not a.attisdropped and a.attgenerated = ''
-   where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname <> all (c_excluded) and c.relname not like 'sp0\_%';
+   where n.nspname = 'public' and c.relkind in ('r', 'p') and c.relname <> all (c_excluded) and c.relname <> all (c_seeded) and c.relname not like 'sp0\_%';
   v_left := v_set;
   while coalesce(array_length(v_left, 1), 0) > 0 loop
     v_progress := false;
