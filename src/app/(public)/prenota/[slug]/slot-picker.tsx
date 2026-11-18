@@ -58,28 +58,33 @@ export function SlotPicker({
         role="tabpanel"
         id={panelId}
         aria-labelledby={activeKey === undefined ? undefined : `${id}-tab-${activeKey}`}
-        className="grid grid-cols-3 gap-2"
       >
-        {active?.slots.map((slot) => {
-          const picked = chosen?.serviceKey === active.key && chosen.time === slot.time;
-          return (
-            <Button
-              key={slot.time}
-              ref={slot.time === firstFree ? firstFreeRef : undefined}
-              variant={picked ? "primary" : "secondary"}
-              disabled={!slot.available}
-              aria-pressed={picked}
-              aria-label={
-                slot.available
-                  ? undefined
-                  : t("publicReservation.slotUnavailable", { time: slot.time }, locale)
-              }
-              onClick={() => onPick({ serviceKey: active.key, time: slot.time })}
-            >
-              {slot.time}
-            </Button>
-          );
-        })}
+        <div
+          role="group"
+          aria-label={t("publicReservation.time", {}, locale)}
+          className="grid grid-cols-3 gap-2"
+        >
+          {active?.slots.map((slot) => {
+            const picked = chosen?.serviceKey === active.key && chosen.time === slot.time;
+            return (
+              <Button
+                key={slot.time}
+                ref={slot.time === firstFree ? firstFreeRef : undefined}
+                variant={picked ? "selected" : "secondary"}
+                disabled={!slot.available}
+                aria-pressed={picked}
+                aria-label={
+                  slot.available
+                    ? undefined
+                    : t("publicReservation.slotUnavailable", { time: slot.time }, locale)
+                }
+                onClick={() => onPick({ serviceKey: active.key, time: slot.time })}
+              >
+                {slot.time}
+              </Button>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
