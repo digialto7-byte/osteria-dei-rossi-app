@@ -20,3 +20,8 @@ Reports group `stock_movement` and `batch_movement` rows by the business day of 
 - Good: old and new rows behave the same with zero writes; one rule for raw and batch, so `stock_reconciliation`, AVT, `waste_costs` and the KPI report agree for the same night.
 - Bad / accepted trade-offs: `effective_on` of non-receipt rows is a calendar date no report reads (documented by column comments); changing a tenant's cut-off re-dates its history on the next read; a writer that sets `created_at` or a client time would break reports (pgTAP 259 G1 guards it); the readers filter `created_at` by instant ranges computed up front and passed as parameters (a run-time subquery bound made the planner scan the ledger), served by `stock_movement_tenant_at_idx`, so the date-only `stock_movement_consumption_idx` is dropped (plan §3.5, measured in §3.2).
 - What would make us revisit this: a writer that must record a back-dated or client-timed movement, or a founder decision to date receipts by approval (Q-A5b-1).
+
+## Note 2026-11-18: opening stock
+Opening rows (`type 'opening'`, the carico iniziale) are the **second exception**: the reconciliation reads them by `effective_on` (the "Data del
+carico"), into `openingQty`, and their mirror rows carry the original's date so they fold the same way. Every other report still reads them by
+the business day of `created_at`. See `docs/adr/adr-048-opening-stock.md` and migration `20261206210700_reconciliation_opening.sql`.

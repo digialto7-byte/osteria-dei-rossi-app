@@ -20,6 +20,7 @@ const HEADINGS = [
   "Backups and restore",
   "Releases",
   "Venue settings",
+  "Avvio magazzino (carico iniziale)",
   "Go-live day",
 ];
 
@@ -446,6 +447,28 @@ describe("docs/runbook.md", () => {
     expect(releases).toContain("git.deploymentEnabled");
     expect(releases).toContain('"<branch>": true');
     expect(releases).toContain("tests/config/deploy-config.test.ts");
+  });
+
+  describe("Avvio magazzino (carico iniziale) (opening stock step 19, plan 2026-11-18 §3.12)", () => {
+    const carico = section("Avvio magazzino (carico iniziale)");
+
+    it("says to do a monthly count of the location right after its carico", () => {
+      expect(carico).toMatch(/count right after the carico/i);
+      expect(carico).toMatch(/monthly count/);
+    });
+
+    it("covers corrections, no lots, onboarding by DigiAlto, IVA esclusa and the two-device draft note", () => {
+      expect(carico).toContain("Correggi il carico di");
+      expect(carico).toMatch(/no expiry alerts/);
+      expect(carico).toMatch(/DigiAlto/);
+      expect(carico).toMatch(/IVA esclusa/);
+      expect(carico).toMatch(/another device/);
+      expect(carico).toContain("docs/adr/adr-048-opening-stock.md");
+    });
+
+    it("cites a test", () => {
+      expect(carico).toMatch(/\(test: [^)]+\)/);
+    });
   });
 
   it("has nothing that looks like a secret", () => {

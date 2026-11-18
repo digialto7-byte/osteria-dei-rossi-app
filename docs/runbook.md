@@ -480,6 +480,32 @@ same call with the rate back in the list.
 `payment_type_invalid`) and stays open; tables already closed with it keep it, and the day report still shows it for that day.
 (test: supabase/tests/database/394_sp1_close_codes_procs.test.sql)
 
+## Avvio magazzino (carico iniziale)
+
+A venue that starts on the app already has stock. Owners and admins enter it once per location on Magazzino › Avvio magazzino: quantity and
+unit cost per ingredient, a "Data del carico", then one confirmation per location. The design is in `docs/adr/adr-048-opening-stock.md`.
+
+- **Count right after the carico.** Once a location's carico is confirmed, do a **monthly count** of that location the same day. The AVT
+  report needs an opening count to compare against, and the count also closes that location's carico window: after it, stock comes in only
+  by invoice or count. While a count of either type is open at the location, the carico is refused (`opening_count_open`); after a closed
+  monthly count it is refused with `opening_location_counted`.
+  (test: supabase/tests/database/412_post_opening_stock.test.sql)
+- **Corrections.** Before that count, use "Correggi il carico di …" on the screen: it reverses the whole location's carico with a reason, and
+  its rows come back to the draft to be fixed and confirmed again. After the count, correct quantities with a count, and costs with the next
+  invoice. (test: supabase/tests/database/413_reverse_opening_stock.test.sql)
+- **No lots, no use-by.** Carico stock has no lot and gets no expiry alerts; the venue checks those dates by hand until invoices arrive.
+- **The cost.** The carico's unit cost is used only while the ingredient has no invoice price; from the first approved invoice the invoice
+  price is used and the carico cost is ignored, never averaged. (test: supabase/tests/database/414_opening_cost_fallback.test.sql)
+- **The date.** The "Data del carico" is at most today and at most 366 days back, and not after the location's first invoice receipt (the
+  receipt's own day is allowed). An owner confirming a carico in the same instant an invoice for that location is approved can end up with
+  a carico dated after the first receipt: it is visible in the history and can be corrected by reversal before the first monthly count.
+- **Onboarding by DigiAlto.** DigiAlto enters the carico as admin only with the owner's agreement; every booking and every reversal is in the
+  activity log (`stock.opening_posted`, `stock.opening_reversed`).
+- **Costs are IVA esclusa**, per base unit (kg, l, pz), like invoice prices.
+- **Two devices.** A draft line saved on another device while this one confirms the same location can come back into the draft after the
+  confirmation (the last write wins). After confirming, reload the draft: if a location that was just booked shows lines again, check them
+  before confirming again.
+
 ## Go-live day
 
 The go-live gate is 12 January. Before it, with the founder:
