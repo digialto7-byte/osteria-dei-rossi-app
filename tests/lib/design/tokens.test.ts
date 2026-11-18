@@ -396,14 +396,40 @@ describe("the Costì product theme (CB4)", () => {
     }
   });
 
-  it("the status tones keep the osteria values (semantic, not brand)", () => {
-    for (const theme of THEME_NAMES) {
-      for (const token of COLOR_TOKENS.filter((name) =>
-        /^(success|warning|danger|info)/.test(name),
-      )) {
-        expect(PRODUCT_THEMES[theme][token], `${theme} ${token}`).toBe(THEMES[theme][token]);
-      }
-    }
+  it("the status tones are these 16 literals (semantic, not brand)", () => {
+    expect(
+      Object.fromEntries(
+        THEME_NAMES.map((theme) => [
+          theme,
+          Object.fromEntries(
+            COLOR_TOKENS.filter((name) => /^(success|warning|danger|info)/.test(name)).map(
+              (name) => [name, PRODUCT_THEMES[theme][name]],
+            ),
+          ),
+        ]),
+      ),
+    ).toEqual({
+      light: {
+        success: "#2D6435",
+        "success-bg": "#E2ECD9",
+        warning: "#74480A",
+        "warning-bg": "#F5E5C3",
+        danger: "#9A2A1D",
+        "danger-bg": "#F6DDD5",
+        info: "#1E5470",
+        "info-bg": "#DCE8EE",
+      },
+      dark: {
+        success: "#A3D4A9",
+        "success-bg": "#1B2C1D",
+        warning: "#EBC57E",
+        "warning-bg": "#302511",
+        danger: "#F4A694",
+        "danger-bg": "#391A12",
+        info: "#A1CBE2",
+        "info-bg": "#14252F",
+      },
+    });
   });
 });
 
