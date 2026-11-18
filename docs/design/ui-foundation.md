@@ -1,231 +1,115 @@
-# UI foundation: Osteria Dei Rossi
+# UI foundation: Costì (Osteria Dei Rossi is the first venue)
 
-Status: adopted on `feat/ui-foundation` (2026-10-22). This is the house style for every screen of
-the app.
+Status: adopted on `feat/ui-foundation` (2026-10-22) as the osteria house style; since §11 step 9 of
+`docs/ux/costi-design-system.md` (P2j, #181, 2026-11-18; ADR-045) the whole app wears **one theme, Costì**, and a venue is a layer on
+top of it (`venueLayer`, `src/lib/design/venue-layer.ts`). Sections 1–3 describe Costì; the osteria theme they described before is kept,
+unchanged, in section 12 "History". The values and contrast pairs live in section 11, which a test keeps equal to the code.
 
-**Source of the brand.** The founder approved the trading name "Osteria Dei Rossi", eight brand
-colours and the two fonts on 2026-10-22; they are listed in `docs/client-facts.md`, and nothing
-else in this document is a client fact. Every other colour is a **derived UI shade** (a tint,
-hover or on-colour chosen for contrast, with a formula where it is a blend of approved colours).
-The recommendation badge ("Consigliato") and the logo slot are generic UI motifs of the app, not
-client wording or artwork. The app shows no DigiAlto name or logo.
+**Source of the brand.** The Costì product brand (name, five colours, Montserrat and Inter) is approved in DigiAlto-Ops
+(`knowledge/agency/products/costi/brand.md`, 2026-11-13) and copied into `docs/client-facts.md` (product section). The venue's own facts
+(the trading name "Osteria Dei Rossi" and its approved green `#1C4130`, used as the band accent) are client facts in the same file; nothing
+else in this document is a client fact. Every other colour is a **derived UI shade**, with a formula where it is a blend. The app shows no
+DigiAlto name or logo.
 
-All colours live in two files: `src/app/globals.css` (runtime) and `src/lib/design/tokens.ts`
-(tests). Components and screens use token utilities only. A brand change is a token change.
+All colours live in two files: `src/app/globals.css` (runtime) and `src/lib/design/tokens.ts` (`PRODUCT_THEMES`, for the tests).
+Components and screens use token utilities only. A brand change is a token change; a venue changes only the band (section 11 and
+`costi-design-system.md` §9).
 
 ## 1. Direction
 
-The look is cream paper, a deep green, black type, a high-contrast Bodoni for names, and gold
-rules and badges. The app turns that palette into a working tool, used on a phone by an owner or
-chef, often mid-service.
+Off-white paper, Charcoal ink, Forest for the one action, Sage for quiet surfaces and a spark of Coral. The app is a working tool, used on
+a phone by an owner, a chef or a waiter, often mid-service; the venue shows in the band (its name or logo and its accent colour), and every
+screen is otherwise the same in every venue.
 
 Four principles, in priority order:
 
-1. **Legible at arm's length.** Body text is 16 px Figtree. Every text pair is AA in both themes,
-   controls are 44 px or more, and figures line up.
-2. **One green action.** The brand green is the primary action (cream text on green). Everything
-   else is black or soft-green ink on cream. Colour that carries meaning (status) always comes
-   with a word.
-3. **Gold is jewellery, not text.** Gold and yellow mark things: the header rule, the rule under
-   a page title, the focus ring (a deeper gold in light), the logo slot and the "Consigliato"
-   badge. They never colour text on cream. They fail AA there, and a test enforces it.
-4. **Printed menu, not dashboard.** Bodoni names a page; Figtree does the work. Lists are rows
-   ruled by hairlines. Cards are kept for forms and fact sheets. The only texture is the grain on
-   the green header band; content surfaces stay plain for legibility.
+1. **Legible at arm's length.** Body text is 16 px Inter. Every text pair is AA in both themes, controls are 44 px or more (52 px for the
+   waiter's busiest controls), and figures line up (`.num`).
+2. **One green action.** Forest is the primary action (Off-white text; Sage with Charcoal text in dark). A picked option or the selected
+   tab is filled in ink, never in green, so green always means "do it". Colour that carries meaning (status) always comes with a word.
+3. **Coral is a spark, not text.** Coral marks things: the 2 px rule under the band, the rule under a page title, the Coral edge of a
+   card, badge fills with Charcoal text. It never colours text on a light surface, never holds white text and never sits on Sage; a test
+   enforces it (`ACCENT_ONLY`).
+4. **Plain sheets, clear rows.** Montserrat names a page; Inter does the work. Lists are rows ruled by hairlines, fact sheets are
+   `FactList`s in a `Card`, and the one figure a card exists to show is `<strong>`. Paper prints black on white (§10.5 of the design system).
 
 ### Light or dark
 
-**Light is the primary theme**: cream, green and black. Dark follows the device
-setting (`prefers-color-scheme`). It uses the brand black with cream ink, plus a sage green,
-lightened so that it stays AA on black. Neither theme is forced. A chef who keeps the
-phone in dark mode for an evening service gets dark, and everyone else gets the brand as
-printed. There is no in-app theme switch yet. If one is added, it sets `data-theme` on `<html>`,
-and the dark block in `globals.css` gains a `:root[data-theme="dark"]` selector.
+**Light is the default**: Off-white, Forest and Charcoal. Dark follows the device setting (`prefers-color-scheme`) and only on the screen:
+Charcoal paper with Off-white ink, and Sage as the action, because Forest on Charcoal is 1.50:1. There is no in-app theme switch; if one is
+added, it sets `data-theme` on `<html>` and the dark block in `globals.css` gains a `:root[data-theme="dark"]` selector. The kitchen's
+high-contrast mode (`data-contrast="high"`) narrows the screen to pairs of at least 7:1 (`HIGH_CONTRAST_PAIRS`).
 
 ## 2. Colour tokens
 
-The runtime source is the Tailwind v4 `@theme` block in `src/app/globals.css`, plus the
-`@media (prefers-color-scheme: dark)` override on `:root`. `src/lib/design/tokens.ts` mirrors the
-values (and the approved palette as `BRAND`, with the blends in `DERIVED`) for the tests.
-`tests/lib/design/tokens.test.ts` fails in these cases:
+The runtime source is the Tailwind v4 `@theme` block in `src/app/globals.css` (the Costì light values at `:root`), plus the
+`@media screen and (prefers-color-scheme: dark)` override on `:root` and the print palette (`PRINT_COLORS`). `src/lib/design/tokens.ts`
+mirrors them as `PRODUCT_THEMES` (with `PRODUCT_BRAND` and the blends in `PRODUCT_DERIVED`). The 25 token names (`COLOR_TOKENS`) did not
+change when the osteria values left: only their values did.
 
-- the two files differ;
-- a pair below drops under its AA minimum in either theme;
-- the light theme stops being the approved cream, green, black and soft;
-- a `DERIVED` literal stops matching its `mix()` formula;
-- a component uses `gold` or `highlight` as a text colour.
+- **Values and contrast pairs:** section 11 (the token table and the `CONTRAST_PAIRS` table, both tested against the code).
+- **Which token for which role in a design:** `docs/ux/costi-design-system.md` §2.
+- **Tests:** `tests/lib/design/tokens.test.ts` fails if `globals.css` and `PRODUCT_THEMES` differ, if a pair drops under its AA minimum in
+  either theme, if a `PRODUCT_DERIVED` literal stops matching its formula, or if a component uses `gold` or `highlight` (Coral) as a text
+  colour.
 
-Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`,
-`bg-accent text-on-accent`, `bg-highlight text-on-highlight`, and so on.
+Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`, `bg-accent text-on-accent`,
+`bg-highlight text-on-highlight`, and so on. The status tones (`success`, `warning`, `danger`, `info` and their `-bg`) are semantic, not
+brand: they kept their tested values through the change.
 
-| Token | Light | Dark | Role |
-|---|---|---|---|
-| `paper` | `#FFFADF` | `#0F0F0D` | Page background (cream / black) |
-| `surface` | `#FFFDF2` | `#1A1A16` | Cards, inputs, secondary buttons |
-| `sunk` | `#F8EFC6` | `#25241F` | Hover fill, neutral badge, chosen-file chip (cream-deep) |
-| `ink` | `#0F0F0D` | `#FFFADF` | Body text, current nav tab fill (black / cream) |
-| `ink-muted` | `#4D5B45` | `#B7B4A0` | Hints, secondary row text, `dt` labels (soft / dark: `mix(cream, black, 0.3)`) |
-| `rule` | `#EAD4A3` | `#33322B` | Hairlines, card borders; decorative. Light: `mix(cream-deep, gold, 0.3)` |
-| `rule-strong` | `#857A57` | `#7A7462` | Input borders (a UI boundary, ≥ 3:1) |
-| `band` | `#1C4130` | `#16301F` | Header band (green) |
-| `band-ink` | `#FFFADF` | `#FFFADF` | Wordmark on the band |
-| `gold` | `#C89550` | `#C89550` | Rules, logo slot. Accent only |
-| `highlight` | `#FFB028` | `#FFB028` | "Consigliato" badge fill, logo slot. Accent only |
-| `on-highlight` | `#0F0F0D` | `#0F0F0D` | Text on the yellow badge |
-| `accent` | `#1C4130` | `#8CB89A` | Primary button fill (green; sage in dark) |
-| `accent-hover` | `#122C20` | `#A6CBB1` | Primary button hover |
-| `on-accent` | `#FFFADF` | `#0F0F0D` | Label on the primary button |
-| `accent-ink` | `#1C4130` | `#A9D1B4` | Green as text: links, quiet buttons |
-| `focus` | `#8A5F22` | `#C89550` | Focus ring (deep gold in light, brand gold in dark) |
-| `success` / `success-bg` | `#2D6435` / `#E2ECD9` | `#A3D4A9` / `#1B2C1D` | Confirmations, "Approvata" |
-| `warning` / `warning-bg` | `#74480A` / `#F5E5C3` | `#EBC57E` / `#302511` | "Da controllare", "Duplicata" |
-| `danger` / `danger-bg` | `#9A2A1D` / `#F6DDD5` | `#F4A694` / `#391A12` | Errors, "Rifiutata", "Lettura non riuscita" |
-| `info` / `info-bg` | `#1E5470` / `#DCE8EE` | `#A1CBE2` / `#14252F` | "In lettura" |
-
-Approved brand colours (`docs/client-facts.md`): cream `#FFFADF`, cream-deep `#F8EFC6`, green
-`#1C4130`, gold `#C89550`, olive `#7D9550`, soft `#4D5B45`, black `#0F0F0D`, yellow `#FFB028`.
-Every other value in the table is a derived UI shade: a tint, hover or on-colour picked to meet
-contrast, including `surface` and the whole dark theme apart from black, gold and yellow. Three
-are exact blends of approved colours, exported as `DERIVED` in `tokens.ts` with the helper
-`mix(a, b, t)` (per-channel linear blend, `t = 0` is `a`):
-
-| Shade | Value | Formula | Contrast |
-|---|---|---|---|
-| `rule` (light) | `#EAD4A3` | `mix(creamDeep, gold, 0.3)` | decorative hairline, no minimum |
-| `ink`, `band-ink` (dark) | `#FFFADF` | cream itself | 18.27 on `paper`, 13.54 on `band` |
-| `ink-muted` (dark) | `#B7B4A0` | `mix(cream, black, 0.3)` | 9.18 on `paper`, 8.35 on `surface`, 7.44 on `sunk` |
-
-A test asserts each literal equals its formula. The literals are hard-coded in `THEMES` and
-`globals.css`, which a second test keeps in sync.
-
-The approved olive (`#7D9550`) is not used yet: no screen needs a second green. In dark, the brand
-green on black would be too dim for a button (1.6:1), so the action turns sage with a black label.
-
-### Contrast ratios (WCAG 2.2, tested)
-
-The minimum is 4.5:1 for text and 3:1 for UI boundaries and focus indicators (SC 1.4.11).
-
-| Foreground | Background | Used for | Min | Light | Dark |
-|---|---|---|---|---|---|
-| `ink` | `paper` | Body text on the page | 4.5 | 18.27 | 18.27 |
-| `ink` | `surface` | Text in cards, inputs, secondary buttons | 4.5 | 18.81 | 16.61 |
-| `ink` | `sunk` | Text on hovered rows, tabs and buttons | 4.5 | 16.59 | 14.80 |
-| `paper` | `ink` | Current tab in the owner nav | 4.5 | 18.27 | 18.27 |
-| `ink-muted` | `paper` | Hints and secondary row text | 4.5 | 6.90 | 9.18 |
-| `ink-muted` | `surface` | Hints inside cards | 4.5 | 7.10 | 8.35 |
-| `ink-muted` | `sunk` | Neutral status badge | 4.5 | 6.26 | 7.44 |
-| `band-ink` | `band` | Wordmark on the header band | 4.5 | 10.82 | 13.54 |
-| `on-accent` | `accent` | Primary button label | 4.5 | 10.82 | 8.62 |
-| `on-accent` | `accent-hover` | Primary button label, hover | 4.5 | 14.21 | 10.78 |
-| `accent-ink` | `paper` | Links and quiet buttons | 4.5 | 10.82 | 11.39 |
-| `accent-ink` | `surface` | Links inside cards | 4.5 | 11.14 | 10.36 |
-| `accent-ink` | `sunk` | Quiet button, hover | 4.5 | 9.82 | 9.23 |
-| `on-highlight` | `highlight` | "Consigliato" badge | 4.5 | 10.50 | 10.50 |
-| `success` | `success-bg` | Success notice and badge | 4.5 | 5.77 | 8.81 |
-| `warning` | `warning-bg` | Warning badge and extraction notes | 4.5 | 6.31 | 9.17 |
-| `danger` | `danger-bg` | Error alert and badge | 4.5 | 5.96 | 8.06 |
-| `danger` | `paper` | Per-row import errors on the page | 4.5 | 7.34 | 9.80 |
-| `info` | `info-bg` | Info badge | 4.5 | 6.58 | 9.10 |
-| `rule-strong` | `surface` | Input border in cards | 3 | 4.18 | 3.74 |
-| `rule-strong` | `paper` | Input border on the page | 3 | 4.06 | 4.11 |
-| `accent` | `paper` | Primary button shape on the page | 3 | 10.82 | 8.62 |
-| `accent` | `surface` | Primary button shape in cards | 3 | 11.14 | 7.84 |
-| `ink` | `surface` | Secondary button and file-picker border | 3 | 18.81 | 16.61 |
-| `focus` | `paper` | Focus ring on the page | 3 | 5.34 | 7.19 |
-| `focus` | `surface` | Focus ring in cards | 3 | 5.50 | 6.54 |
-| `gold` | `band` | Gold rule under the wordmark | 3 | 4.26 | 5.33 |
-
-**Accent-only, by measurement:** on cream, gold is 2.54:1 and yellow 1.74:1, so neither may set
-text. The tests assert both numbers stay under 4.5 and that no `text-gold` or `text-highlight`
-appears in `src/`. The gold rule under a page title is decorative, so it has no minimum. The
-tightest required pair is `rule-strong` on `surface` in dark, at 3.74:1. A new combination goes
-into `CONTRAST_PAIRS` in `tokens.ts` before it is used.
+**Accent-only, by measurement:** Coral as text on Off-white is 2.41:1, and white or Off-white on Coral 2.56 and 2.41, so Coral never sets
+or holds text; the only text on a Coral fill is Charcoal (5.75). A new combination goes into `CONTRAST_PAIRS` in `tokens.ts` before it is
+used, and into the section 11 table.
 
 ## 3. Typography
 
-The brand's own faces are **committed woff2 files** in `src/app/fonts/`, loaded with
-`next/font/local` in `src/app/layout.tsx` and **served from `/_next/static/media`**. The browser
-never contacts Google, which matters under GDPR for an EU venue. Since `fix/self-host-fonts`
-(2026-11-08), the build needs no network either: `next/font/google` used to download the files at
-build time, and a failed download broke a CI build.
+Two faces, **committed woff2 files** in `src/app/fonts/`, loaded with `next/font/local` in `src/app/layout.tsx` and **served from
+`/_next/static/media`**: the browser never contacts Google (GDPR), and the build needs no network. `src/app/fonts/README.md` has the
+source, version, checksums and the Reserved Font Name check. Both are preloaded on every page.
 
-- **Source:** the static files come from the OFL-licensed Fontsource 5.3.0 packages, which carry
-  Google's own subsets. Their licences sit next to them, and `src/app/fonts/README.md` lists the
-  versions and checksums. No npm dependency is added.
-- **Six files:** Bodoni Moda 600, and Figtree 400 and 700, each in latin and in latin-ext.
-- **Latin:** preloaded. The login page downloads these three.
-- **Latin-ext:** a second face per family, limited to Google's latin-ext `unicode-range` and not
-  preloaded. A page downloads it only when it shows such a letter, for example "Ștefan" or
-  "Żubrówka". `globals.css` lists it first in each stack: its range keeps it out of plain latin
-  text, and the main stack ends in a fallback face that covers every letter.
+- **Montserrat 600** (one file), CSS variable `--font-display-face`, used through `font-display`: headings and the band wordmark only.
+  Montserrat 700 is not loaded, so designs must not use it.
+- **Inter 400 and 700** (two files), CSS variable `--font-body`, used through `font-sans`: everything else.
+- Full upstream files, so there is no latin/latin-ext split. The stacks end in `ui-sans-serif, system-ui, sans-serif`, so a missing file
+  degrades to a sans face, never a serif.
 
 | Role | Face | Size / leading | Notes |
 |---|---|---|---|
-| Wordmark in the header | Bodoni Moda 600, caps | 21 px / 1, +0.1 em | Uppercase by CSS; the text stays "Osteria Dei Rossi" for screen readers |
-| Page title (`Heading`, h1) | Bodoni Moda 600 | 34 px / 1.08 | `text-balance`, 48 px gold rule below. Login title is 40 px |
-| Section title (`SubHeading`, h2) | Bodoni Moda 600 | 24 px / 1.25 | Also the tenant name on Home |
-| Body and controls | Figtree 400 | 16 px / 1.5 | Inputs stay 16 px so iOS does not zoom |
-| Labels, row titles, buttons | Figtree 700 | 15–16 px | |
-| Hints, meta lines, loading and empty lines | Figtree 400 | 14–16 px | `text-ink-muted`, no italic |
-| Amounts, quantities, dates, VAT numbers | Figtree + `.num` | Same as context | `font-variant-numeric: tabular-nums` |
+| Wordmark in the band | Montserrat 600, caps | 21 px / 1, +0.1 em | Uppercase by CSS; the real name is read aloud ("Costì", or the venue's name) |
+| Sign-in title | Montserrat 600 | 40 px / 1 | `costi/display` |
+| Page title (`Heading`, h1) | Montserrat 600 | 34 px / 1.08 | `text-balance`, 48 × 2 px Coral rule below |
+| Section title (`SubHeading`, h2) | Montserrat 600 | 24 px / 1.25 | Also the sheet titles of Prenotazioni and the menu form |
+| Body and controls | Inter 400 | 16 px / 1.5 | Inputs stay 16 px so iOS does not zoom |
+| Labels, row titles, buttons | Inter 700 | 15–16 px | Tab labels 15 px |
+| Hints, meta lines, loading and empty lines | Inter 400 | 14–16 px | `text-ink-muted`, no italic |
+| Amounts, quantities, dates, VAT numbers | Inter + `.num` | Same as context | `font-variant-numeric: tabular-nums`; the card's key figure is `<strong>` (Inter 700), even when large |
 
-**Why these, and what was dropped.**
-
-- **Bodoni Moda** is the approved display face. Its hairlines break up below about 20 px, so it is
-  only used at 21 px or more, and at 600 rather than the 400 regular, whose hairlines are too thin
-  for a phone at arm's length. The comparison is in `screenshots/display-font-bodoni.png`: 600
-  and 700, with and without a small optical size, on the band, on cream and on black. 700 was a
-  touch heavy against Figtree bold labels, and the optical-size axis made no visible difference
-  at these sizes. So one static weight is loaded.
-- **Figtree** is the approved body face: open, with clear figures and a distinct `1/l/I`.
-- **Source Serif 4** is not loaded and is not an approved client fact. It has no role in the
-  current screens. It is the candidate for long dish descriptions when the menu screens arrive; add it then, at 400 only.
-- **Instrument Serif and Atkinson Hyperlegible** were removed, together with every italic and
-  bold-italic face. The round-1 review found the italics preloaded but unused. `Muted` and the
-  upload's "Caricamento in corso…" line are no longer italic. Do not reintroduce `italic`: no
-  italic face is loaded, so the browser would fake one.
-- An earlier draft of this round tried varsity faces (Graduate, Staatliches, Big Shoulders,
-  Alfa Slab One) after a description of the logo. It was dropped once the approved fonts were
-  known.
-
-Fallbacks are Next's metric-adjusted "… Fallback" faces, then Didot/Georgia for display and
-`ui-sans-serif` for body.
+No italic face is loaded, so do not use `italic`: the browser would fake one.
 
 **Guards:**
 
-- `tests/lib/design/fonts.test.ts` checks that:
-  - no source file names a Google Fonts host, and none imports `next/font/google`;
-  - the layout loads exactly the six committed files through `next/font/local`, each with its
-    OFL licence;
-  - the variables, `swap` and the metric-adjusted fallbacks are kept;
-  - latin-ext is a non-preloaded face limited to Google's range and comes first in the stacks;
-  - no retired family or `"italic"` is loaded, Bodoni only at 600 and Figtree only at 400 and 700.
-- `e2e/fonts.spec.ts` checks the build output and a real page load:
-  - it scans `.next/static` and `.next/server/app` for Google hosts;
-  - on `/login`, every `.woff2` request goes to `/_next/static/media` on the app's own origin
-    and gets a **200** response;
-  - `document.fonts` has a **loaded** face for each family in use (the main faces, not the
-    latin-ext ones). The computed-style check on the heading and body only confirms the declared
-    stacks: `globals.css` names "Figtree" and "Bodoni Moda" literally, so the loaded-face check is
-    the real proof.
+- `tests/lib/design/fonts.test.ts`: no source file names a Google Fonts host or imports `next/font/google`; the layout loads exactly the
+  committed Montserrat and Inter files through `next/font/local`, each with its OFL licence; the variables, `swap` and the metric-adjusted
+  fallbacks are kept; no retired family and no `"italic"` is loaded.
+- `e2e/fonts.spec.ts`: no Google host in the build output; on a real page every `.woff2` request goes to `/_next/static/media` on the
+  app's own origin with a 200; `document.fonts` has a loaded face for Montserrat and Inter.
 
-When the nonce-based CSP lands (M25), keep `font-src 'self'` and `style-src 'self'` plus the
-nonce. Nothing here needs a third-party origin, `data:` URIs or inline `style` attributes. The
-band grain and the stagger are pure CSS.
+When the nonce-based CSP lands (M25), keep `font-src 'self'` and `style-src 'self'` plus the nonce. Nothing here needs a third-party
+origin, `data:` URIs or inline `style` attributes.
 
 ## 4. Space, shape, atmosphere
 
 - **Column:** `max-w-md`, a 16 px side gutter and a 24 px vertical rhythm (`gap-6`). Inside a
   card, fields sit 16 px apart and a label sits 6 px above its control.
 - **Radius:** 8 px for controls, 12 px for cards (`rounded-card`), full for pills and badges.
-- **Header band:** full-width brand green, a 2 px gold rule at the bottom, the logo slot and the
-  wordmark. The browser `theme-color` matches the band, so on a phone the status bar continues
+- **Header band:** full width in the venue's accent (Forest on Costì-only pages such as sign-in and the console), a 2 px Coral rule at
+  the bottom, and the wordmark or the venue's logo. The browser `theme-color` matches the band, so on a phone the status bar continues
   it.
 - **Texture:** only on the band, as two offset speck grids in CSS (`.band` in `globals.css`), each
   under 7 % ink and 18 % black. That is the "printed cover" grain. It sits behind
-  `band-ink` text, which is far over AA (10.8:1). Content surfaces have no texture.
-- **Rules:** a 1 px `rule` hairline between rows. A 48 × 2 px gold rule under each page title,
-  as a printed-menu ornament. A 4 px gold edge along the top of the login card.
+  `band-ink` text, which is far over AA (9.21:1 on Forest; the venue layer refuses an accent under 4.5:1). Content surfaces have no texture.
+- **Rules:** a 1 px `rule` hairline between rows. A 48 × 2 px Coral rule under each page title.
+  A 4 px Coral edge along the top of a `Card` with `edge` (the sign-in card).
 - **Depth:** cards get a 1 px border plus a soft long shadow. The primary button gets a 1 px
   bottom shade. There are no other shadows.
 
@@ -258,15 +142,16 @@ All existing props and accessible names are unchanged. Each control is labelled 
 | `TextInput` / `Select` | `surface` fill, `rule-strong` border, 8 px radius. `Select` draws its chevron in CSS |
 | `FilePicker` | See below. Use it inside `Field` instead of a bare `<input type="file">` |
 | `Checkbox` | 20 px native box tinted with `accent-color`. The whole label row is the 44 px target |
-| `Button` `primary` | Green fill, cream label. One per form or screen: the action that moves the work forward |
-| `Button` `secondary` | Black 1.5 px outline on `surface`. Row actions ("Disattiva", "Rendi preferito") and "Esci" |
-| `Button` `quiet` | Green text, no border. Low-stakes actions next to a primary ("Annulla") |
+| `Button` `primary` | Forest fill, Off-white label (Sage and Charcoal in dark). One per form or screen: the action that moves the work forward |
+| `Button` `secondary` | Ink 1.5 px outline on `surface`. Row actions ("Disattiva", "Rendi preferito") and "Esci" |
+| `Button` `quiet` | `accent-ink` text, no border. Low-stakes actions next to a primary ("Annulla") |
 | `Button` `danger` | `danger` text and bar on `danger-bg` (a tested pair). A removal the person asked for ("Rimuovi" on an order line). Never the only way to see a state |
 | `primaryLinkClass` | A link dressed as the primary button, for navigation that is the screen's one forward action ("Prendi la comanda") |
 | `linkClass` | Navigation set as text: bold `accent-ink`, underlined, 44 px tall |
 | `ErrorAlert` | `role="alert"`, a `danger` left bar on `danger-bg`. One per failure, next to what failed |
 | `SuccessNote` | A `success` left bar on `success-bg`. The caller passes `role="status"` when it must be announced. One `status` per screen |
-| `Heading` / `SubHeading` | Bodoni h1 (with the gold rule) and h2. One h1 per screen |
+| `Button` `selected` | Ink fill, paper text, the secondary's border. A picked option in a set of buttons (`aria-pressed`), e.g. the booking time; never the action green |
+| `Heading` / `SubHeading` | Montserrat h1 (with the Coral rule) and h2. One h1 per screen |
 | `Card` | A raised sheet for a form or a fact sheet (`dl`). At most two per screen |
 | `LedgerList` / `LedgerRow` | `ul`/`li` with hairlines and the staggered rise |
 | `Muted` | Muted line for "Caricamento…" and empty states |
@@ -312,16 +197,15 @@ Elsewhere:
 
 - take every colour from a token utility; add a token and a contrast pair before you need a new
   colour;
-- keep green for the one primary action and links, and gold or yellow for
-  marks;
+- keep Forest for the one primary action and links, ink for a selection, and Coral for marks;
 - put `.num` on every amount, quantity, date and code a person compares down a column;
 - keep amounts in the `1.234,50 €` format and dates in Europe/Rome;
 - check new screens at 360 × 740 in both themes and with reduced motion.
 
 **Don't**
 
-- set text in `gold` or `highlight`, or put small text on yellow other than `on-highlight`;
-- set Bodoni below 20 px, or set labels, buttons, amounts or body text in it;
+- set text in `gold` or `highlight` (Coral), or put text on Coral other than `on-highlight` (Charcoal);
+- set labels, buttons, amounts or body text in Montserrat, or use Montserrat 700;
 - use `italic` (no italic face is loaded);
 - use Tailwind palette colours or hex values in components;
 - add images, icon fonts, `data:` URIs, inline `style` attributes or third-party origins (the
@@ -346,9 +230,8 @@ a `success` or `danger` badge with the Europe/Rome time and person, and one `Suc
 after an approval. Screenshots of the panel (`approvazione-*.png`) are not taken yet: they need the throwaway
 harness below, which is not in the repository.
 
-**Menu and dish screens:** dish names in Bodoni at 21 px or more, prices `.num` at the right edge,
-and `Badge tone="highlight"` on recommended dishes. Descriptions in Figtree; this is where Source Serif 4
-may earn its place. Allergens are always words or numbered codes, never colour.
+**Menu and dish screens:** dish names in Inter 700 (Montserrat only for the page and section titles), prices `.num` at the right edge,
+and `Badge tone="highlight"` on recommended dishes. Descriptions in Inter 400. Allergens are always words or numbered codes, never colour.
 
 **M6, alerts (built):** `/avvisi` is a list of `LedgerRow`s, one per alert: a `Badge` with a word (`info` "Informazione", `warning` "Attenzione", `critical` as `danger` "Urgente"), the rendered title in bold, the body, and a `.num` meta line in Europe/Rome. The open alert has one 44 px `secondary` "Ho visto"; an acknowledged one shows "Visto il … da …" instead (the chef sees no name that is not their own). Two text filters ("Da vedere", "Tutti") are buttons with `aria-pressed`, the chosen one bold and underlined. The owner also gets one `Card` "Prova degli avvisi" (a labelled checkbox and one `secondary` button; the page has no primary button). A waiter sees one `ErrorAlert`. The text of an alert is rendered on the server per kind and locale; the screen shows strings and never computes, and nothing on it mentions email. "Avvisi" is a tab of `OwnerNav` and a link on the home card for the owner and the chef.
 
@@ -376,7 +259,7 @@ the headline of each row. Expiry maps to `warning` or `danger` badges with text.
 see costs, and role-based screens must not render cost columns at all. Test dark first, since a
 dim kitchen is likely to use it. Live updates change rows in place, and only new rows rise.
 
-**Owner dashboard (built):** `/` (Oggi) for the owner and the admin is the dashboard (ADR-021). The page is `data-layout="wide"`, so `main` widens to `max-w-6xl` on a laptop; the account `Card`, the to-do block ("Fatture da rivedere · 2", the action list, "Primi passi") and the loading or error line keep the phone column's width (`lg:max-w-md`), and under `SubHeading` "Andamento" the tiles sit in `div[data-testid="dashboard-tiles"]`: one column under 1024 px, `lg:grid-cols-2`, `xl:grid-cols-3`, `gap-4`. A tile is a `section[data-tile]` labelled by its `h2` (Figtree bold 18 px, not Bodoni, so it may sit below 20 px), a `surface` sheet with a `rule` border and `rounded-card`; it is not a `Card` (the page keeps its two-`Card` limit) and not one big link, because it holds lists. Each tile ends with ONE 44 px `linkClass` link to the screen that acts on it ("Apri pagamenti"); row links (a payable, a lot, a batch) use `min-h-tap`. Order for the owner: "Da fare oggi", "Margini dei piatti", "Food cost medio del menu", "Pagamenti", "Scorte a rischio", "Sprechi della settimana", "Aumenti di prezzo", "Costi fissi", "In arrivo"; the admin has the same without "Da fare oggi", "Aumenti di prezzo" and "Costi fissi". Every tile has an empty text (§3.4 of the plan); a week with only unpriced waste says "Valore non disponibile" and never "0,00 €". Charts are hand-written inline SVG with a text alternative, no library: `BarTable` is a real `<table>` (an `sr-only` `caption` that states the question, `th scope="row"` for the name, the value as text, the bar in the last cell) and wraps the bar under the name below `sm`; `Meter` is a visible figure ("28,28 %") beside an `aria-hidden` bar. Every `<svg>` has `aria-hidden="true"` and `focusable="false"`; bars use the theme classes `fill-sunk` (track), `fill-accent`, `fill-danger` (below target, also said in words by the `Badge`) and `stroke-ink` (target tick), so light and dark switch through the CSS variables and the charts hold no theme code. New non-text pairs in `CONTRAST_PAIRS`: `danger`/`surface` and `ink`/`sunk` (3:1, both themes). In forced-colors mode (`@media (forced-colors: active)`, selectors `[data-chart-value]`, `[data-chart-track]`, `[data-chart-tick]`) the bars are drawn in `CanvasText` on a `Canvas` track with a 1 px outline. No `style` attribute, `<image>`, `<foreignObject>`, `data:` URI, icon font or palette colour anywhere in the charts (asserted in `tests/components/charts.test.ts`). Placeholders ("Coperti", "Incasso", "Scontrino medio per coperto") read "Disponibile dopo l'avvio di comande e conti" and carry no digit, link or chart. The page reads once on mount, and again on focus at most once a minute, never while hidden. The chef's Oggi is unchanged and shows no euro sign.
+**Owner dashboard (built):** `/` (Oggi) for the owner and the admin is the dashboard (ADR-021). The page is `data-layout="wide"`, so `main` widens to `max-w-6xl` on a laptop; the account `Card`, the to-do block ("Fatture da rivedere · 2", the action list, "Primi passi") and the loading or error line keep the phone column's width (`lg:max-w-md`), and under `SubHeading` "Andamento" the tiles sit in `div[data-testid="dashboard-tiles"]`: one column under 1024 px, `lg:grid-cols-2`, `xl:grid-cols-3`, `gap-4`. A tile is a `section[data-tile]` labelled by its `h2` (Inter bold 18 px, not the display face), a `surface` sheet with a `rule` border and `rounded-card`; it is not a `Card` (the page keeps its two-`Card` limit) and not one big link, because it holds lists. Each tile ends with ONE 44 px `linkClass` link to the screen that acts on it ("Apri pagamenti"); row links (a payable, a lot, a batch) use `min-h-tap`. Order for the owner: "Da fare oggi", "Margini dei piatti", "Food cost medio del menu", "Pagamenti", "Scorte a rischio", "Sprechi della settimana", "Aumenti di prezzo", "Costi fissi", "In arrivo"; the admin has the same without "Da fare oggi", "Aumenti di prezzo" and "Costi fissi". Every tile has an empty text (§3.4 of the plan); a week with only unpriced waste says "Valore non disponibile" and never "0,00 €". Charts are hand-written inline SVG with a text alternative, no library: `BarTable` is a real `<table>` (an `sr-only` `caption` that states the question, `th scope="row"` for the name, the value as text, the bar in the last cell) and wraps the bar under the name below `sm`; `Meter` is a visible figure ("28,28 %") beside an `aria-hidden` bar. Every `<svg>` has `aria-hidden="true"` and `focusable="false"`; bars use the theme classes `fill-sunk` (track), `fill-accent`, `fill-danger` (below target, also said in words by the `Badge`) and `stroke-ink` (target tick), so light and dark switch through the CSS variables and the charts hold no theme code. New non-text pairs in `CONTRAST_PAIRS`: `danger`/`surface` and `ink`/`sunk` (3:1, both themes). In forced-colors mode (`@media (forced-colors: active)`, selectors `[data-chart-value]`, `[data-chart-track]`, `[data-chart-tick]`) the bars are drawn in `CanvasText` on a `Canvas` track with a 1 px outline. No `style` attribute, `<image>`, `<foreignObject>`, `data:` URI, icon font or palette colour anywhere in the charts (asserted in `tests/components/charts.test.ts`). Placeholders ("Coperti", "Incasso", "Scontrino medio per coperto") read "Disponibile dopo l'avvio di comande e conti" and carry no digit, link or chart. The page reads once on mount, and again on focus at most once a minute, never while hidden. The chef's Oggi is unchanged and shows no euro sign.
 
 **M22, the KPI reports, the "Ieri" tile and `/report` (built):** Oggi opens with the **"Ieri"** tile, first in the grid for the owner and the admin: the title "Ieri · mercoledì 4 novembre" (the business date), a `warning` `Badge` "Provvisorio" until the nightly rollup has made the figures final, and five figures in a definition list, each with the comparison and the change in words: "Coperti 5", "mercoledì scorso 2 · +3 in più"; "Incasso netto 119,13 €", "+162,1 % in più"; "Spesa media per coperto", "Scontrino medio", "Food cost 29,82 %" with the hint "sui piatti con costo noto (71,59 € di 119,13 €)". A real minus sign (U+2212) marks a fall, and the words "in più" / "in meno" mean colour is never the only signal. One link, "Apri report". A final day with no cover says "Nessun tavolo chiuso ieri." The old "In arrivo" tile keeps one row, "Da spingere oggi / Disponibile a breve" (no digit, no link). **`/report`** ("Report", owner and admin, tab "Report" in Sala, next to "Chiusura") has a navigation of four links, "Andamento", "Piatti", "Scostamenti" and "Non mappati" (`?vista=`, the current one `aria-current="page"`), and, for the first two, a period picker, "Giorno · Settimana · Mese · Periodo" (44 px toggle buttons with `aria-pressed`) with a date field or "Dal" / "Al" (`?periodo=&data=&dal=&al=`); the address is the state, so the back button and a shared link give the same screen. "Andamento" is a list of figures with "Questo periodo" and "Periodo di confronto" side by side, the change in words, "Provvisorio: 1 giorno su 7 non ancora chiuso" when days are not closed, "App 135,00 € · cassa 130,00 € · differenza +5,00 € (+3,8 %)" with "Totale cassa non inserito: 28 ott", and two bar tables (ADR-021), "Coperti per ora" (only the hours with covers) and "Coperti per giorno della settimana" (all seven). "Piatti" is a ledger of items (`data-menu-item-id`) with plates, "Mix 27,78 %", net revenue, "Food cost %" and "Margine per piatto"; a `warning` `Badge` says "Senza ricetta", "Costo incompleto" or "Costo parziale"; the owner's rows add "Costi fissi", "Margine lordo" and "Contributo" (the admin's payload has none); a totals line repeats the period's food cost %. "Scostamenti" has a count picker ("Inventario mensile del 30/11 · Cella (demo)"), rows such as "Manzo (demo) · consumato 5,8 kg · da ricetta 5,0 kg · scarti registrati 0,2 kg · differenza +0,8 kg · 9,60 €", the totals "Perdita 9,60 € · Guadagno 0,00 €" with the unpriced and uncounted ingredients counted, and the empty states "Serve un inventario mensile chiuso." / "Serve un secondo inventario mensile per confrontare." with a link to the counts, and "Con più ubicazioni il confronto è indicativo." "Non mappati" names the ISO week ("Settimana dal 02/11 all'08/11") with "Precedente" / "Successiva" and a date field, one row per item with the link "Collega una ricetta" to the menu, or "Tutti i piatti venduti hanno una ricetta." A chef or a waiter who opens `/report` gets one `ErrorAlert`, "I report sono riservati al titolare." Nothing on these screens adds, divides or rounds money: every amount, ratio and change is the API's.
 
@@ -397,11 +280,12 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
   - put it in `public/brand/`;
   - replace the inner markup of `BrandMark` in `src/components/brand.tsx` with an `<img>` or
     inline SVG at 24 px high, keeping `aria-hidden` (the wordmark text names the app);
-  - check it on the green band in both themes.
+  - check it on the band (the venue's accent) in both themes, at ≥ 3:1 (`costi-design-system.md` §9).
 - **TODO, PWA icon:** done for the product (section 11): the manifest lists the Costì icons (192, 512 and maskable) and the root metadata
   has the favicon and the apple-touch icon, all placeholders until the founder's logo files arrive. The venue's own icons, derived from its
-  logo on the brand green, remain a TODO.
-- **Client facts:** done 2026-10-22. The trading name "Osteria Dei Rossi", the eight brand colours
+  logo on its band accent, remain a TODO.
+- **Client facts:** done 2026-10-22 for the venue, 2026-11-13 for Costì (product section of `docs/client-facts.md`). The trading name
+  "Osteria Dei Rossi", the eight brand colours (its green `#1C4130` is now the band accent; the rest belong to section 12)
   and the two fonts are founder-approved and copied into `docs/client-facts.md`. The logo, other
   colours, Source Serif 4, the site's badge wording, contacts and the menu remain
   unapproved.
@@ -440,7 +324,7 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
     1280 × 800 viewport. Same throwaway harness; the fixture is deliberately busy (every badge,
     a split line, a long unbroken description). The harness has no PDF viewer, so the laptop
     document frame is blank in the shots;
-  - `display-font-bodoni.png` is the display-weight comparison from §3.
+  - `display-font-bodoni.png` is the display-weight comparison of the retired osteria theme (section 12).
 
   The app has no preview route, and nothing is reachable without a session.
 
@@ -458,23 +342,23 @@ dim kitchen is likely to use it. Live updates change rows in place, and only new
 
 ## 11. Product theme (Costì)
 
-The Costì product look (plan `docs/plans/2026-11-13-costi-product-brand.md`, decision record ADR-042). It is a **second set of values for
-the same token names** of section 2, not new tokens. It applies on the product surfaces only (the sign-in pages, `/dispositivo`, the staff
-sign-in e-mail, the manifest and the icons); Home, Sala, Cucina, the signed-in shell, `/prenota/*` and guest e-mails keep the osteria look.
+The Costì look (plan `docs/plans/2026-11-13-costi-product-brand.md`, decision records ADR-042 and ADR-045). Since §11 step 9 of
+`docs/ux/costi-design-system.md` (P2j, #181, 2026-11-18) it is **the one theme of the whole app**: the same token names as section 2, with
+the values below, at `:root`. Sign-in, `/dispositivo`, the console, every venue screen, `/prenota/*` and the guest e-mails all wear it; a
+venue re-values only the band (`venueLayer`).
 
-**The scope rule.**
+**How it is wired.**
 
 - `src/lib/design/tokens.ts` holds `PRODUCT_BRAND` (Forest `#0E4D3A`, Coral `#FF7A5C`, Sage `#DCEDE6`, Off-white `#F7F8F6`, Charcoal
   `#1F2933`), `PRODUCT_DERIVED` (the `mix()` shades, each checked against its formula) and `PRODUCT_THEMES`, with exactly the `COLOR_TOKENS`
   names, light and dark.
-- `src/app/globals.css` re-values the tokens under `:root:has([data-brand="costi"])` (a light block, then a dark block limited to
-  `screen`), both after the osteria dark block. The light block also remaps the four font variables to the product faces.
-- Only two server layouts render `<CostiTheme />` (`src/components/costi-theme.tsx`, a hidden `data-brand="costi"` marker) and `<ProductLogo />`:
-  `src/app/(public)/login/layout.tsx` and `src/app/(public)/dispositivo/layout.tsx` (ADR-045: more route groups follow, one per step). Each also exports `viewport.themeColor` = Forest. The
-  header band on these pages keeps the venue's name; the product speaks in the page.
-- `(public)/layout.tsx` and `(public)/prenota/*` never mention `data-brand` (a source test). Coral is accent only (`gold` and `highlight`
-  are in `ACCENT_ONLY`).
-- A new product surface gets the look by living under a layout that renders `CostiTheme`; nothing else is needed.
+- `src/app/globals.css` sets them in `@theme` (light) and in the screen-dark `:root` block; the print `:root` sets `PRINT_COLORS`.
+- History: from the brand step until P2j the values were switched on per page by a hidden `data-brand="costi"` marker (`CostiTheme`) under
+  `:root:has([data-brand="costi"])`, spreading one route group per step (§11 of the design system). P2j moved them to `:root` and deleted
+  the marker, the `:has()` blocks, the osteria theme and its fonts (section 12).
+- The venue layer (`src/lib/design/venue-layer.ts`) sets only `--color-band` and `--color-band-ink`, inline on `HeaderBand`; an accent
+  that fails `band_ink_contrast` (4.5) or `rule_contrast` (3) is refused, never adjusted. Guests never see the Costì name or logo. Coral is
+  accent only (`gold` and `highlight` are in `ACCENT_ONLY`).
 
 **Tokens** (the test `tests/config/costi-brand-docs.test.ts` fails if this table and `PRODUCT_THEMES` differ):
 
@@ -549,9 +433,230 @@ Forest on Charcoal (1.50; this is why the dark `accent` is Sage).
 
 - Montserrat 600 for headings: `Heading`, `SubHeading`, the sign-in `h1` and the band wordmark (all `font-semibold`).
 - Inter 400 and 700 for body text, labels, buttons and tables.
-- Full upstream files, not subset. `preload: false`, so a venue page never downloads them.
+- Full upstream files, not subset. Preloaded on every page since P2j (CSS variables `--font-display-face` and `--font-body`).
 
 **Logo slots.** `public/brand/costi/` holds nine SVG slots and six generated PNGs, named only in `src/lib/brand/costi-assets.ts`. The SVGs are
 placeholders (each root `<svg>` has `data-costi-placeholder="true"`) until the founder's files replace them; the swap is a file-replace commit
 (`public/brand/costi/README.md`: slots, delivery rules, checksums, and `npx tsx scripts/brand/render-icons.ts`). Go-live row BRAND-1 blocks go-live
 while a placeholder remains.
+
+
+## 12. History: the osteria theme (2026-10-22 to 2026-11-18)
+
+Sections 1–3 as they stood before P2j (#181), kept as a record: the osteria house style the app wore until §11 step 9 of
+`docs/ux/costi-design-system.md`. `THEMES`, `BRAND`, `DERIVED`, the cream palette, Bodoni Moda and Figtree no longer exist in the code; the
+venue's approved green `#1C4130` survives as the band accent of its venue layer. Headings are renumbered H1–H3 so they do not clash with the
+live sections.
+
+Status: adopted on `feat/ui-foundation` (2026-10-22). This is the house style for every screen of
+the app.
+
+**Source of the brand.** The founder approved the trading name "Osteria Dei Rossi", eight brand
+colours and the two fonts on 2026-10-22; they are listed in `docs/client-facts.md`, and nothing
+else in this document is a client fact. Every other colour is a **derived UI shade** (a tint,
+hover or on-colour chosen for contrast, with a formula where it is a blend of approved colours).
+The recommendation badge ("Consigliato") and the logo slot are generic UI motifs of the app, not
+client wording or artwork. The app shows no DigiAlto name or logo.
+
+All colours live in two files: `src/app/globals.css` (runtime) and `src/lib/design/tokens.ts`
+(tests). Components and screens use token utilities only. A brand change is a token change.
+
+### H1. Direction
+
+The look is cream paper, a deep green, black type, a high-contrast Bodoni for names, and gold
+rules and badges. The app turns that palette into a working tool, used on a phone by an owner or
+chef, often mid-service.
+
+Four principles, in priority order:
+
+1. **Legible at arm's length.** Body text is 16 px Figtree. Every text pair is AA in both themes,
+   controls are 44 px or more, and figures line up.
+2. **One green action.** The brand green is the primary action (cream text on green). Everything
+   else is black or soft-green ink on cream. Colour that carries meaning (status) always comes
+   with a word.
+3. **Gold is jewellery, not text.** Gold and yellow mark things: the header rule, the rule under
+   a page title, the focus ring (a deeper gold in light), the logo slot and the "Consigliato"
+   badge. They never colour text on cream. They fail AA there, and a test enforces it.
+4. **Printed menu, not dashboard.** Bodoni names a page; Figtree does the work. Lists are rows
+   ruled by hairlines. Cards are kept for forms and fact sheets. The only texture is the grain on
+   the green header band; content surfaces stay plain for legibility.
+
+#### Light or dark
+
+**Light is the primary theme**: cream, green and black. Dark follows the device
+setting (`prefers-color-scheme`). It uses the brand black with cream ink, plus a sage green,
+lightened so that it stays AA on black. Neither theme is forced. A chef who keeps the
+phone in dark mode for an evening service gets dark, and everyone else gets the brand as
+printed. There is no in-app theme switch yet. If one is added, it sets `data-theme` on `<html>`,
+and the dark block in `globals.css` gains a `:root[data-theme="dark"]` selector.
+
+### H2. Colour tokens
+
+The runtime source is the Tailwind v4 `@theme` block in `src/app/globals.css`, plus the
+`@media (prefers-color-scheme: dark)` override on `:root`. `src/lib/design/tokens.ts` mirrors the
+values (and the approved palette as `BRAND`, with the blends in `DERIVED`) for the tests.
+`tests/lib/design/tokens.test.ts` fails in these cases:
+
+- the two files differ;
+- a pair below drops under its AA minimum in either theme;
+- the light theme stops being the approved cream, green, black and soft;
+- a `DERIVED` literal stops matching its `mix()` formula;
+- a component uses `gold` or `highlight` as a text colour.
+
+Utility names follow the token: `bg-paper`, `text-ink-muted`, `border-rule`,
+`bg-accent text-on-accent`, `bg-highlight text-on-highlight`, and so on.
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `paper` | #FFFADF | #0F0F0D | Page background (cream / black) |
+| `surface` | #FFFDF2 | #1A1A16 | Cards, inputs, secondary buttons |
+| `sunk` | #F8EFC6 | #25241F | Hover fill, neutral badge, chosen-file chip (cream-deep) |
+| `ink` | #0F0F0D | #FFFADF | Body text, current nav tab fill (black / cream) |
+| `ink-muted` | #4D5B45 | #B7B4A0 | Hints, secondary row text, `dt` labels (soft / dark: `mix(cream, black, 0.3)`) |
+| `rule` | #EAD4A3 | #33322B | Hairlines, card borders; decorative. Light: `mix(cream-deep, gold, 0.3)` |
+| `rule-strong` | #857A57 | #7A7462 | Input borders (a UI boundary, ≥ 3:1) |
+| `band` | #1C4130 | #16301F | Header band (green) |
+| `band-ink` | #FFFADF | #FFFADF | Wordmark on the band |
+| `gold` | #C89550 | #C89550 | Rules, logo slot. Accent only |
+| `highlight` | #FFB028 | #FFB028 | "Consigliato" badge fill, logo slot. Accent only |
+| `on-highlight` | #0F0F0D | #0F0F0D | Text on the yellow badge |
+| `accent` | #1C4130 | #8CB89A | Primary button fill (green; sage in dark) |
+| `accent-hover` | #122C20 | #A6CBB1 | Primary button hover |
+| `on-accent` | #FFFADF | #0F0F0D | Label on the primary button |
+| `accent-ink` | #1C4130 | #A9D1B4 | Green as text: links, quiet buttons |
+| `focus` | #8A5F22 | #C89550 | Focus ring (deep gold in light, brand gold in dark) |
+| `success` / `success-bg` | `#2D6435` / `#E2ECD9` | `#A3D4A9` / `#1B2C1D` | Confirmations, "Approvata" |
+| `warning` / `warning-bg` | `#74480A` / `#F5E5C3` | `#EBC57E` / `#302511` | "Da controllare", "Duplicata" |
+| `danger` / `danger-bg` | `#9A2A1D` / `#F6DDD5` | `#F4A694` / `#391A12` | Errors, "Rifiutata", "Lettura non riuscita" |
+| `info` / `info-bg` | `#1E5470` / `#DCE8EE` | `#A1CBE2` / `#14252F` | "In lettura" |
+
+Approved brand colours (`docs/client-facts.md`): cream `#FFFADF`, cream-deep `#F8EFC6`, green
+`#1C4130`, gold `#C89550`, olive `#7D9550`, soft `#4D5B45`, black `#0F0F0D`, yellow `#FFB028`.
+Every other value in the table is a derived UI shade: a tint, hover or on-colour picked to meet
+contrast, including `surface` and the whole dark theme apart from black, gold and yellow. Three
+are exact blends of approved colours, exported as `DERIVED` in `tokens.ts` with the helper
+`mix(a, b, t)` (per-channel linear blend, `t = 0` is `a`):
+
+| Shade | Value | Formula | Contrast |
+|---|---|---|---|
+| `rule` (light) | `#EAD4A3` | `mix(creamDeep, gold, 0.3)` | decorative hairline, no minimum |
+| `ink`, `band-ink` (dark) | `#FFFADF` | cream itself | 18.27 on `paper`, 13.54 on `band` |
+| `ink-muted` (dark) | `#B7B4A0` | `mix(cream, black, 0.3)` | 9.18 on `paper`, 8.35 on `surface`, 7.44 on `sunk` |
+
+A test asserts each literal equals its formula. The literals are hard-coded in `THEMES` and
+`globals.css`, which a second test keeps in sync.
+
+The approved olive (`#7D9550`) is not used yet: no screen needs a second green. In dark, the brand
+green on black would be too dim for a button (1.6:1), so the action turns sage with a black label.
+
+#### Contrast ratios (WCAG 2.2, tested)
+
+The minimum is 4.5:1 for text and 3:1 for UI boundaries and focus indicators (SC 1.4.11).
+
+| Foreground | Background | Used for | Min | Light | Dark |
+|---|---|---|---|---|---|
+| `ink` | `paper` | Body text on the page | 4.5 | 18.27 | 18.27 |
+| `ink` | `surface` | Text in cards, inputs, secondary buttons | 4.5 | 18.81 | 16.61 |
+| `ink` | `sunk` | Text on hovered rows, tabs and buttons | 4.5 | 16.59 | 14.80 |
+| `paper` | `ink` | current tab in the owner nav; selected segment; picked option (Button selected) | 4.5 | 18.27 | 18.27 |
+| `ink-muted` | `paper` | Hints and secondary row text | 4.5 | 6.90 | 9.18 |
+| `ink-muted` | `surface` | Hints inside cards | 4.5 | 7.10 | 8.35 |
+| `ink-muted` | `sunk` | Neutral status badge | 4.5 | 6.26 | 7.44 |
+| `band-ink` | `band` | Wordmark on the header band | 4.5 | 10.82 | 13.54 |
+| `on-accent` | `accent` | Primary button label | 4.5 | 10.82 | 8.62 |
+| `on-accent` | `accent-hover` | Primary button label, hover | 4.5 | 14.21 | 10.78 |
+| `accent-ink` | `paper` | Links and quiet buttons | 4.5 | 10.82 | 11.39 |
+| `accent-ink` | `surface` | Links inside cards | 4.5 | 11.14 | 10.36 |
+| `accent-ink` | `sunk` | Quiet button, hover | 4.5 | 9.82 | 9.23 |
+| `on-highlight` | `highlight` | "Consigliato" badge | 4.5 | 10.50 | 10.50 |
+| `success` | `success-bg` | Success notice and badge | 4.5 | 5.77 | 8.81 |
+| `warning` | `warning-bg` | Warning badge and extraction notes | 4.5 | 6.31 | 9.17 |
+| `danger` | `danger-bg` | Error alert and badge | 4.5 | 5.96 | 8.06 |
+| `danger` | `paper` | Per-row import errors on the page | 4.5 | 7.34 | 9.80 |
+| `info` | `info-bg` | Info badge | 4.5 | 6.58 | 9.10 |
+| `rule-strong` | `surface` | Input border in cards | 3 | 4.18 | 3.74 |
+| `rule-strong` | `paper` | Input border on the page | 3 | 4.06 | 4.11 |
+| `accent` | `paper` | Primary button shape on the page | 3 | 10.82 | 8.62 |
+| `accent` | `surface` | Primary button shape in cards | 3 | 11.14 | 7.84 |
+| `ink` | `surface` | Secondary button and file-picker border | 3 | 18.81 | 16.61 |
+| `focus` | `paper` | Focus ring on the page | 3 | 5.34 | 7.19 |
+| `focus` | `surface` | Focus ring in cards | 3 | 5.50 | 6.54 |
+| `gold` | `band` | Gold rule under the wordmark | 3 | 4.26 | 5.33 |
+
+**Accent-only, by measurement:** on cream, gold is 2.54:1 and yellow 1.74:1, so neither may set
+text. The tests assert both numbers stay under 4.5 and that no `text-gold` or `text-highlight`
+appears in `src/`. The gold rule under a page title is decorative, so it has no minimum. The
+tightest required pair is `rule-strong` on `surface` in dark, at 3.74:1. A new combination goes
+into `CONTRAST_PAIRS` in `tokens.ts` before it is used.
+
+### H3. Typography
+
+The brand's own faces are **committed woff2 files** in `src/app/fonts/`, loaded with
+`next/font/local` in `src/app/layout.tsx` and **served from `/_next/static/media`**. The browser
+never contacts Google, which matters under GDPR for an EU venue. Since `fix/self-host-fonts`
+(2026-11-08), the build needs no network either: `next/font/google` used to download the files at
+build time, and a failed download broke a CI build.
+
+- **Source:** the static files come from the OFL-licensed Fontsource 5.3.0 packages, which carry
+  Google's own subsets. Their licences sit next to them, and `src/app/fonts/README.md` lists the
+  versions and checksums. No npm dependency is added.
+- **Six files:** Bodoni Moda 600, and Figtree 400 and 700, each in latin and in latin-ext.
+- **Latin:** preloaded. The login page downloads these three.
+- **Latin-ext:** a second face per family, limited to Google's latin-ext `unicode-range` and not
+  preloaded. A page downloads it only when it shows such a letter, for example "Ștefan" or
+  "Żubrówka". `globals.css` lists it first in each stack: its range keeps it out of plain latin
+  text, and the main stack ends in a fallback face that covers every letter.
+
+| Role | Face | Size / leading | Notes |
+|---|---|---|---|
+| Wordmark in the header | Bodoni Moda 600, caps | 21 px / 1, +0.1 em | Uppercase by CSS; the text stays "Osteria Dei Rossi" for screen readers |
+| Page title (`Heading`, h1) | Bodoni Moda 600 | 34 px / 1.08 | `text-balance`, 48 px gold rule below. Login title is 40 px |
+| Section title (`SubHeading`, h2) | Bodoni Moda 600 | 24 px / 1.25 | Also the tenant name on Home |
+| Body and controls | Figtree 400 | 16 px / 1.5 | Inputs stay 16 px so iOS does not zoom |
+| Labels, row titles, buttons | Figtree 700 | 15–16 px | |
+| Hints, meta lines, loading and empty lines | Figtree 400 | 14–16 px | `text-ink-muted`, no italic |
+| Amounts, quantities, dates, VAT numbers | Figtree + `.num` | Same as context | `font-variant-numeric: tabular-nums` |
+
+**Why these, and what was dropped.**
+
+- **Bodoni Moda** is the approved display face. Its hairlines break up below about 20 px, so it is
+  only used at 21 px or more, and at 600 rather than the 400 regular, whose hairlines are too thin
+  for a phone at arm's length. The comparison is in `screenshots/display-font-bodoni.png`: 600
+  and 700, with and without a small optical size, on the band, on cream and on black. 700 was a
+  touch heavy against Figtree bold labels, and the optical-size axis made no visible difference
+  at these sizes. So one static weight is loaded.
+- **Figtree** is the approved body face: open, with clear figures and a distinct `1/l/I`.
+- **Source Serif 4** is not loaded and is not an approved client fact. It has no role in the
+  current screens. It is the candidate for long dish descriptions when the menu screens arrive; add it then, at 400 only.
+- **Instrument Serif and Atkinson Hyperlegible** were removed, together with every italic and
+  bold-italic face. The round-1 review found the italics preloaded but unused. `Muted` and the
+  upload's "Caricamento in corso…" line are no longer italic. Do not reintroduce `italic`: no
+  italic face is loaded, so the browser would fake one.
+- An earlier draft of this round tried varsity faces (Graduate, Staatliches, Big Shoulders,
+  Alfa Slab One) after a description of the logo. It was dropped once the approved fonts were
+  known.
+
+Fallbacks are Next's metric-adjusted "… Fallback" faces, then Didot/Georgia for display and
+`ui-sans-serif` for body.
+
+**Guards:**
+
+- `tests/lib/design/fonts.test.ts` checks that:
+  - no source file names a Google Fonts host, and none imports `next/font/google`;
+  - the layout loads exactly the six committed files through `next/font/local`, each with its
+    OFL licence;
+  - the variables, `swap` and the metric-adjusted fallbacks are kept;
+  - latin-ext is a non-preloaded face limited to Google's range and comes first in the stacks;
+  - no retired family or `"italic"` is loaded, Bodoni only at 600 and Figtree only at 400 and 700.
+- `e2e/fonts.spec.ts` checks the build output and a real page load:
+  - it scans `.next/static` and `.next/server/app` for Google hosts;
+  - on `/login`, every `.woff2` request goes to `/_next/static/media` on the app's own origin
+    and gets a **200** response;
+  - `document.fonts` has a **loaded** face for each family in use (the main faces, not the
+    latin-ext ones). The computed-style check on the heading and body only confirms the declared
+    stacks: `globals.css` names "Figtree" and "Bodoni Moda" literally, so the loaded-face check is
+    the real proof.
+
+When the nonce-based CSP lands (M25), keep `font-src 'self'` and `style-src 'self'` plus the
+nonce. Nothing here needs a third-party origin, `data:` URIs or inline `style` attributes. The
+band grain and the stagger are pure CSS.
