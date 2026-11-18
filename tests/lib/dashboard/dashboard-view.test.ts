@@ -101,7 +101,7 @@ describe("tileOrder", () => {
 
 describe("tileEmpty", () => {
   const owner = () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
     if (out.role !== "owner") throw new Error("owner expected");
     return out.tiles;
   };
@@ -189,7 +189,7 @@ describe("tileEmpty", () => {
   });
 
   it("works on the admin tiles for the tiles the admin has", () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     expect(tileEmpty("plates", out.tiles)).toBeNull();
   });
 });
@@ -221,7 +221,7 @@ describe("moreCount and portionsText", () => {
 
 describe("tileEmpty for the yesterday tile", () => {
   const tile = () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
     if (out.role !== "owner") throw new Error("owner expected");
     return { ...out.tiles.yesterday };
   };
@@ -253,7 +253,7 @@ describe("tileEmpty pushList (M23)", () => {
 // or ratio). The empty text wins when a tile is empty.
 describe("tileHeadline", () => {
   const ownerTiles = () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
     if (out.role !== "owner") throw new Error("owner expected");
     return out.tiles;
   };
@@ -365,7 +365,7 @@ describe("tileHeadline", () => {
   });
 
   it("the admin's tiles give no headline for the owner-only keys", () => {
-    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+    const out = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
     for (const key of ["todayLists", "priceVariance", "fixedCosts"] as const) {
       expect(tileHeadline(key, out.tiles), key).toBeNull();
     }

@@ -7,11 +7,11 @@ import { keyParams } from "@/server/recipes/schemas";
 // (V6) and only for now, so a query from the chef is a 400; the waiter gets 403 before any query.
 export const GET = withApi(
   { roles: ["owner", "admin", "chef"], params: keyParams },
-  async ({ request, supabase, session, params }) => {
+  async ({ request, supabase, session, params, tenantSettings }) => {
     const url = new URL(request.url);
     let at: string | null = null;
     if (session.role === "chef") assertNoQuery(url);
-    else at = parseAtDate(url);
+    else at = parseAtDate(url, (await tenantSettings()).timeZone);
     return Response.json(await getPlateBreakdown(supabase, session.role, params.key, at));
   },
 );

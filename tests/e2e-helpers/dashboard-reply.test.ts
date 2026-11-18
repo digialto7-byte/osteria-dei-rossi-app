@@ -7,8 +7,8 @@ import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
 // The link sign-in helper ends on Oggi's own GET /api/dashboard, then (owner only) the one POST /api/dashboard/opens Oggi sends after a GOOD read
 // (src/components/use-dashboard.ts). A reply that fails the schema, or answers the wrong role, means that POST never comes: the helper names it
 // instead of waiting 30 s for a POST that cannot arrive (lead, #132 review NOTE).
-const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+const owner = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+const admin = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 
 describe("dashboardReplyProblem", () => {
   it("a reply of the expected role that fits the dashboard schema has no problem", () => {

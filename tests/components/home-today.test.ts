@@ -60,8 +60,8 @@ import { dashboardSqlSchema } from "@/server/dashboard/sql-schema";
 import { adminSql, ownerSql } from "../fixtures/dashboard-sql";
 import { ME_SETTINGS } from "../helpers/me-data";
 
-const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 
 const card = (key: string, count: number, more = false) => ({ key, count, more, href: "/x" });
 const step = (key: string, done: boolean) => ({ key, done, href: `/${key}` });

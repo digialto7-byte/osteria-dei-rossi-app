@@ -145,12 +145,13 @@ export async function storeInvoiceUpload(
   session: Pick<TenantSession, "tenantId">,
   file: UploadedFile,
   now: Date,
+  zone: string,
 ): Promise<UploadedInvoice> {
   if ((await recentUploadCount(supabase, now)) >= MAX_UPLOADS_PER_HOUR) throw rateLimited();
 
   const checked = checkInvoiceFile(file);
   const id = randomUUID();
-  const path = `${session.tenantId}/${venueYear(now)}/${id}.${checked.ext}`;
+  const path = `${session.tenantId}/${venueYear(now, zone)}/${id}.${checked.ext}`;
 
   const stored = await supabase.storage
     .from(INVOICE_BUCKET)

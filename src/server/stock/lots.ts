@@ -14,6 +14,7 @@ import type { BaseUnit, StockLotRow } from "./types";
 export async function getLots(
   supabase: SupabaseClient,
   query: { ingredient: string; includeEmpty: boolean },
+  zone: string,
   now: Date = new Date(),
 ) {
   const lots = await supabase.rpc("stock_lots", {
@@ -40,7 +41,7 @@ export async function getLots(
 
   return lotsResponse.parse({
     ingredient: { id: row.id, name: row.name, baseUnit: row.base_unit },
-    today: venueDate(now),
+    today: venueDate(now, zone),
     units: [...UNITS_FOR_BASE[row.base_unit]],
     locations: ((locations.data ?? []) as Array<{ id: string; name: string }>).map((l) => ({
       id: l.id,

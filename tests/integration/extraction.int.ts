@@ -78,6 +78,7 @@ describe.skipIf(!env)("invoice extraction on the real stack", () => {
       { tenantId: tenant.id },
       { bytes: fakePdf(), declaredMime: PDF_MIME, filename: "fattura-demo.pdf" },
       uploadedAt,
+      "Europe/Rome",
     );
     return stored.id;
   }

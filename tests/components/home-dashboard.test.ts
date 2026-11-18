@@ -44,8 +44,8 @@ import HomePage from "@/app/(owner)/page";
 import { resetMe } from "@/components/use-me";
 import { ME_SETTINGS } from "../helpers/me-data";
 
-const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it");
-const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it");
+const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europe/Rome");
+const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 const reply =
   (data: unknown): (() => Promise<Reply>) =>
   () =>
