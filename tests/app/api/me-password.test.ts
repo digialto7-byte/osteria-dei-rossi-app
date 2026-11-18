@@ -19,6 +19,14 @@ vi.mock("@/lib/observability/report", () => ({ reportError: (e: unknown) => repo
 
 const route = await import("@/app/api/me/password/route");
 
+// SP1 step 15: changePassword reads the tenant's name once, through RLS, for the policy's venue words.
+const TENANT_NAME = "Osteria Demo B";
+const TENANT = { tenant: [{ data: { name: TENANT_NAME }, error: null }] };
+const db = (options: Parameters<typeof fakeSupabase>[0] = {}) =>
+  fakeSupabase({ ...options, results: { ...TENANT, ...options.results } });
+const tenantReads = (c: FakeSupabase) =>
+  c.from.mock.calls.filter((call) => call[0] === "tenant").length;
+
 const NOW = Date.parse("2026-11-20T10:00:00Z");
 const EMAIL = "titolare.demo@example.test";
 const GOOD = "una frase lunga per il locale";
@@ -55,7 +63,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("GET /api/me/password", () => {
   it("reports a recent link sign-in", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     const response = await get();
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
@@ -68,7 +76,7 @@ describe("GET /api/me/password", () => {
   });
 
   it("reports an old password sign-in", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     expect(await (await get()).json()).toEqual({
       signInMethod: "password",
       recentSignIn: false,
@@ -78,22 +86,22 @@ describe("GET /api/me/password", () => {
   });
 
   it("refuses a chef and a PIN session with 403", async () => {
-    client = fakeSupabase({ claims: claimsFor("chef") });
+    client = db({ claims: claimsFor("chef") });
     expect((await get()).status).toBe(403);
-    client = fakeSupabase({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
+    client = db({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
     const response = await get();
     expect(response.status).toBe(403);
   });
 
   it("answers 401 without a session", async () => {
-    client = fakeSupabase({ claims: null });
+    client = db({ claims: null });
     expect((await get()).status).toBe(401);
   });
 });
 
 describe("POST /api/me/password, recent sign-in", () => {
   it("updates, signs in again with the new password, then ends the other sessions", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     const response = await post({ newPassword: GOOD });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: "saved", mfa: "none" });
@@ -107,7 +115,7 @@ describe("POST /api/me/password, recent sign-in", () => {
   });
 
   it("a failed re-sign-in is reported and does not undo the saved password", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     client.auth.signInWithPassword.mockResolvedValueOnce(authError(500, "unexpected_failure"));
     expect((await post({ newPassword: GOOD })).status).toBe(200);
     expect(client.auth.signOut).toHaveBeenCalledWith({ scope: "others" });
@@ -117,7 +125,7 @@ describe("POST /api/me/password, recent sign-in", () => {
 
 describe("POST /api/me/password, old sign-in", () => {
   it("asks for the current password and calls no Auth method without it", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     const response = await post({ newPassword: GOOD });
     expect(response.status).toBe(422);
     expect((await response.json()).error.code).toBe("current_password_required");
@@ -126,7 +134,7 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 
   it("a wrong current password gives 422 current_password_invalid and no update", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     verifier.auth.signInWithPassword.mockResolvedValueOnce(authError(400, "invalid_credentials"));
     const response = await post({ newPassword: GOOD, currentPassword: "sbagliata sbagliata" });
     expect(response.status).toBe(422);
@@ -139,7 +147,7 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 
   it("the right current password is checked on the verifier, whose session is ended locally", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     const response = await post({ newPassword: GOOD, currentPassword: CURRENT });
     expect(response.status).toBe(200);
     expect(verifier.auth.signInWithPassword).toHaveBeenCalledWith({
@@ -156,7 +164,7 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 
   it("a failed sign-out of the verifier is reported, without secrets, and the save still succeeds", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     verifier.auth.signOut.mockResolvedValueOnce({
       error: authError(500, "unexpected_failure").error,
     });
@@ -173,7 +181,7 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 
   it("a verifier sign-out that throws is reported too, and the save still succeeds", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     verifier.auth.signOut.mockRejectedValueOnce(new Error(`network ${CURRENT}`));
     const response = await post({ newPassword: GOOD, currentPassword: CURRENT });
     expect(response.status).toBe(200);
@@ -182,7 +190,7 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 
   it("rate limiting while checking the current password gives 429", async () => {
-    client = fakeSupabase({ claims: OLD_PASSWORD });
+    client = db({ claims: OLD_PASSWORD });
     verifier.auth.signInWithPassword.mockResolvedValueOnce(
       authError(429, "over_request_rate_limit"),
     );
@@ -190,9 +198,59 @@ describe("POST /api/me/password, old sign-in", () => {
   });
 });
 
+describe("POST /api/me/password, the tenant's name", () => {
+  it("reads the tenant's name once through RLS and refuses its words (like_venue)", async () => {
+    client = db({ claims: RECENT_LINK });
+    const response = await post({ newPassword: "DemoB-cucina-2026" });
+    expect(response.status).toBe(422);
+    expect((await response.json()).error.details).toEqual({ reason: "like_venue" });
+    expect(tenantReads(client)).toBe(1);
+    expect(client.query.select).toHaveBeenCalledWith("name");
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
+  });
+
+  it("the old tenant #1 words are not refused for another tenant, and the name is read once", async () => {
+    client = db({ claims: RECENT_LINK });
+    const response = await post({ newPassword: "Rossi-cucina-2026" });
+    expect(response.status).toBe(200);
+    expect(tenantReads(client)).toBe(1);
+  });
+
+  it("a failed tenant read is a reported 500 that names only the code, and no Auth method runs", async () => {
+    client = db({
+      claims: RECENT_LINK,
+      results: { tenant: [{ data: null, error: { code: "XX000", message: `boom ${GOOD}` } }] },
+    });
+    const response = await post({ newPassword: GOOD });
+    expect(response.status).toBe(500);
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledTimes(1);
+    const text = String(reportError.mock.calls[0]?.[0]);
+    expect(text).toContain("XX000");
+    expect(text).not.toContain(GOOD);
+  });
+
+  it("a missing tenant row is a reported 500, never an unchecked password", async () => {
+    client = db({ claims: RECENT_LINK, results: { tenant: [{ data: null, error: null }] } });
+    const response = await post({ newPassword: GOOD });
+    expect(response.status).toBe(500);
+    expect(client.auth.updateUser).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledTimes(1);
+  });
+
+  it("a PIN session and a chef are refused before the tenant is read", async () => {
+    client = db({ claims: claimsFor("chef") });
+    expect((await post({ newPassword: GOOD })).status).toBe(403);
+    expect(tenantReads(client)).toBe(0);
+    client = db({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
+    expect((await post({ newPassword: GOOD })).status).toBe(403);
+    expect(tenantReads(client)).toBe(0);
+  });
+});
+
 describe("POST /api/me/password, refusals", () => {
   it("a weak password gives 422 password_weak with the reason and calls no Auth method", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     const response = await post({ newPassword: "Basketball" });
     expect(response.status).toBe(422);
     const body = (await response.json()).error;
@@ -203,18 +261,18 @@ describe("POST /api/me/password, refusals", () => {
   });
 
   it("checks the policy against the account's e-mail", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     const response = await post({ newPassword: "titolare.demo2026" });
     expect((await response.json()).error.details).toEqual({ reason: "like_email" });
   });
 
   it("Auth's weak_password gives 422 password_weak; same_password gives 422 password_same", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     client.auth.updateUser.mockResolvedValueOnce(authError(422, "weak_password"));
     const weak = await post({ newPassword: GOOD });
     expect(weak.status).toBe(422);
     expect((await weak.json()).error.code).toBe("password_weak");
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     client.auth.updateUser.mockResolvedValueOnce(authError(422, "same_password"));
     const same = await post({ newPassword: GOOD });
     expect((await same.json()).error.code).toBe("password_same");
@@ -222,29 +280,29 @@ describe("POST /api/me/password, refusals", () => {
   });
 
   it("maps 429 and 5xx from updateUser", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     client.auth.updateUser.mockResolvedValueOnce(authError(429, "over_request_rate_limit"));
     expect((await post({ newPassword: GOOD })).status).toBe(429);
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     client.auth.updateUser.mockResolvedValueOnce(authError(500, "unexpected_failure"));
     expect((await post({ newPassword: GOOD })).status).toBe(502);
   });
 
   it("refuses a chef and a PIN session with 403 before any Auth call", async () => {
-    client = fakeSupabase({ claims: claimsFor("chef") });
+    client = db({ claims: claimsFor("chef") });
     expect((await post({ newPassword: GOOD })).status).toBe(403);
-    client = fakeSupabase({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
+    client = db({ claims: { ...RECENT_LINK, login: "pin" }, rpc: LIVE });
     expect((await post({ newPassword: GOOD })).status).toBe(403);
     expect(client.auth.updateUser).not.toHaveBeenCalled();
   });
 
   it("rejects an unknown key with 400", async () => {
-    client = fakeSupabase({ claims: RECENT_LINK });
+    client = db({ claims: RECENT_LINK });
     expect((await post({ newPassword: GOOD, email: EMAIL })).status).toBe(400);
   });
 
   it("fails closed when the token carries no e-mail", async () => {
-    client = fakeSupabase({ claims: { ...RECENT_LINK, email: undefined } });
+    client = db({ claims: { ...RECENT_LINK, email: undefined } });
     expect((await post({ newPassword: GOOD })).status).toBe(403);
     expect(client.auth.updateUser).not.toHaveBeenCalled();
   });
@@ -253,7 +311,7 @@ describe("POST /api/me/password, refusals", () => {
 // P2-1 A11: the route signs in again here, which gives a fresh aal1 session. When the account has to pass the code, the reply says so and the screen goes to the code page.
 describe("POST /api/me/password and the second factor", () => {
   it("replies mfa: challenge when the fresh session must be challenged (a verified factor, mode not off)", async () => {
-    client = fakeSupabase({
+    client = db({
       claims: RECENT_LINK,
       rpc: { mfa_gate: [{ data: "challenge", error: null }] },
     });
@@ -269,13 +327,13 @@ describe("POST /api/me/password and the second factor", () => {
 
   it("replies mfa: none for ok, for enrol and when Postgres cannot answer (the next API call decides)", async () => {
     for (const data of ["ok", "enrol", null]) {
-      client = fakeSupabase({ claims: RECENT_LINK, rpc: { mfa_gate: [{ data, error: null }] } });
+      client = db({ claims: RECENT_LINK, rpc: { mfa_gate: [{ data, error: null }] } });
       expect(await (await post({ newPassword: GOOD })).json()).toEqual({
         status: "saved",
         mfa: "none",
       });
     }
-    client = fakeSupabase({
+    client = db({
       claims: RECENT_LINK,
       rpc: { mfa_gate: [{ data: null, error: { code: "XX000", message: `detail ${GOOD}` } }] },
     });

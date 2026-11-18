@@ -30,6 +30,7 @@ const menu = await import("@/app/api/menu/route");
 const tables = await import("@/app/api/tables/route");
 const lines = await import("@/app/api/table-sessions/[id]/lines/route");
 const sync = await import("@/app/api/sync/route");
+const venue = await import("@/app/api/settings/venue/route");
 
 const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
 // One path outside the plan's pattern predates P2-0b: the cover charge's VAT rate on /api/tables (M17), a sale fact and not a cost.
@@ -39,6 +40,8 @@ const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
 const KNOWN_SALE_PATHS: Record<string, string[]> = {
   "/api/tables": ["tables.session.coperto.vatRate"],
   "/api/table-sessions/:id/lines": ["session.coperto.vatRate"],
+  // SP1 step 13: the owner/admin write route answers the tenant's own sale VAT list, at this exact path and nowhere else.
+  "PATCH /api/settings/venue": ["settings.saleVatRates"],
 };
 const ok = (data: unknown): FakeResult => ({ data, error: null });
 
@@ -370,5 +373,51 @@ describe("POST /api/sync as a waiter, a weighted add", () => {
     const json = await response.json();
     expect(keysOf(json)).toContain("weightG");
     expect(flagged("/api/sync", json)).toEqual([]);
+  });
+});
+
+// SP1 step 13: PATCH /api/settings/venue joins the guard. A waiter and a chef never reach it (403, no RPC); an owner's reply carries the
+// sale VAT list only at `settings.saleVatRates`, and the strict output refuses any other cost-like key.
+describe("PATCH /api/settings/venue", () => {
+  const PATH = "PATCH /api/settings/venue";
+  const SETTINGS = { ...ME_SETTINGS, saleVatRates: [10, 22] };
+  const call = () =>
+    venue.PATCH(
+      jsonRequest(
+        "http://localhost:3000/api/settings/venue",
+        { saleVatRates: [10, 22] },
+        { method: "PATCH" },
+      ),
+    );
+
+  it.each(["waiter", "chef"])("a %s gets 403 and no RPC runs", async (role) => {
+    client = fakeSupabase({ claims: claimsFor(role) });
+    expect((await call()).status).toBe(403);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("an owner's reply: the sale VAT list is the only flagged path, and it is exempt", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("owner"),
+      rpc: { set_tenant_settings: [ok({ changed: true, settings: SETTINGS })] },
+    });
+    const json = await (await call()).json();
+    expect(pathsOf(json).filter((p) => COST_KEY.test(p.split(".").at(-1)!))).toEqual([
+      "settings.saleVatRates",
+    ]);
+    expect(flagged(PATH, json)).toEqual([]);
+    expect(flagged("/api/me", json)).toEqual(["settings.saleVatRates"]);
+  });
+
+  it("an injected cost key in the reply gives a 500 and is not echoed", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("owner"),
+      rpc: {
+        set_tenant_settings: [ok({ changed: true, settings: { ...SETTINGS, unitCost: 3.2 } })],
+      },
+    });
+    const response = await call();
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("unitCost");
   });
 });

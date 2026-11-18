@@ -39,6 +39,18 @@ async function whoIsAsking(supabase: SupabaseClient): Promise<Who> {
   return { email: parsed.data.email, amr: parsed.data.amr };
 }
 
+/**
+ * The current tenant's name, read once through RLS, for the policy's venue words (SP1 plan §3.6 H32). A failed or empty read is an error:
+ * a password is never checked against no name by accident.
+ */
+async function readTenantName(supabase: SupabaseClient): Promise<string> {
+  const { data, error } = await supabase.from("tenant").select("name").single();
+  if (error) throw new Error(`tenant name read failed: ${error.code ?? "no code"}`);
+  const parsed = z.object({ name: z.string().min(1) }).safeParse(data);
+  if (!parsed.success) throw new Error("tenant name read failed: no tenant row");
+  return parsed.data.name;
+}
+
 /** How the person signed in and whether the last sign-in is recent, from the token alone (no RPC). */
 export async function passwordStatus(supabase: SupabaseClient): Promise<PasswordStatus> {
   const { amr } = await whoIsAsking(supabase);
@@ -99,7 +111,10 @@ export async function changePassword(
   const { email, amr } = await whoIsAsking(supabase);
   if (!email) throw new ApiError(403, "forbidden", t("password.forbidden"));
 
-  const verdict = checkNewPassword(input.newPassword, { email });
+  const verdict = checkNewPassword(input.newPassword, {
+    email,
+    venueNames: [await readTenantName(supabase)],
+  });
   if (!verdict.ok) {
     throw new ApiError(422, "password_weak", t(passwordRejectionKey(verdict.reason)), {
       reason: verdict.reason,
