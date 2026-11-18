@@ -2975,6 +2975,9 @@ export const en: Record<MessageKey, string> = {
   "trace.capture.line": "Last 30 days: {withCode} of {lots} deliveries with a lot code.",
   "trace.capture.bySupplier": "By supplier",
   "trace.capture.supplierLine": "{name} · {withCode} of {lots}",
+  // (to be approved): a failed read of the dish list, and of the business day, in the plate search.
+  "trace.line.dishesError": "I can't read the dishes.",
+  "trace.line.dayError": "I can't read the service day: check the day.",
   "trace.line.plate": "Dish",
   "trace.line.allPlates": "All dishes",
   "trace.line.empty": "No plate served on this day.",

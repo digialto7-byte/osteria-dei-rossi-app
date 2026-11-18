@@ -16,7 +16,6 @@ import {
 import { apiJson } from "@/lib/api/client";
 import { latestOnly } from "@/lib/api/latest";
 import { t } from "@/lib/i18n";
-import { addDays, venueDate } from "@/lib/time/venue-date";
 import { lineHref, lineText } from "@/lib/trace/trace-view";
 import type { TraceLineSearch } from "@/server/trace/output";
 import { DayPicker } from "@/components/day-picker";
@@ -43,6 +42,8 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
   const [day, setDay] = useState("");
   const [menuItemId, setMenuItemId] = useState("");
   const [dishes, setDishes] = useState<{ id: string; name: string; active?: boolean }[]>([]);
+  const [dishesError, setDishesError] = useState(false);
+  const [dayError, setDayError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<TraceLineSearch | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,35 +68,51 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
     [onForbidden, start],
   );
 
+  // The chef cannot read the menu (403): no dish list, the whole day, and nothing to say. Any other failure is shown, with a way to retry.
+  const loadDishes = useCallback(async () => {
+    setDishesError(false);
+    const menu = await apiJson<{ items: { id: string; name: string; active?: boolean }[] }>(
+      "/api/menu/items",
+    );
+    if (menu.ok) return setDishes(menu.data.items.filter((item) => item.active !== false));
+    if (menu.status !== FORBIDDEN) setDishesError(true);
+  }, []);
+
+  // Yesterday's business day is the database's call (the 02:00 cut-off is tenant data): the sell-through report, asked with no date, names it.
+  // When it cannot be read there is no day to offer, so the form stays closed and says so.
+  const loadDay = useCallback(async () => {
+    setDayError(false);
+    const reply = await apiJson<{ businessDate: string }>("/api/reports/push-sell-through");
+    if (reply.ok && DAY.test(reply.data.businessDate)) return setDay(reply.data.businessDate);
+    setDayError(true);
+  }, []);
+
   useEffect(() => {
-    // Reading the dishes and the search named in the address, when the tab opens, is the effect's job here.
+    // Reading the dishes, the day and the search named in the address, when the tab opens, is the effect's job here.
     const params = new URLSearchParams(window.location.search);
     const named = params.get("giorno");
     const dish = params.get("piatto") ?? "";
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMenuItemId(dish);
-    void (async () => {
-      const menu = await apiJson<{ items: { id: string; name: string; active?: boolean }[] }>(
-        "/api/menu/items",
-      );
-      if (menu.ok) setDishes(menu.data.items.filter((item) => item.active !== false));
-    })();
+    void loadDishes();
     if (named && DAY.test(named)) {
       setDay(named);
       void run(named, dish);
       return;
     }
-    void (async () => {
-      // Yesterday's business day is the database's call (the 02:00 cut-off is tenant data): the sell-through report, asked with no date, names it.
-      const yesterday = await apiJson<{ businessDate: string }>("/api/reports/push-sell-through");
-      setDay(
-        yesterday.ok && DAY.test(yesterday.data.businessDate)
-          ? yesterday.data.businessDate
-          : addDays(venueDate(new Date()), -1), // reply unavailable: the calendar day, so the form still opens
-      );
-    })();
-  }, [run]);
+    void loadDay();
+  }, [run, loadDishes, loadDay]);
 
+  if (day === "" && dayError) {
+    return (
+      <div className="flex flex-col gap-4">
+        <ErrorAlert message={t("trace.line.dayError")} />
+        <Button variant="secondary" onClick={() => void loadDay()} disabled={!online}>
+          {t("common.retry")}
+        </Button>
+      </div>
+    );
+  }
   if (day === "") return null;
   return (
     <>
@@ -123,6 +140,14 @@ export function LineSearch({ online, onForbidden }: { online: boolean; onForbidd
               ))}
             </Select>
           </Field>
+        ) : null}
+        {dishesError ? (
+          <>
+            <ErrorAlert message={t("trace.line.dishesError")} />
+            <Button variant="secondary" onClick={() => void loadDishes()} disabled={!online}>
+              {t("common.retry")}
+            </Button>
+          </>
         ) : null}
         <ErrorAlert message={error} />
         {!online && <Muted>{t("trace.offline")}</Muted>}
