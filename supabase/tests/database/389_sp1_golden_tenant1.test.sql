@@ -13,6 +13,8 @@
 -- Every other date is fixed in 1997-1998 (the fakes' years; tests/guards/no-date-bombs.test.ts), so the hashes never depend on today.
 -- The proof that the pins can fail is the mutation block at the end: one price changes and the menu hashes must differ.
 begin;
+-- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
+set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
 select plan(18);
 
