@@ -214,7 +214,7 @@ insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, co
 create temp table lj (j jsonb);
 insert into lj select app.order_line_json(l) from public.order_line l where l.id = 'e1000000-0000-4000-8000-000000000001';
 select is((select array_agg(k order by k collate "C") from lj, jsonb_object_keys(j) k),
-  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'],
+  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'uscita', 'weightG'] /* uscita added on purpose by comanda-uscite (step 4) */,
   'the line JSON has exactly the fifteen documented keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
 select is((select array_agg(k order by k collate "C") from lj, jsonb_object_keys(j -> 'updatedBy') k), array['displayName', 'id'], 'updatedBy is {id, displayName}');
 select is((select j ->> 'name' || '|' || (j ->> 'qty') || '|' || (j ->> 'unitPrice') || '|' || (j ->> 'state') || '|' || (j -> 'note')::text from lj),

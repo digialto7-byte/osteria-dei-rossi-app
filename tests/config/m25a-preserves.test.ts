@@ -40,7 +40,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // Opening stock step 10 (20261206210600_ingredient_cost_opening_fallback.sql), re-pinned on purpose by opening stock (step 10; was 20261206210500_reverse_opening_stock.sql): the opening-cost fallback in app.ingredient_unit_costs.
 // Opening stock step 11 (20261206210700_reconciliation_opening.sql), re-pinned on purpose by opening stock (step 11; was 20261206210600_ingredient_cost_opening_fallback.sql): the reconciliation folds opening rows into openingQty.
 // Comanda per uscita step 3 (20261206220000_uscita_core.sql), re-pinned on purpose by comanda-uscite (step 3; was 20261206210700_reconciliation_opening.sql): order_line.uscita, uscita_call, the guard, the purge list and the helpers.
-const LAST_MIGRATION = "20261206220000_uscita_core.sql";
+// Comanda per uscita step 4 (20261206220100_uscita_order_entry.sql), re-pinned on purpose by comanda-uscite (step 4; was 20261206220000_uscita_core.sql): order entry with an uscita.
+const LAST_MIGRATION = "20261206220100_uscita_order_entry.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

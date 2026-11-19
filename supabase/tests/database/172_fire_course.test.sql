@@ -303,7 +303,7 @@ select is(pg_temp.cost_of('l1'), '2.98 2.98 false', 'the cost row is written in 
 select is((select r.recipe_id from public.order_line_cost r where r.order_line_id = pg_temp.id('l1')), pg_temp.id('r1'), 'and records the plate version');
 select is(pg_temp.j('f1') -> 'lines' -> 0 ->> 'state', 'fired', 'the reply line is fired');
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1') -> 'lines' -> 0) k),
-  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'],
+  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'uscita', 'weightG'] /* uscita added on purpose by comanda-uscite (step 4) */,
   'a reply line has exactly the fifteen M18 keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1')) k), array['fired', 'lines', 'skipped'], 'the reply is {lines, fired, skipped}');
 select is((select count(*)::int from pg_temp.all_keys(pg_temp.j('f1')) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,

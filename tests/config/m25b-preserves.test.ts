@@ -203,6 +203,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206210700_reconciliation_opening.sql",
   // Comanda per uscita step 3 (20261206220000_uscita_core.sql), re-pinned on purpose by comanda-uscite (step 3; was the list ending at 20261206210700_reconciliation_opening.sql): order_line.uscita, uscita_call, the guard, the purge list and the helpers.
   "20261206220000_uscita_core.sql",
+  // Comanda per uscita step 4 (20261206220100_uscita_order_entry.sql), re-pinned on purpose by comanda-uscite (step 4; was the list ending at 20261206220000_uscita_core.sql): order entry with an uscita.
+  "20261206220100_uscita_order_entry.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

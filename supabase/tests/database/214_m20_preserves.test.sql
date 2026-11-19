@@ -454,7 +454,7 @@ create temp table pin_md5 on commit drop as
 select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   from (values
 -- add_order_line: re-pinned on purpose by P2-0b A3 (was 23fdd6661c0658186f3712129f5c58d2)
-  ('add_order_line', 'public.add_order_line(uuid,jsonb)', '73bdd6e8fd97544bc7dfc060ab3f8616')
+  ('add_order_line', 'public.add_order_line(uuid,jsonb)', 'd0d0c30103e73895afa45a534dc90d81' /* re-pinned on purpose by comanda-uscite (step 4; was 73bdd6e8) */)
   , ('append_only', 'app.append_only()', 'f52936446bf9d47e9597b4dd4ae5bcb8')
   , ('append_only_truncate', 'app.append_only_truncate()', 'f7593af2e086f990cc614a938a3480c9')
 -- fire_course: re-pinned on purpose by P2-0b A4 (was 03a53c26d8e86ff418c020bc700d18d9)
@@ -464,13 +464,13 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   -- order_line_guard: re-pinned on purpose by P2-0b A1 (weight columns; the main definition was 4a3b7e7dd2488e7ad5dbf0d15178bf38)
   , ('order_line_guard', 'app.order_line_guard()', 'fe047d2a5b707be68c687bbea96ffcfc' /* re-pinned on purpose by comanda-uscite (step 3; was 2f36b83c) */)
 -- order_line_json: re-pinned on purpose by P2-0b A3 (was ca3817ad015b0176d52614e037dbb31d)
-  , ('order_line_json', 'app.order_line_json(public.order_line)', '8e00a06b826ee7d086f6c66cf97aea06')
+  , ('order_line_json', 'app.order_line_json(public.order_line)', '1cf62f04bdd8b4ce06e9bd0eece321c6' /* re-pinned on purpose by comanda-uscite (step 4; was 8e00a06b) */)
   , ('order_view', 'public.order_view(uuid)', '3cf6534d35ec04025a649aa668449686') -- re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
   , ('parse_client_time', 'app.parse_client_time(jsonb)', '19ed81946726591284cc57fcb446a098')
   , ('remove_order_line', 'public.remove_order_line(uuid,jsonb)', 'd6c44c8d39bb757783ee8d0fd6077a9f')
   , ('table_session_get', 'public.table_session_get(uuid)', '6f000ffc49a734317b5e4ae7d0fff19e')
 -- update_order_line: re-pinned on purpose by P2-0b A3 (was 4f3ca23557c88533eb4478fceb343b41)
-  , ('update_order_line', 'public.update_order_line(uuid,jsonb)', '007bba16ae1289cea9be012aa50a74cf')
+  , ('update_order_line', 'public.update_order_line(uuid,jsonb)', '630504589c28cda2966614913a86f52d' /* re-pinned on purpose by comanda-uscite (step 4; was 007bba16) */)
   , ('void_line', 'public.void_line(uuid,jsonb)', 'd1c3cfff8a2b7a38baad22ef5fa1260d')
   ) p (k, sig, want);
 set local search_path = "$user", public, extensions;

@@ -178,7 +178,7 @@ select is((select count(*)::int from public.batch_movement), 0, 'and it moved no
 
 -- order_line_json -----------------------------------------------------------------------------------------------------------------------
 select is((select array_agg(kk.key order by kk.key collate "C") from res r, jsonb_object_keys(r.j -> 'line') as kk (key) where r.k = 'u7'),
-  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'weightG'],
+  array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'uscita', 'weightG'] /* uscita added on purpose by comanda-uscite (step 4) */,
   'the line JSON keys are the M18 set plus weightG and pricePer100g');
 select is((select jsonb_typeof(j -> 'line' -> 'weightG') || '/' || jsonb_typeof(j -> 'line' -> 'pricePer100g') from res where k = 'u7'), 'null/null', 'both are null on a portion line');
 

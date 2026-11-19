@@ -22,14 +22,14 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   -- order_line_guard: re-pinned on purpose by P2-0b A1 (weight columns; the main definition was 4a3b7e7dd2488e7ad5dbf0d15178bf38)
   ('order_line_guard', 'app.order_line_guard()', 'fe047d2a5b707be68c687bbea96ffcfc' /* re-pinned on purpose by comanda-uscite (step 3; was 2f36b83c) */),
 -- order_line_json: re-pinned on purpose by P2-0b A3 (was ca3817ad015b0176d52614e037dbb31d)
-  ('order_line_json', 'app.order_line_json(public.order_line)', '8e00a06b826ee7d086f6c66cf97aea06'),
+  ('order_line_json', 'app.order_line_json(public.order_line)', '1cf62f04bdd8b4ce06e9bd0eece321c6' /* re-pinned on purpose by comanda-uscite (step 4; was 8e00a06b) */),
   ('plates_sold', 'app.plates_sold(uuid,date,date)', '4f62ee6ef0587aea89bf0c629cbeb971'),
   ('post_stock_outflow', 'app.post_stock_outflow(uuid,uuid,uuid,uuid,numeric,public.stock_movement_type,text,uuid,text,uuid,timestamp with time zone,timestamp with time zone,text)', 'b50e1690b47e3b3f89dd1da533c59463'),
   ('raise_alert', 'app.raise_alert(uuid,text,text,uuid,jsonb,public.alert_severity,public.app_role[],timestamp with time zone,date)', '4cb45fc51c5fefa12eaa9945942ceb23'),
   ('remaining_portions', 'app.remaining_portions(uuid,timestamp with time zone)', '101983b31ef237a52ae5abd08cfc8028'),
   ('try_raise_alert', 'app.try_raise_alert(uuid,text,text,uuid,jsonb,public.alert_severity,public.app_role[],timestamp with time zone,date,text)', '5894b65bd641b328301b72a9bc30b282'),
 -- add_order_line: re-pinned on purpose by P2-0b A3 (was 23fdd6661c0658186f3712129f5c58d2)
-  ('add_order_line', 'public.add_order_line(uuid,jsonb)', '73bdd6e8fd97544bc7dfc060ab3f8616'),
+  ('add_order_line', 'public.add_order_line(uuid,jsonb)', 'd0d0c30103e73895afa45a534dc90d81' /* re-pinned on purpose by comanda-uscite (step 4; was 73bdd6e8) */),
   ('adjust_batch', 'public.adjust_batch(uuid,numeric)', '183b24bb94f35ce98cab78be9d266f93'),
   ('discard_batch', 'public.discard_batch(uuid,numeric,text)', 'ca7a329aa1cc3e74f04d2afebe740c21'),
   -- menu_list: re-pinned on purpose by P2-0b A2 (weight keys; the main definition was 4cd1832a6da427d9ddee882f85b1b675)
@@ -39,7 +39,7 @@ select p.k, p.sig, p.want, md5(pg_get_functiondef(p.sig::regprocedure)) as got
   ('remove_order_line', 'public.remove_order_line(uuid,jsonb)', 'd6c44c8d39bb757783ee8d0fd6077a9f'),
   ('split_batch', 'public.split_batch(uuid,integer,integer,uuid)', '2b6b097d7e6089bf47f871e08af7e120'),
 -- update_order_line: re-pinned on purpose by P2-0b A3 (was 4f3ca23557c88533eb4478fceb343b41)
-  ('update_order_line', 'public.update_order_line(uuid,jsonb)', '007bba16ae1289cea9be012aa50a74cf')
+  ('update_order_line', 'public.update_order_line(uuid,jsonb)', '630504589c28cda2966614913a86f52d' /* re-pinned on purpose by comanda-uscite (step 4; was 007bba16) */)
   , ('session_fired_lines', 'app.session_fired_lines(uuid, uuid[])', 'e7b24b2f6af476958641c076de2de9f5')
   ) p (k, sig, want);
 set local search_path = "$user", public, extensions;
@@ -54,7 +54,7 @@ select is((select got from pin_md5 where k = 'lock_batch_rows'), '18e8a717707604
 select is((select got from pin_md5 where k = 'lock_live_batches'), '2eb4745f00cf8cb44d8fa4669c40bae1', 'app.lock_live_batches is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'menu_item_availability'), '5c7553402717dac9b2ac976aab094ec7', 'app.menu_item_availability is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'order_line_guard'), 'fe047d2a5b707be68c687bbea96ffcfc' /* re-pinned on purpose by comanda-uscite (step 3; was 2f36b83c) */, 'app.order_line_guard is the P2-0b A1 definition (md5; re-pinned on purpose, main 035c648 was 4a3b7e7dd2488e7ad5dbf0d15178bf38)');
-select is((select got from pin_md5 where k = 'order_line_json'), '8e00a06b826ee7d086f6c66cf97aea06', 'app.order_line_json is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was ca3817ad015b0176d52614e037dbb31d)');
+select is((select got from pin_md5 where k = 'order_line_json'), '1cf62f04bdd8b4ce06e9bd0eece321c6' /* re-pinned on purpose by comanda-uscite (step 4; was 8e00a06b) */, 'app.order_line_json is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was ca3817ad015b0176d52614e037dbb31d)');
 -- M22 re-pins plates_sold on purpose: the M8 stub (md5 8dc7d68d260d08cfbe42a03092da28d2, return 0) is replaced in step 1 by the sum of mapped sold lines (md5 6dcf23182e47a7f42278a93a69339822)
 -- and, in step 10, by the same sum read from the stored daily_kpi rows where they exist (20261112100800).
 select is((select got from pin_md5 where k = 'plates_sold'), '4f62ee6ef0587aea89bf0c629cbeb971', 'app.plates_sold is the M22 step 10 definition (md5; the M8 stub was 8dc7d68d260d08cfbe42a03092da28d2)');
@@ -62,7 +62,7 @@ select is((select got from pin_md5 where k = 'post_stock_outflow'), 'b50e1690b47
 select is((select got from pin_md5 where k = 'raise_alert'), '4cb45fc51c5fefa12eaa9945942ceb23', 'app.raise_alert is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'remaining_portions'), '101983b31ef237a52ae5abd08cfc8028', 'app.remaining_portions is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'try_raise_alert'), '5894b65bd641b328301b72a9bc30b282', 'app.try_raise_alert is the main 035c648 definition (md5)');
-select is((select got from pin_md5 where k = 'add_order_line'), '73bdd6e8fd97544bc7dfc060ab3f8616', 'public.add_order_line is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was 23fdd6661c0658186f3712129f5c58d2)');
+select is((select got from pin_md5 where k = 'add_order_line'), 'd0d0c30103e73895afa45a534dc90d81' /* re-pinned on purpose by comanda-uscite (step 4; was 73bdd6e8) */, 'public.add_order_line is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was 23fdd6661c0658186f3712129f5c58d2)');
 select is((select got from pin_md5 where k = 'adjust_batch'), '183b24bb94f35ce98cab78be9d266f93', 'public.adjust_batch is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'discard_batch'), 'ca7a329aa1cc3e74f04d2afebe740c21', 'public.discard_batch is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'menu_list'), '2fd8eca55d7746d86c705139ed311199', 'public.menu_list is the P2-0b A2 definition (md5; re-pinned on purpose, main 035c648 was 4cd1832a6da427d9ddee882f85b1b675)');
@@ -70,7 +70,7 @@ select is((select got from pin_md5 where k = 'order_view'), '3cf6534d35ec04025a6
 select is((select got from pin_md5 where k = 'produce_batch'), 'beb3cb1d11d08cf5093bf79fe1d4d02e', 'public.produce_batch is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'remove_order_line'), 'd6c44c8d39bb757783ee8d0fd6077a9f', 'public.remove_order_line is the main 035c648 definition (md5)');
 select is((select got from pin_md5 where k = 'split_batch'), '2b6b097d7e6089bf47f871e08af7e120', 'public.split_batch is the main 035c648 definition (md5)');
-select is((select got from pin_md5 where k = 'update_order_line'), '007bba16ae1289cea9be012aa50a74cf', 'public.update_order_line is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was 4f3ca23557c88533eb4478fceb343b41)');
+select is((select got from pin_md5 where k = 'update_order_line'), '630504589c28cda2966614913a86f52d' /* re-pinned on purpose by comanda-uscite (step 4; was 007bba16) */, 'public.update_order_line is the P2-0b A3 definition (md5; re-pinned on purpose, main 035c648 was 4f3ca23557c88533eb4478fceb343b41)');
 
 select is((select got from pin_md5 where k = 'session_fired_lines'), 'e7b24b2f6af476958641c076de2de9f5', 'app.session_fired_lines is the M19 definition (md5; the M17 stub was e2b66c8a53638580f7e085e668431450)');
 -- app.session_fired_lines: what it does (its definition is pinned above, in the table)

@@ -29,6 +29,17 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: ["public.uscita_call"],
     triggers: ["uscita_call_append_only", "uscita_call_no_truncate"],
   },
+  // Step 4 (M2): order entry with an uscita; the line JSON and the sync payload check.
+  "20261206220100_uscita_order_entry.sql": {
+    functions: [
+      "app.order_line_json",
+      "public.add_order_line",
+      "public.update_order_line",
+      "app.apply_op_check_payload",
+    ],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -120,6 +131,40 @@ const UPDATE_STATEMENT = /\bupdate\s+(?:only\s+)?[a-z_.]+(?:\s+(?:as\s+)?[a-z_]+
 /** M5's only sanctioned UPDATE (plan section 3.8 step 2). */
 const M5_UPDATE =
   /update\s+public\.order_line\s+l\s+set\s+uscita\s*=[\s\S]*?s\.closed_at\s+is\s+null\s+and\s+l\.uscita\s+is\s+null/i;
+/**
+ * The procedures re-created from their originals that already wrote order_line with an UPDATE on main (the edit, the send, the void). Inside
+ * their bodies an UPDATE of public.order_line is today's behaviour, kept verbatim; nothing else may be updated there.
+ */
+const ORDER_LINE_WRITERS = ["public.update_order_line", "public.fire_course", "public.void_line"];
+/** M5's function: its body holds the one sanctioned backfill UPDATE. */
+const M5_FUNCTION = "app.uscite_backfill_open_sessions";
+
+/** The function blocks of a migration (`create [or replace] function name ... $$ ... $$`), by name. */
+function functionBlocks(sql: string): { name: string; text: string }[] {
+  return [
+    ...sql.matchAll(
+      /create\s+(?:or\s+replace\s+)?function\s+([a-z_]+\.[a-z_0-9]+)[\s\S]*?\$\$[\s\S]*?\$\$/gi,
+    ),
+  ].map((m) => ({ name: m[1]!.toLowerCase(), text: m[0] }));
+}
+
+/** The UPDATE statements of a migration that the plan does not sanction (an empty list passes). */
+function unsanctionedUpdates(sql: string): string[] {
+  let rest = sql;
+  const bad: string[] = [];
+  for (const block of functionBlocks(sql)) {
+    const updates = [...block.text.matchAll(UPDATE_STATEMENT)].map((m) => m[0]);
+    if (ORDER_LINE_WRITERS.includes(block.name)) {
+      bad.push(...updates.filter((u) => !/^update\s+public\.order_line\s+set$/i.test(u)));
+      rest = rest.replace(block.text, "");
+    } else if (block.name === M5_FUNCTION) {
+      if (updates.length !== 1 || !M5_UPDATE.test(block.text)) bad.push(...updates, "M5 shape");
+      rest = rest.replace(block.text, "");
+    }
+  }
+  bad.push(...[...rest.matchAll(UPDATE_STATEMENT)].map((m) => m[0]));
+  return bad;
+}
 
 const body = (file: string) => sqlWithoutComments(readFileSync(join(MIGRATIONS, file), "utf8"));
 
@@ -178,11 +223,8 @@ describe("comanda per uscita migrations: what they create", () => {
       expect(sql).not.toMatch(DESTRUCTIVE);
     });
 
-    it(`${file} has no UPDATE statement but M5's one`, () => {
-      const updates = [...body(file).matchAll(UPDATE_STATEMENT)];
-      if (updates.length === 0) return;
-      expect(updates).toHaveLength(1);
-      expect(body(file)).toMatch(M5_UPDATE);
+    it(`${file} has no UPDATE but today's order_line writes of the re-created procedures and M5's one`, () => {
+      expect(unsanctionedUpdates(body(file))).toEqual([]);
     });
 
     it(`${file} has no uuid literal and no cron.schedule`, () => {
@@ -209,6 +251,32 @@ describe("comanda per uscita migrations: the scanners", () => {
     expect(find("create trigger t before update or delete on public.x")).toBe(0);
     expect(find("select 1 from public.x for update")).toBe(0);
     expect(find("before insert or update of weight_g, unit_price on public.order_line")).toBe(0);
+  });
+
+  it("self-test: an UPDATE is sanctioned only on order_line inside the three writers, and M5's only in its function", () => {
+    const fn = (name: string, inner: string) =>
+      `create or replace function ${name}() returns void as $$ begin ${inner}; end $$;`;
+    expect(
+      unsanctionedUpdates(fn("public.update_order_line", "update public.order_line set qty = 1")),
+    ).toEqual([]);
+    expect(
+      unsanctionedUpdates(
+        fn("public.update_order_line", "update public.stock_movement set qty = 1"),
+      ),
+    ).not.toEqual([]);
+    expect(
+      unsanctionedUpdates(fn("public.add_order_line", "update public.order_line set qty = 1")),
+    ).not.toEqual([]);
+    expect(unsanctionedUpdates("update public.order_line set qty = 1;")).not.toEqual([]);
+    const m5 =
+      "update public.order_line l set uscita = 1 from public.table_session s where s.closed_at is null and l.uscita is null";
+    expect(unsanctionedUpdates(fn("app.uscite_backfill_open_sessions", m5))).toEqual([]);
+    expect(
+      unsanctionedUpdates(
+        fn("app.uscite_backfill_open_sessions", `${m5}; update public.order_line set qty = 1`),
+      ),
+    ).not.toEqual([]);
+    expect(unsanctionedUpdates(m5)).not.toEqual([]);
   });
 
   it("self-test: the destructive rule catches a delete, a truncate and a disabled trigger", () => {
