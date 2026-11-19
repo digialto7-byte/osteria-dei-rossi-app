@@ -104,6 +104,8 @@ describe("GET /api/kitchen/tickets", () => {
           asOf: KITCHEN_TICKETS.asOf,
           truncated: false,
           remaining: 0,
+          waitingCount: 0,
+          waiting: [],
           tickets: [],
           closedTickets: [],
         }),

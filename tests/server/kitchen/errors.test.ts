@@ -42,6 +42,12 @@ describe("mapKitchenDbError, the write procedures (M19b)", () => {
     expect(mapped.message).toBe("Il tavolo è stato chiuso: la comanda non è più in cucina.");
   });
 
+  it("P0001 line_held is a 409: a held dish is not in the kitchen yet (comanda per uscita)", () => {
+    const mapped = mapKitchenDbError({ code: "P0001", message: "line_held" }) as ApiError;
+    expect([mapped.status, mapped.code]).toEqual([409, "line_held"]);
+    expect(mapped.message).toBe("Questo piatto aspetta la sua uscita: non è ancora in cucina.");
+  });
+
   it("22023 is a 400 invalid_request", () => {
     const mapped = mapKitchenDbError({ code: "22023", message: "invalid_request" }) as ApiError;
     expect([mapped.status, mapped.code]).toEqual([400, "invalid_request"]);

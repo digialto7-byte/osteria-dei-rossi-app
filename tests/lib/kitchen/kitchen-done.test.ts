@@ -54,19 +54,18 @@ describe("markIntent", () => {
 });
 
 describe("ticketMarkBody", () => {
-  it("builds the five fields from the comanda, for each of two comande", () => {
+  // Re-pinned on purpose by comanda-uscite (step 13; was the five fields with course and segue): the uscita key.
+  it("builds the four fields from the comanda, for each of two comande", () => {
     expect(ticketMarkBody(stew!, true)).toEqual({
       sessionId: KIDS.session,
       firedAt: "2026-11-04T19:31:00.000000Z",
-      course: "secondi",
-      segue: false,
+      uscita: 1,
       closed: true,
     });
     expect(ticketMarkBody(soup!, false)).toEqual({
       sessionId: KIDS.session2,
       firedAt: "2026-11-04T19:40:00.000000Z",
-      course: "primi",
-      segue: true,
+      uscita: 2,
       closed: false,
     });
   });
@@ -137,7 +136,8 @@ describe("undoFor", () => {
   it("after an auto close, undoes the last line", () => {
     const undo = undoFor({ changed: true, autoClosed: true }, openLine.id, stew!);
     expect(undo).toEqual({
-      text: "Tavolo 1 (demo) · Secondi: comanda chiusa",
+      // Re-pinned on purpose by comanda-uscite (step 13; was the course label): the notice names the uscita.
+      text: "Tavolo 1 (demo) · 1ª uscita: comanda chiusa",
       path: `/api/kitchen/lines/${openLine.id}/mark`,
       body: { done: false },
     });
@@ -146,7 +146,8 @@ describe("undoFor", () => {
   it("after a manual close, reopens the comanda", () => {
     const undo = undoFor({ changed: true }, null, soup!);
     expect(undo).toEqual({
-      text: "Tavolo 2 (demo) · Primi: comanda chiusa",
+      // Re-pinned on purpose by comanda-uscite (step 13; was the course label): the notice names the uscita.
+      text: "Tavolo 2 (demo) · 2ª uscita: comanda chiusa",
       path: "/api/kitchen/tickets/mark",
       body: ticketMarkBody(soup!, false),
     });
@@ -159,8 +160,9 @@ describe("undoFor", () => {
   });
 
   it("words the notice in English", () => {
+    // Re-pinned on purpose by comanda-uscite (step 13; was "First courses").
     expect(undoFor({ changed: true }, null, soup!, "en")!.text).toBe(
-      "Tavolo 2 (demo) · First courses: order closed",
+      "Tavolo 2 (demo) · Course 2: order closed",
     );
   });
 });

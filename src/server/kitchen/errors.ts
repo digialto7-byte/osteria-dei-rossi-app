@@ -3,7 +3,7 @@ import { t } from "@/lib/i18n";
 import type { DbError } from "@/server/master/db-errors";
 
 /**
- * Turns a database error from kitchen_tickets, kitchen_mark_line or kitchen_set_ticket into an ApiError with a safe Italian
+ * Turns a database error from kitchen_tickets, kitchen_mark_line or kitchen_set_ticket (line_held: comanda per uscita) into an ApiError with a safe Italian
  * message; the database message and detail are never sent. Anything unexpected is a plain Error that names only the SQLSTATE,
  * for the 500 handler.
  */
@@ -22,6 +22,9 @@ export function mapKitchenDbError(error: DbError): ApiError | Error {
   }
   if (error.code === "P0001" && error.message === "session_closed") {
     return new ApiError(409, "session_closed", t("kitchen.error.session_closed"));
+  }
+  if (error.code === "P0001" && error.message === "line_held") {
+    return new ApiError(409, "line_held", t("kitchen.error.line_held"));
   }
   return new Error(`Unexpected database error ${error.code ?? "(no code)"}`);
 }

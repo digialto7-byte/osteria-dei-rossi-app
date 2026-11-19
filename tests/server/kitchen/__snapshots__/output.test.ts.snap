@@ -12,8 +12,22 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
       "items": {
         "additionalProperties": false,
         "properties": {
+          "addition": {
+            "type": "boolean",
+          },
           "autoClosed": {
             "type": "boolean",
+          },
+          "calledAt": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
           },
           "closedAt": {
             "type": [
@@ -46,16 +60,6 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
               },
             ],
           },
-          "course": {
-            "enum": [
-              "antipasti",
-              "primi",
-              "secondi",
-              "dolci",
-              "bevande",
-            ],
-            "type": "string",
-          },
           "covers": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
@@ -67,6 +71,7 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             "type": "integer",
           },
           "firedAt": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
             "type": "string",
           },
           "firedBy": {
@@ -99,6 +104,16 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             "items": {
               "additionalProperties": false,
               "properties": {
+                "course": {
+                  "enum": [
+                    "antipasti",
+                    "primi",
+                    "secondi",
+                    "dolci",
+                    "bevande",
+                  ],
+                  "type": "string",
+                },
                 "done": {
                   "type": "boolean",
                 },
@@ -160,6 +175,7 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
               "required": [
                 "id",
                 "name",
+                "course",
                 "qty",
                 "weightG",
                 "note",
@@ -172,9 +188,6 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             },
             "type": "array",
           },
-          "segue": {
-            "type": "boolean",
-          },
           "sessionId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -183,15 +196,21 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
           "tableName": {
             "type": "string",
           },
+          "uscita": {
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer",
+          },
         },
         "required": [
           "key",
           "sessionId",
           "tableName",
           "covers",
-          "course",
-          "segue",
+          "uscita",
+          "addition",
           "firedAt",
+          "calledAt",
           "firedBy",
           "lineCount",
           "doneCount",
@@ -213,8 +232,22 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
       "items": {
         "additionalProperties": false,
         "properties": {
+          "addition": {
+            "type": "boolean",
+          },
           "autoClosed": {
             "type": "boolean",
+          },
+          "calledAt": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
           },
           "closedAt": {
             "type": [
@@ -247,16 +280,6 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
               },
             ],
           },
-          "course": {
-            "enum": [
-              "antipasti",
-              "primi",
-              "secondi",
-              "dolci",
-              "bevande",
-            ],
-            "type": "string",
-          },
           "covers": {
             "maximum": 9007199254740991,
             "minimum": -9007199254740991,
@@ -268,6 +291,7 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             "type": "integer",
           },
           "firedAt": {
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
             "type": "string",
           },
           "firedBy": {
@@ -300,6 +324,16 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             "items": {
               "additionalProperties": false,
               "properties": {
+                "course": {
+                  "enum": [
+                    "antipasti",
+                    "primi",
+                    "secondi",
+                    "dolci",
+                    "bevande",
+                  ],
+                  "type": "string",
+                },
                 "done": {
                   "type": "boolean",
                 },
@@ -361,6 +395,7 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
               "required": [
                 "id",
                 "name",
+                "course",
                 "qty",
                 "weightG",
                 "note",
@@ -373,9 +408,6 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
             },
             "type": "array",
           },
-          "segue": {
-            "type": "boolean",
-          },
           "sessionId": {
             "format": "uuid",
             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -384,15 +416,21 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
           "tableName": {
             "type": "string",
           },
+          "uscita": {
+            "maximum": 9,
+            "minimum": 0,
+            "type": "integer",
+          },
         },
         "required": [
           "key",
           "sessionId",
           "tableName",
           "covers",
-          "course",
-          "segue",
+          "uscita",
+          "addition",
           "firedAt",
+          "calledAt",
           "firedBy",
           "lineCount",
           "doneCount",
@@ -408,11 +446,112 @@ exports[`kitchenTicketsOutput (M19) > matches the committed JSON Schema (a chang
     "truncated": {
       "type": "boolean",
     },
+    "waiting": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "lineCount": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "lines": {
+            "items": {
+              "additionalProperties": false,
+              "properties": {
+                "course": {
+                  "enum": [
+                    "antipasti",
+                    "primi",
+                    "secondi",
+                    "dolci",
+                    "bevande",
+                  ],
+                  "type": "string",
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string",
+                },
+                "isShared": {
+                  "type": "boolean",
+                },
+                "name": {
+                  "type": "string",
+                },
+                "note": {
+                  "type": [
+                    "string",
+                    "null",
+                  ],
+                },
+                "qty": {
+                  "type": "number",
+                },
+                "weightG": {
+                  "anyOf": [
+                    {
+                      "maximum": 9007199254740991,
+                      "minimum": -9007199254740991,
+                      "type": "integer",
+                    },
+                    {
+                      "type": "null",
+                    },
+                  ],
+                },
+              },
+              "required": [
+                "id",
+                "name",
+                "course",
+                "qty",
+                "weightG",
+                "note",
+                "isShared",
+              ],
+              "type": "object",
+            },
+            "type": "array",
+          },
+          "sessionId": {
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+            "type": "string",
+          },
+          "tableName": {
+            "type": "string",
+          },
+          "uscita": {
+            "maximum": 9,
+            "minimum": 2,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "sessionId",
+          "tableName",
+          "uscita",
+          "lineCount",
+          "lines",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
+    "waitingCount": {
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer",
+    },
   },
   "required": [
     "asOf",
     "truncated",
     "remaining",
+    "waitingCount",
+    "waiting",
     "tickets",
     "closedTickets",
   ],
@@ -438,8 +577,22 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
           "items": {
             "additionalProperties": false,
             "properties": {
+              "addition": {
+                "type": "boolean",
+              },
               "autoClosed": {
                 "type": "boolean",
+              },
+              "calledAt": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
               },
               "closedAt": {
                 "type": [
@@ -472,16 +625,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   },
                 ],
               },
-              "course": {
-                "enum": [
-                  "antipasti",
-                  "primi",
-                  "secondi",
-                  "dolci",
-                  "bevande",
-                ],
-                "type": "string",
-              },
               "covers": {
                 "maximum": 9007199254740991,
                 "minimum": -9007199254740991,
@@ -493,6 +636,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "type": "integer",
               },
               "firedAt": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
                 "type": "string",
               },
               "firedBy": {
@@ -525,6 +669,16 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
                     "done": {
                       "type": "boolean",
                     },
@@ -586,6 +740,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   "required": [
                     "id",
                     "name",
+                    "course",
                     "qty",
                     "weightG",
                     "note",
@@ -598,9 +753,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 },
                 "type": "array",
               },
-              "segue": {
-                "type": "boolean",
-              },
               "sessionId": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -609,15 +761,21 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
               "tableName": {
                 "type": "string",
               },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
             },
             "required": [
               "key",
               "sessionId",
               "tableName",
               "covers",
-              "course",
-              "segue",
+              "uscita",
+              "addition",
               "firedAt",
+              "calledAt",
               "firedBy",
               "lineCount",
               "doneCount",
@@ -639,8 +797,22 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
           "items": {
             "additionalProperties": false,
             "properties": {
+              "addition": {
+                "type": "boolean",
+              },
               "autoClosed": {
                 "type": "boolean",
+              },
+              "calledAt": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
               },
               "closedAt": {
                 "type": [
@@ -673,16 +845,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   },
                 ],
               },
-              "course": {
-                "enum": [
-                  "antipasti",
-                  "primi",
-                  "secondi",
-                  "dolci",
-                  "bevande",
-                ],
-                "type": "string",
-              },
               "covers": {
                 "maximum": 9007199254740991,
                 "minimum": -9007199254740991,
@@ -694,6 +856,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "type": "integer",
               },
               "firedAt": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
                 "type": "string",
               },
               "firedBy": {
@@ -726,6 +889,16 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
                     "done": {
                       "type": "boolean",
                     },
@@ -787,6 +960,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   "required": [
                     "id",
                     "name",
+                    "course",
                     "qty",
                     "weightG",
                     "note",
@@ -799,9 +973,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 },
                 "type": "array",
               },
-              "segue": {
-                "type": "boolean",
-              },
               "sessionId": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -810,15 +981,21 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
               "tableName": {
                 "type": "string",
               },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
             },
             "required": [
               "key",
               "sessionId",
               "tableName",
               "covers",
-              "course",
-              "segue",
+              "uscita",
+              "addition",
               "firedAt",
+              "calledAt",
               "firedBy",
               "lineCount",
               "doneCount",
@@ -834,11 +1011,112 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
         "truncated": {
           "type": "boolean",
         },
+        "waiting": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "course",
+                    "qty",
+                    "weightG",
+                    "note",
+                    "isShared",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 2,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "sessionId",
+              "tableName",
+              "uscita",
+              "lineCount",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "waitingCount": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
       },
       "required": [
         "asOf",
         "truncated",
         "remaining",
+        "waitingCount",
+        "waiting",
         "tickets",
         "closedTickets",
       ],
@@ -876,8 +1154,22 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
           "items": {
             "additionalProperties": false,
             "properties": {
+              "addition": {
+                "type": "boolean",
+              },
               "autoClosed": {
                 "type": "boolean",
+              },
+              "calledAt": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
               },
               "closedAt": {
                 "type": [
@@ -910,16 +1202,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   },
                 ],
               },
-              "course": {
-                "enum": [
-                  "antipasti",
-                  "primi",
-                  "secondi",
-                  "dolci",
-                  "bevande",
-                ],
-                "type": "string",
-              },
               "covers": {
                 "maximum": 9007199254740991,
                 "minimum": -9007199254740991,
@@ -931,6 +1213,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "type": "integer",
               },
               "firedAt": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
                 "type": "string",
               },
               "firedBy": {
@@ -963,6 +1246,16 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
                     "done": {
                       "type": "boolean",
                     },
@@ -1024,6 +1317,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   "required": [
                     "id",
                     "name",
+                    "course",
                     "qty",
                     "weightG",
                     "note",
@@ -1036,9 +1330,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 },
                 "type": "array",
               },
-              "segue": {
-                "type": "boolean",
-              },
               "sessionId": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -1047,15 +1338,21 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
               "tableName": {
                 "type": "string",
               },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
             },
             "required": [
               "key",
               "sessionId",
               "tableName",
               "covers",
-              "course",
-              "segue",
+              "uscita",
+              "addition",
               "firedAt",
+              "calledAt",
               "firedBy",
               "lineCount",
               "doneCount",
@@ -1077,8 +1374,22 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
           "items": {
             "additionalProperties": false,
             "properties": {
+              "addition": {
+                "type": "boolean",
+              },
               "autoClosed": {
                 "type": "boolean",
+              },
+              "calledAt": {
+                "anyOf": [
+                  {
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                    "type": "string",
+                  },
+                  {
+                    "type": "null",
+                  },
+                ],
               },
               "closedAt": {
                 "type": [
@@ -1111,16 +1422,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   },
                 ],
               },
-              "course": {
-                "enum": [
-                  "antipasti",
-                  "primi",
-                  "secondi",
-                  "dolci",
-                  "bevande",
-                ],
-                "type": "string",
-              },
               "covers": {
                 "maximum": 9007199254740991,
                 "minimum": -9007199254740991,
@@ -1132,6 +1433,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "type": "integer",
               },
               "firedAt": {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
                 "type": "string",
               },
               "firedBy": {
@@ -1164,6 +1466,16 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 "items": {
                   "additionalProperties": false,
                   "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
                     "done": {
                       "type": "boolean",
                     },
@@ -1225,6 +1537,7 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                   "required": [
                     "id",
                     "name",
+                    "course",
                     "qty",
                     "weightG",
                     "note",
@@ -1237,9 +1550,6 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
                 },
                 "type": "array",
               },
-              "segue": {
-                "type": "boolean",
-              },
               "sessionId": {
                 "format": "uuid",
                 "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -1248,15 +1558,21 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
               "tableName": {
                 "type": "string",
               },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
             },
             "required": [
               "key",
               "sessionId",
               "tableName",
               "covers",
-              "course",
-              "segue",
+              "uscita",
+              "addition",
               "firedAt",
+              "calledAt",
               "firedBy",
               "lineCount",
               "doneCount",
@@ -1272,11 +1588,112 @@ exports[`markLineOutput and markTicketOutput (M19b) > match the committed JSON S
         "truncated": {
           "type": "boolean",
         },
+        "waiting": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "lineCount": {
+                "maximum": 9007199254740991,
+                "minimum": 1,
+                "type": "integer",
+              },
+              "lines": {
+                "items": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "course": {
+                      "enum": [
+                        "antipasti",
+                        "primi",
+                        "secondi",
+                        "dolci",
+                        "bevande",
+                      ],
+                      "type": "string",
+                    },
+                    "id": {
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "type": "string",
+                    },
+                    "isShared": {
+                      "type": "boolean",
+                    },
+                    "name": {
+                      "type": "string",
+                    },
+                    "note": {
+                      "type": [
+                        "string",
+                        "null",
+                      ],
+                    },
+                    "qty": {
+                      "type": "number",
+                    },
+                    "weightG": {
+                      "anyOf": [
+                        {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer",
+                        },
+                        {
+                          "type": "null",
+                        },
+                      ],
+                    },
+                  },
+                  "required": [
+                    "id",
+                    "name",
+                    "course",
+                    "qty",
+                    "weightG",
+                    "note",
+                    "isShared",
+                  ],
+                  "type": "object",
+                },
+                "type": "array",
+              },
+              "sessionId": {
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                "type": "string",
+              },
+              "tableName": {
+                "type": "string",
+              },
+              "uscita": {
+                "maximum": 9,
+                "minimum": 2,
+                "type": "integer",
+              },
+            },
+            "required": [
+              "sessionId",
+              "tableName",
+              "uscita",
+              "lineCount",
+              "lines",
+            ],
+            "type": "object",
+          },
+          "type": "array",
+        },
+        "waitingCount": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "type": "integer",
+        },
       },
       "required": [
         "asOf",
         "truncated",
         "remaining",
+        "waitingCount",
+        "waiting",
         "tickets",
         "closedTickets",
       ],

@@ -1,4 +1,5 @@
-// Fake data for the M19 and M19b kitchen tests. Every name, id and instant is invented.
+// Fake data for the M19 and M19b kitchen tests, in the comanda per uscita shape (plan 2026-11-18 §3.9: a ticket is (session, instant,
+// uscita); lines carry their course; held lines wait folded). Every name, id and instant is invented.
 import type { KitchenTickets } from "@/server/kitchen/output";
 
 export const KIDS = {
@@ -11,6 +12,7 @@ export const KIDS = {
   line4: "10000000-0000-4000-8000-000000000004",
   line5: "10000000-0000-4000-8000-000000000005",
   line6: "10000000-0000-4000-8000-000000000006",
+  line7: "10000000-0000-4000-8000-000000000007",
   waiterA: "a0000000-0000-4000-8000-000000000001",
   waiterB: "a0000000-0000-4000-8000-000000000002",
   chef: "c0000000-0000-4000-8000-000000000001",
@@ -20,15 +22,36 @@ export const KITCHEN_TICKETS: KitchenTickets = {
   asOf: "2026-11-04T19:31:30.000000+00:00",
   truncated: false,
   remaining: 2,
+  waitingCount: 1,
+  waiting: [
+    {
+      sessionId: KIDS.session,
+      tableName: "Tavolo 1 (demo)",
+      uscita: 2,
+      lineCount: 1,
+      lines: [
+        {
+          id: KIDS.line7,
+          name: "Tiramisù (demo)",
+          course: "dolci",
+          qty: 1,
+          weightG: null,
+          note: null,
+          isShared: false,
+        },
+      ],
+    },
+  ],
   tickets: [
     {
-      key: `${KIDS.session}|2026-11-04T19:31:00.000000Z|secondi|false`,
+      key: `${KIDS.session}|2026-11-04T19:31:00.000000Z|u1`,
       sessionId: KIDS.session,
       tableName: "Tavolo 1 (demo)",
       covers: 4,
-      course: "secondi",
-      segue: false,
+      uscita: 1,
+      addition: false,
       firedAt: "2026-11-04T19:31:00.000000Z",
+      calledAt: null,
       firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
       lineCount: 1,
       doneCount: 0,
@@ -39,6 +62,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line1,
           name: "Spezzatino con polenta (demo)",
+          course: "secondi",
           qty: 2,
           weightG: null,
           note: "senza cipolla",
@@ -50,6 +74,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line2,
           name: "Zuppa del giorno (demo)",
+          course: "primi",
           qty: 0.5,
           weightG: null,
           note: null,
@@ -61,13 +86,14 @@ export const KITCHEN_TICKETS: KitchenTickets = {
       ],
     },
     {
-      key: `${KIDS.session2}|2026-11-04T19:40:00.000000Z|primi|true`,
+      key: `${KIDS.session2}|2026-11-04T19:40:00.000000Z|u2`,
       sessionId: KIDS.session2,
       tableName: "Tavolo 2 (demo)",
       covers: 2,
-      course: "primi",
-      segue: true,
+      uscita: 2,
+      addition: false,
       firedAt: "2026-11-04T19:40:00.000000Z",
+      calledAt: "2026-11-04T19:40:00.000000Z",
       firedBy: { id: KIDS.waiterB, displayName: "Cameriere Due Demo" },
       lineCount: 1,
       doneCount: 0,
@@ -78,6 +104,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line3,
           name: "Tagliatelle al ragù (demo)",
+          course: "primi",
           qty: 1,
           weightG: null,
           note: null,
@@ -91,13 +118,14 @@ export const KITCHEN_TICKETS: KitchenTickets = {
   ],
   closedTickets: [
     {
-      key: `${KIDS.session3}|2026-11-04T19:20:00.000000Z|antipasti|false`,
+      key: `${KIDS.session3}|2026-11-04T19:20:00.000000Z|u1`,
       sessionId: KIDS.session3,
       tableName: "Tavolo 3 (demo)",
       covers: 2,
-      course: "antipasti",
-      segue: false,
+      uscita: 1,
+      addition: false,
       firedAt: "2026-11-04T19:20:00.000000Z",
+      calledAt: null,
       firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
       lineCount: 2,
       doneCount: 2,
@@ -108,6 +136,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line4,
           name: "Bruschetta (demo)",
+          course: "antipasti",
           qty: 2,
           weightG: null,
           note: null,
@@ -119,6 +148,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line5,
           name: "Acqua (demo)",
+          course: "bevande",
           qty: 1,
           weightG: null,
           note: null,
@@ -130,13 +160,14 @@ export const KITCHEN_TICKETS: KitchenTickets = {
       ],
     },
     {
-      key: `${KIDS.session3}|2026-11-04T19:10:00.000000Z|primi|false`,
+      key: `${KIDS.session3}|2026-11-04T19:10:00.000000Z|u0`,
       sessionId: KIDS.session3,
       tableName: "Tavolo 3 (demo)",
       covers: 2,
-      course: "primi",
-      segue: false,
+      uscita: 0,
+      addition: false,
       firedAt: "2026-11-04T19:10:00.000000Z",
+      calledAt: null,
       firedBy: { id: KIDS.waiterA, displayName: "Cameriere Demo" },
       lineCount: 1,
       doneCount: 0,
@@ -147,6 +178,7 @@ export const KITCHEN_TICKETS: KitchenTickets = {
         {
           id: KIDS.line6,
           name: "Tagliatelle al ragù (demo)",
+          course: "primi",
           qty: 1,
           weightG: null,
           note: null,

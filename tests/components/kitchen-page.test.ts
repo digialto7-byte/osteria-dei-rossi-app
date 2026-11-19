@@ -83,6 +83,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+// Re-pinned on purpose by comanda-uscite (step 13; was the course label, "A seguire" and the five-field body): the heading names the
+// uscita ("1ª uscita", "Subito"), an addition carries the badge, and the close body is {sessionId, firedAt, uscita, closed}. Only the
+// expected texts moved; the card layout is unchanged (B2 redesigns it in plan step 15).
 describe("Cucina page", () => {
   it("shows the heading, the time of the data and the tickets, found by key", async () => {
     render(createElement(KitchenPage));
@@ -403,7 +406,7 @@ describe("Cucina page, writes (M19b)", () => {
     fireEvent.click(lineButton(/^Segna fatto: Tagliatelle|^Segna fatto: 1 × Tagliatelle/));
     await settle();
     expect(screen.getByRole("status").textContent).toContain(
-      "Tavolo 2 (demo) · Primi: comanda chiusa",
+      "Tavolo 2 (demo) · 2ª uscita: comanda chiusa",
     );
     expect(document.querySelector(`[data-ticket-key="${soup!.key}"]`)).toBeNull();
 
@@ -435,12 +438,12 @@ describe("Cucina page, writes (M19b)", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
-  it("Chiudi comanda posts the five fields; the notice offers to reopen it", async () => {
+  it("Chiudi comanda posts the four fields; the notice offers to reopen it", async () => {
     render(createElement(KitchenPage));
     await settle();
     writeReply = ok({ changed: true, board: closedBy(KITCHEN_TICKETS, stew!.key) });
     fireEvent.click(
-      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), Secondi" }),
+      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), 1ª uscita" }),
     );
     await settle();
     expect(posts()[0]).toEqual([
@@ -448,7 +451,7 @@ describe("Cucina page, writes (M19b)", () => {
       { method: "POST", body: ticketMarkBody(stew!, true) },
     ]);
     expect(screen.getByRole("status").textContent).toContain(
-      "Tavolo 1 (demo) · Secondi: comanda chiusa",
+      "Tavolo 1 (demo) · 1ª uscita: comanda chiusa",
     );
     writeReply = ok({ changed: true, board: KITCHEN_TICKETS });
     fireEvent.click(screen.getByRole("button", { name: "Annulla" }));
@@ -469,7 +472,7 @@ describe("Cucina page, writes (M19b)", () => {
       board: { ...KITCHEN_TICKETS, closedTickets: KITCHEN_TICKETS.closedTickets.slice(1) },
     });
     fireEvent.click(
-      screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), Antipasti" }),
+      screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), 1ª uscita" }),
     );
     await settle();
     expect(posts()[0]).toEqual([
@@ -558,7 +561,7 @@ describe("Cucina page, writes (M19b)", () => {
       writeReply = { ok: false, status: 404, error: { code, message: "x" } };
       const readsBefore = gets().length;
       fireEvent.click(
-        screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), Secondi" }),
+        screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), 1ª uscita" }),
       );
       await settle();
       expect(within(mountRoot()).getByRole("alert").textContent).toBe(
@@ -583,7 +586,7 @@ describe("Cucina page, writes (M19b)", () => {
     await settle();
     writeReply = ok({ changed: true, board: closedBy(KITCHEN_TICKETS, stew!.key) });
     fireEvent.click(
-      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), Secondi" }),
+      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), 1ª uscita" }),
     );
     await settle();
     expect(confirm).not.toHaveBeenCalled();

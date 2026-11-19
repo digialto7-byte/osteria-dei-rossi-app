@@ -7,8 +7,7 @@ import {
   type FakeResult,
   type FakeSupabase,
 } from "../../helpers/fake-supabase";
-import { ticketMarkBody } from "@/lib/kitchen/kitchen-done";
-import { KITCHEN_TICKETS } from "../../helpers/kitchen-data";
+import { KIDS, KITCHEN_TICKETS } from "../../helpers/kitchen-data";
 
 let client: FakeSupabase;
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: async () => client }));
@@ -23,7 +22,13 @@ const failure = (code: string, message: string, details?: string): FakeResult =>
   error: { code, message, details },
 });
 
-const BODY = ticketMarkBody(KITCHEN_TICKETS.tickets[0]!, true);
+// Comanda per uscita (plan 2026-11-18 §3.9): the ticket key is {sessionId, firedAt, uscita}.
+const BODY = {
+  sessionId: KIDS.session2,
+  firedAt: "2026-11-04T19:40:00.000000Z",
+  uscita: 2,
+  closed: true,
+};
 const REPLY = { changed: true, board: KITCHEN_TICKETS };
 
 function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
@@ -43,7 +48,7 @@ beforeEach(() => {
 });
 
 describe("POST /api/kitchen/tickets/mark", () => {
-  it.each(["chef", "owner", "admin"])("%s: one RPC with the five fields", async (role) => {
+  it.each(["chef", "owner", "admin"])("%s: one RPC with the four fields", async (role) => {
     as(role);
     const response = await mark(BODY);
     expect(response.status).toBe(200);
@@ -85,8 +90,19 @@ describe("POST /api/kitchen/tickets/mark", () => {
 
   it.each([
     ["three decimals", { ...BODY, firedAt: "2026-11-04T19:31:00.123Z" }],
-    ["an unknown course", { ...BODY, course: "pizze" }],
-    ["a string segue", { ...BODY, segue: "false" }],
+    [
+      "the legacy body (course and segue, no uscita)",
+      {
+        sessionId: BODY.sessionId,
+        firedAt: BODY.firedAt,
+        course: "primi",
+        segue: true,
+        closed: true,
+      },
+    ],
+    ["a course next to the uscita", { ...BODY, course: "primi" }],
+    ["a string uscita", { ...BODY, uscita: "2" }],
+    ["uscita 10", { ...BODY, uscita: 10 }],
     ["a missing closed", { ...BODY, closed: undefined }],
     ["a stray key", { ...BODY, note: "x" }],
     ["a bad session id", { ...BODY, sessionId: "nope" }],
