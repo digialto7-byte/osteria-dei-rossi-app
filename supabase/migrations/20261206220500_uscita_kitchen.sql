@@ -34,7 +34,8 @@ drop function app.kitchen_ticket_state(uuid, uuid, timestamptz, public.course, b
 drop function app.kitchen_ticket_open_lines(uuid, uuid, timestamptz, public.course, boolean);
 
 -- The ticket instant of a line (plan 3.1): fired_at for uscite 0-1; for an uscita >= 2, greatest(fired_at, called_at) once called, else null
--- (a held line, or a voided line of an uncalled uscita: neither is in a ticket). null for a draft, and for a line from before uscite
+-- (a held line, or a voided line of an uncalled uscita: neither is in a ticket). null for a line voided not_prepared, which only a held
+-- line can be (M4): it never reached the kitchen, so it stays out of its uscita's ticket once called. null for a draft, and for a line from before uscite
 -- (uscita null), which only closed sessions hold (order_line_uscita_set_ck refuses null on every later write); callers refuse closed
 -- sessions before they ask.
 create function app.line_ticket_at(p_tenant uuid, p_line public.order_line) returns timestamptz
@@ -43,7 +44,7 @@ create function app.line_ticket_at(p_tenant uuid, p_line public.order_line) retu
   security definer
   set search_path = ''
 as $$
-  select case when p_line.fired_at is null or p_line.uscita is null then null
+  select case when p_line.fired_at is null or p_line.uscita is null or p_line.void_reason = 'not_prepared' then null
               when p_line.uscita < 2 then p_line.fired_at
               else (select greatest(p_line.fired_at, c.called_at)
                       from public.uscita_call c
@@ -139,7 +140,8 @@ create or replace function app.kitchen_ticket_rows(p_tenant uuid, p_at timestamp
 as $$
   with cand as (
     select l.*, s.table_name, s.covers, c.called_at,
-           case when l.uscita < 2 then l.fired_at
+           case when l.void_reason = 'not_prepared' then null
+                when l.uscita < 2 then l.fired_at
                 when c.called_at is not null then greatest(l.fired_at, c.called_at) end as ticket_at
       from public.order_line l
       join public.table_session s on s.tenant_id = l.tenant_id and s.id = l.table_session_id
@@ -150,7 +152,8 @@ as $$
        and s.closed_at is null
        and app.business_date(p_tenant, l.fired_at) = app.business_date(p_tenant, p_at)
   ), held as (
-    -- Held: uscita >= 2, not called by p_at, not voided. A voided line of an uncalled uscita is in neither list (spec 7).
+    -- Held: uscita >= 2, not called by p_at, not voided. A voided line of an uncalled uscita is in neither list (spec 7), and a line voided
+    -- not_prepared stays out of its uscita's ticket after the call too (it never reached the kitchen).
     select c.* from cand c where c.uscita >= 2 and c.called_at is null and c.voided_at is null
   ), cl as (
     select c.*,

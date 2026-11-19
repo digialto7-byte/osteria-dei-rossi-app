@@ -6,7 +6,7 @@
 begin;
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(29);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -179,44 +179,94 @@ select is((pg_temp.j('b6') -> 'waiting')::text || ' ' || (pg_temp.j('b6') ->> 'w
           || ' ' || (select count(*) from pg_temp.tk('b6', 2, 3)) || ' ' || (pg_temp.j('void') ->> 'changed'),
   '[] 0 8 0 true', 'a voided held line leaves waiting and becomes no ticket');
 
--- 12-16 (AT7): the open-session remap. Table 3 was sent before M6: one send of an antipasto and a primo (two legacy tickets, both closed),
--- and a later secondo whose legacy ticket was closed and reopened.
+-- 12-15 (review round, PR 3): reads in the past, the addition boundary, and a not_prepared line once its uscita is called.
+-- At the send instant the 2nd is held (its call came later, so it is not read: calls after p_at are ignored); at the call instant it is a ticket.
+select is((select (r ->> 'waitingCount') || ' ' || (select string_agg((w ->> 'uscita') || ':' || (w ->> 'lineCount'), ',') from jsonb_array_elements(r -> 'waiting') w
+                                                     where w ->> 'sessionId' = pg_temp.s(1)::text)
+                  || ' ' || (select count(*) from jsonb_array_elements(r -> 'tickets') t where t ->> 'sessionId' = pg_temp.s(1)::text and t ->> 'uscita' = '2')
+             from (select app.kitchen_ticket_rows('11111111-1111-4111-8111-111111111111', (select fired_at from public.order_line where id = pg_temp.l(3))) r) x),
+  '2 2:2 0', 'read at the send instant (before the call), the 2nd waits with its two lines and is no ticket');
+select is((select (r ->> 'waitingCount') || ' ' || (select string_agg((t ->> 'lineCount') || ':' || (t ->> 'calledAt'), ',') from jsonb_array_elements(r -> 'tickets') t
+                                                     where t ->> 'sessionId' = pg_temp.s(1)::text and t ->> 'uscita' = '2')
+             from (select app.kitchen_ticket_rows('11111111-1111-4111-8111-111111111111', (select called_at from public.uscita_call where table_session_id = pg_temp.s(1) and uscita = 2)) r) x),
+  '0 3:' || pg_temp.called(1, 2), 'read at the call instant, the 2nd is one ticket of its three lines with calledAt = the call');
+-- A second drink and a second 1st are sent later.
+select pg_temp.draft(12, 1, 4, 0), pg_temp.draft(13, 1, 1, 1);
+select count(*) from (select pg_temp.run('more', pg_temp.fire(1, array[12, 13]))) x;
+select count(*) from (select pg_temp.board('b8')) x;
+select is((select string_agg(t ->> 'addition', ',') from pg_temp.tk('b8', 1, 0) t) || ' / ' || (select string_agg(t ->> 'addition', ',') from pg_temp.tk('b8', 1, 1) t),
+  'false,false / false,true', 'two drink tickets are never additions; a later 1st ticket is an addition');
+-- Table 2's 3rd: line 9 was voided not_prepared while it waited; a new dish is sent to it and the 3rd is called.
+select pg_temp.draft(11, 2, 3, 3);
+select count(*) from (select pg_temp.run('send4', pg_temp.fire(2, array[11]))) x;
+select count(*) from (select pg_temp.run('call3', pg_temp.call(2, 3))) x;
+select count(*) from (select pg_temp.board('b9')) x;
+select is((select string_agg((t ->> 'lineCount') || ':' || (select string_agg(right(e ->> 'id', 2), ',') from jsonb_array_elements(t -> 'lines') e), ' ') from pg_temp.tk('b9', 2, 3) t)
+          || ' ' || coalesce(pg_temp.us(app.line_ticket_at('11111111-1111-4111-8111-111111111111', (select l from public.order_line l where l.id = pg_temp.l(9)))), 'null'),
+  '1:11 null', 'a dish voided not_prepared while it waited never shows in the called ticket (it never reached the kitchen): no ticket instant');
+
+-- 16-23 (AT7): the open-session remap. Table 3 was sent before M6: one send of an antipasto and a primo (two legacy tickets, both closed),
+-- a later secondo whose legacy ticket was closed and reopened, a segue secondo placed by M5 in the 2nd with a migration call at its fired_at
+-- (its legacy segue ticket closed), and a dish of a 3rd still held (its legacy ticket closed: no new key, so nothing). Table 4 is closed: its
+-- closed legacy ticket is not read.
+insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by) values
+  ('13000000-0000-4000-8000-000000000004', '11111111-1111-4111-8111-111111111111', 'Tavolo 4 (demo)', 4, 'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a');
+insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by) values
+  (pg_temp.s(4), '11111111-1111-4111-8111-111111111111', '13000000-0000-4000-8000-000000000004', 'Tavolo 4 (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-10-24',
+   'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
 insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, uscita, segue, unit_price, vat_rate, price_source, client_updated_at,
                                fired_at, fired_by, created_by, updated_by)
-  select pg_temp.l(v.n), '11111111-1111-4111-8111-111111111111', pg_temp.s(3), ('11000000-0000-4000-8000-00000000000' || v.i)::uuid, v.c::public.course, 1, 1, false, 10, 10, 'menu',
+  select pg_temp.l(v.n), '11111111-1111-4111-8111-111111111111', pg_temp.s(v.s), ('11000000-0000-4000-8000-00000000000' || v.i)::uuid, v.c::public.course, 1, v.u, v.u >= 2, 10, 10, 'menu',
          '1998-10-24 19:00+00', now() - v.ago, 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
-    from (values (20, 1, 'antipasti', interval '3 seconds'), (21, 2, 'primi', interval '3 seconds'), (22, 3, 'secondi', interval '2 seconds')) v(n, i, c, ago);
+    from (values (20, 3, 1, 'antipasti', 1, interval '3 seconds'), (21, 3, 2, 'primi', 1, interval '3 seconds'), (22, 3, 3, 'secondi', 1, interval '2 seconds'),
+                 (23, 3, 3, 'secondi', 2, interval '2500 milliseconds'), (24, 3, 3, 'secondi', 3, interval '2400 milliseconds'),
+                 (25, 4, 1, 'antipasti', 1, interval '3 seconds')) v(n, s, i, c, u, ago);
+insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause) values
+  ('11111111-1111-4111-8111-111111111111', pg_temp.s(3), 2, now() - interval '2500 milliseconds', 'd1000000-0000-4000-8000-00000000000d', 'migration');
+update public.table_session set closed_at = now(), closed_by = 'd1000000-0000-4000-8000-00000000000d', closed_business_date = '1998-10-24',
+  receipt_type = 'scontrino', receipt_number = '0001-0004', payment_type = 'card', total = 0 where id = pg_temp.s(4);
 insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, course, segue, created_at, created_by) values
   ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(3), now() - interval '3 seconds', 'antipasti', false, now() - interval '2500 milliseconds', 'c1000000-0000-4000-8000-00000000000c'),
   ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'auto', pg_temp.s(3), now() - interval '3 seconds', 'primi', false, now() - interval '2200 milliseconds', 'c1000000-0000-4000-8000-00000000000c'),
   ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(3), now() - interval '2 seconds', 'secondi', false, now() - interval '1500 milliseconds', 'c1000000-0000-4000-8000-00000000000c'),
-  ('11111111-1111-4111-8111-111111111111', 'ticket', 'reopened', 'tap', pg_temp.s(3), now() - interval '2 seconds', 'secondi', false, now() - interval '1 second', 'c1000000-0000-4000-8000-00000000000c');
+  ('11111111-1111-4111-8111-111111111111', 'ticket', 'reopened', 'tap', pg_temp.s(3), now() - interval '2 seconds', 'secondi', false, now() - interval '1 second', 'c1000000-0000-4000-8000-00000000000c'),
+  ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(3), now() - interval '2500 milliseconds', 'secondi', true, now() - interval '1800 milliseconds', 'c1000000-0000-4000-8000-00000000000c'),
+  ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(3), now() - interval '2400 milliseconds', 'secondi', true, now() - interval '1700 milliseconds', 'c1000000-0000-4000-8000-00000000000c'),
+  ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(4), now() - interval '3 seconds', 'antipasti', false, now() - interval '2 seconds', 'c1000000-0000-4000-8000-00000000000c');
 create temp table legacy as select md5(string_agg(to_jsonb(e)::text, ',' order by e.seq)) as h from public.kitchen_event e;
 insert into res select 'remap', app.uscite_kitchen_remap_open_sessions();
-select is(pg_temp.j('remap')::text, '{"tickets": 1}', 'the remap appends one uscita close: the key whose legacy tickets are all closed');
-select is((select string_agg(action || ' ' || cause || ' ' || pg_temp.us(fired_at) || ' ' || uscita || ' ' || coalesce(course::text, 'null') || ' ' || coalesce(segue::text, 'null')
+select is(pg_temp.j('remap')::text, '{"tickets": 2}', 'the remap appends two uscita closes: the keys whose legacy tickets are all closed');
+select is((select string_agg(action || ' ' || cause || ' ' || pg_temp.us(fired_at) || ' ' || coalesce(course::text, 'null') || ' ' || coalesce(segue::text, 'null')
                            || ' ' || (created_at = now() - interval '2200 milliseconds')::text || ' ' || created_by, ';')
-             from public.kitchen_event where uscita is not null),
-  'closed auto ' || pg_temp.us(now() - interval '3 seconds') || ' 1 null null true c1000000-0000-4000-8000-00000000000c',
-  'it is closed under the new key with the cause, created_at and created_by of the latest legacy close');
+             from public.kitchen_event where uscita = 1),
+  'closed auto ' || pg_temp.us(now() - interval '3 seconds') || ' null null true c1000000-0000-4000-8000-00000000000c',
+  'the 1st is closed under the new key with the cause, created_at and created_by of the latest legacy close');
+select is((select string_agg(pg_temp.us(fired_at) || ' ' || table_session_id || ' ' || (created_at = now() - interval '1800 milliseconds')::text, ';')
+             from public.kitchen_event where uscita = 2),
+  pg_temp.us(now() - interval '2500 milliseconds') || ' ' || pg_temp.s(3) || ' true', 'the segue secondo placed by M5 is closed under (table 3, its call instant, 2)');
+select is((select count(*)::int from public.kitchen_event where uscita is not null and (uscita = 3 or table_session_id = pg_temp.s(4))), 0,
+  'the held 3rd has no new key and the closed table 4 is not read: no uscita event for either');
 insert into res select 'remap2', app.uscite_kitchen_remap_open_sessions();
-select is(pg_temp.j('remap2')::text || ' ' || (select count(*) from public.kitchen_event where uscita is not null), '{"tickets": 0} 1', 'a second run appends nothing');
+select is(pg_temp.j('remap2')::text || ' ' || (select count(*) from public.kitchen_event where uscita is not null), '{"tickets": 0} 2', 'a second run appends nothing');
 select is((select md5(string_agg(to_jsonb(e)::text, ',' order by e.seq)) from public.kitchen_event e where e.uscita is null), (select h from legacy),
   'legacy events are unchanged (none updated, none added)');
 select count(*) from (select pg_temp.board('b7')) x;
-select is((select string_agg((t ->> 'firedAt') || ':' || (t ->> 'autoClosed') || ':' || (t ->> 'lineCount'), ' ') from jsonb_array_elements(pg_temp.j('b7') -> 'closedTickets') t)
+select is((select string_agg((t ->> 'firedAt') || ':' || (t ->> 'autoClosed') || ':' || (t ->> 'lineCount'), ' ') from jsonb_array_elements(pg_temp.j('b7') -> 'closedTickets') t
+            where t ->> 'sessionId' = pg_temp.s(3)::text and t ->> 'uscita' = '1')
           || ' / ' || (select string_agg((t ->> 'firedAt') || ':' || (t ->> 'lineCount'), ' ') from pg_temp.tk('b7', 3, 1) t),
   pg_temp.us(now() - interval '3 seconds') || ':true:2 / ' || pg_temp.us(now() - interval '2 seconds') || ':1',
   'the board shows table 3''s first send as one closed ticket and its reopened secondo as an active one');
+select is((select string_agg(right(w ->> 'sessionId', 1) || ':' || (w ->> 'uscita'), ',') from jsonb_array_elements(pg_temp.j('b7') -> 'waiting') w), '3:3',
+  'and the held 3rd of table 3 waits');
 
--- 17-18: no euro key (059's chef regex), and B's board holds nothing of A's (X).
+-- 24-25: no euro key (059's chef regex), and B's board holds nothing of A's (X).
 select is((select count(*)::int from pg_temp.all_keys(pg_temp.j('b7')) k where k ~* '(cost|margin|price|prezz|gp_pct|_eur$|amount|total|importo)'), 0,
   'no key of the board matches 059''s chef regex');
 select count(*) from (select pg_temp.board('bb', 'chefb')) x;
 select is((pg_temp.j('bb') - 'asOf')::text, '{"tickets": [], "waiting": [], "remaining": 0, "truncated": false, "waitingCount": 0, "closedTickets": []}',
   'B''s chef sees an empty board: nothing of A''s (X)');
 
--- 19-20: the event shape and the index.
+-- 26-27: the event shape and the index.
 select is(pg_temp.try($q$insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, uscita, created_by)
                          values ('11111111-1111-4111-8111-111111111111', 'ticket', 'closed', 'tap', pg_temp.s(1), now(), 10, 'c1000000-0000-4000-8000-00000000000c')$q$)
           || ' ' || pg_temp.try($q$insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, uscita, course, created_by)
@@ -228,13 +278,13 @@ select is((select indexdef from pg_indexes where indexname = 'kitchen_event_usci
   'CREATE INDEX kitchen_event_uscita_ticket_idx ON public.kitchen_event USING btree (tenant_id, table_session_id, fired_at, uscita, seq DESC) WHERE ((subject = ''ticket''::text) AND (uscita IS NOT NULL))',
   'the uscita ticket index exists');
 
--- 21-22: the helpers.
+-- 28-29: the helpers.
 select is((select k.session_id || ' ' || pg_temp.us(k.fired_at) || ' ' || k.uscita
              from app.kitchen_ticket_key(jsonb_build_object('sessionId', pg_temp.s(1), 'firedAt', pg_temp.called(1, 2), 'uscita', 2)) k)
           || ' ' || pg_temp.try($q$select app.kitchen_ticket_key(jsonb_build_object('sessionId', pg_temp.s(1), 'firedAt', pg_temp.called(1, 2), 'uscita', '2'))$q$)
           || ' ' || pg_temp.try($q$select app.kitchen_ticket_key(jsonb_build_object('sessionId', pg_temp.s(1), 'firedAt', pg_temp.called(1, 2), 'course', 'secondi', 'segue', true))$q$),
   pg_temp.s(1) || ' ' || pg_temp.called(1, 2) || ' 2 22023 22023', 'kitchen_ticket_key parses {sessionId, firedAt, uscita}; "2" or the legacy key -> 22023');
-select is((select string_agg(coalesce(pg_temp.us(app.line_ticket_at(l.tenant_id, l)), 'null'), ' ' order by l.id) from public.order_line l where l.id in (pg_temp.l(1), pg_temp.l(3), pg_temp.l(7), pg_temp.l(9))),
+select is((select string_agg(coalesce(pg_temp.us(app.line_ticket_at(l.tenant_id, l)), 'null'), ' ' order by l.id) from public.order_line l where l.id in (pg_temp.l(1), pg_temp.l(3), pg_temp.l(7), pg_temp.l(24))),
   pg_temp.fired(1) || ' ' || pg_temp.called(1, 2) || ' ' || pg_temp.fired(7) || ' null',
   'line_ticket_at: fired_at for the 1st, the call for a 2nd line sent before it, its own fired_at after it, null for an uncalled uscita');
 

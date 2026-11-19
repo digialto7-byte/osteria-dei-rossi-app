@@ -15,7 +15,7 @@ begin;
 -- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -205,6 +205,11 @@ select is(pg_temp.as_err('b2000000-0000-4000-8000-0000000000c2', '22222222-2222-
     'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), 'uscita', l.uscita, 'closed', true)::text
     from public.order_line l where l.id = '35000000-0000-4000-8000-000000000001'))),
   'P0002 ticket_not_found', 'X: kitchen_set_ticket as B''s chef on A''s uscita ticket is P0002 ticket_not_found');
+select is((pg_temp.as_json('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef',
+  format($$ select public.kitchen_set_ticket(%L::jsonb) $$, (select jsonb_build_object('sessionId', l.table_session_id,
+    'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), 'uscita', l.uscita, 'closed', true)::text
+    from public.order_line l where l.id = '35000000-0000-4000-8000-000000000001'))) ->> 'changed'),
+  'true', 'control: the same body as A''s chef closes A''s ticket, so the P0002 above comes from tenant isolation');
 rollback to savepoint step5;
 
 -- Mutation: a temporary policy lets any authenticated user read order lines. B's waiter then reads A's lines, so the check that said 0 can fail.
