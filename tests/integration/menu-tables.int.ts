@@ -765,10 +765,11 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
     });
   });
 
-  // BQ-1: tables_list gives every session an unsentCount (drafts that are not "a seguire"). It runs last, on its own table, so the
+  // BQ-1: tables_list gives every session an unsentCount (every draft: a segue draft counts too since comanda-uscite step 17). It runs last, on its own table, so the
   // shared state of the tests above is not touched. The dish is the unmapped Acqua: it fires with no stock movement.
   describe("BQ-1: the unsent count of a tile", () => {
-    it("is 0 after open, 1 after a normal and a 'a seguire' line, and 0 again after the fire; the reply stays valid", async () => {
+    // Re-pinned on purpose by comanda-uscite (step 17; was 1): a segue draft counts in unsentCount (plan section 3.10), so both drafts go with the one send.
+    it("is 0 after open, 2 after a normal and a segue draft (a segue draft counts in unsentCount), 0 after the one send; the reply stays valid", async () => {
       const made = await createTable(a.owner, { name: "Tavolo 5 (demo)", position: 5 });
       expect(made.status).toBe(201);
       const tableId = made.body.table.id;
@@ -795,14 +796,19 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
         });
       const normal = tap();
       expect((await post(normal)).status).toBe(201);
-      expect((await post(tap({ segue: true }))).status).toBe(201);
-      expect(await unsent()).toBe(1);
+      const segue = tap({ segue: true });
+      expect((await post(segue)).status).toBe(201);
+      expect(await unsent()).toBe(2); // re-pinned on purpose by comanda-uscite (step 17; was 1)
 
       const sent = await call(
         a.waiter,
         fireRoute.POST as Handler,
         `/api/table-sessions/${sessionId}/fire`,
-        { method: "POST", body: { lineIds: [normal.lineId] }, params: { id: sessionId } },
+        {
+          method: "POST",
+          body: { lineIds: [normal.lineId, segue.lineId] },
+          params: { id: sessionId },
+        },
       );
       expect(sent.status).toBe(200);
       expect(await unsent()).toBe(0);

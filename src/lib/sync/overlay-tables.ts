@@ -55,6 +55,9 @@ export function overlayTables(list: TablesList, ops: readonly OutboxOp[]): Shown
           billRequested: false,
           // The real count of this phone's queue for the new session (BQ-1): the line ops are replayed on the stub order, no placeholder.
           unsentCount: unsentLines(stub.lines).length,
+          // Comanda per uscita: the server has nothing of a session it has not seen yet, so no uscita is in its kitchen; the phone's own
+          // queued sends are the overlay's to show ("in coda"), not the server's uscite.
+          uscite: null,
           queuedAt: open.clientTs,
         },
       };

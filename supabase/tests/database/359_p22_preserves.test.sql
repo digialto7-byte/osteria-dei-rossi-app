@@ -70,6 +70,9 @@ insert into p27_objs values
 insert into p27_objs values
   ('column', 'kitchen_event.uscita'), ('constraint', 'kitchen_event.kitchen_event_uscita_check'), ('index', 'kitchen_event_uscita_ticket_idx'),
   ('app_fn', 'line_ticket_at'), ('app_fn', 'uscite_kitchen_remap_open_sessions');
+-- Step 17 (20261206220600_uscita_tables_order_view.sql): the waiter-read helper (tables_list, order_view and session_unsent_lines keep their names).
+insert into p27_objs values
+  ('app_fn', 'session_uscite');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

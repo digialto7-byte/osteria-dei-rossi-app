@@ -43,6 +43,7 @@ const LIST: TablesList = {
       waiter: { id: DUE.id, displayName: DUE.displayName },
       billRequested: false,
       unsentCount: 0,
+      uscite: null,
       coperto: null,
     }),
   ],
@@ -60,6 +61,7 @@ describe("overlayTables", () => {
       waiter: { id: DEMO.id, displayName: DEMO.displayName },
       billRequested: false,
       unsentCount: 0,
+      uscite: null,
       queuedAt: queued(openDraft(1, "s1"), 1).clientTs,
     });
   });

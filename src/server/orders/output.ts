@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { UNAVAILABLE_REASONS } from "@/server/menu/output";
 import { SESSION_STATUS_VALUES, sessionCoperto } from "@/server/tables/output";
+import { FIRED_AT_RE } from "@/server/kitchen/constants";
 import { COURSES, USCITA_MAX, USCITA_MIN } from "./constants";
 
 // Strict output schemas of the order endpoints (M18 plan §3.1.9, §3.4). The services parse every database reply here,
@@ -58,9 +59,21 @@ const orderSession = z.strictObject({
   coperto: sessionCoperto.nullable(),
 });
 
+/** Comanda per uscita (plan 2026-11-18 §3.10): an uscita >= 1 with sent dishes: waiting (held), cooking, or done (every dish done). */
+export const ORDER_USCITA_STATES = ["waiting", "cooking", "done"] as const;
+const orderUscita = z.strictObject({
+  uscita: z.number().int().min(1).max(USCITA_MAX),
+  state: z.enum(ORDER_USCITA_STATES),
+  /** The call's instant in the kitchen board's six-decimal UTC text; null while it waits or for the 1st. */
+  calledAt: z.string().regex(FIRED_AT_RE).nullable(),
+  lineCount: z.number().int().min(1),
+});
+
 export const orderViewOutput = z.strictObject({
   session: orderSession,
   lines: z.array(orderLine),
+  /** By uscita; drinks (uscita 0) and drafts are not in it. Required: never defaulted. */
+  uscite: z.array(orderUscita),
 });
 
 /** What a write says about the dish's stock, so the screen needs no second read. */

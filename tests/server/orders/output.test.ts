@@ -87,6 +87,44 @@ const SCHEMAS = {
   itemUnavailableDetails,
 };
 
+describe("orderViewOutput.uscite (comanda per uscita, plan 2026-11-18 §3.10)", () => {
+  const withUscite = (uscite: unknown) => ({ ...ORDER_VIEW, uscite });
+
+  it("refuses an order without uscite and accepts an empty list", () => {
+    const { uscite: _u, ...noUscite } = ORDER_VIEW;
+    expect(orderViewOutput.safeParse(noUscite).success).toBe(false);
+    expect(orderViewOutput.safeParse(withUscite([])).success).toBe(true);
+  });
+
+  it("accepts the three states, a calledAt in the six-decimal UTC text or null", () => {
+    expect(
+      orderViewOutput.safeParse(
+        withUscite([
+          { uscita: 1, state: "done", calledAt: null, lineCount: 2 },
+          { uscita: 2, state: "cooking", calledAt: "2026-11-02T19:40:00.123456Z", lineCount: 2 },
+          { uscita: 3, state: "waiting", calledAt: null, lineCount: 1 },
+        ]),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("refuses an unknown state, uscita 0 or 10, a calledAt in another format, no lines, or an extra key", () => {
+    const base = { uscita: 2, state: "cooking", calledAt: null, lineCount: 1 };
+    for (const item of [
+      { ...base, state: "held" },
+      { ...base, uscita: 0 },
+      { ...base, uscita: 10 },
+      { ...base, calledAt: "2026-11-02T19:40:00+00:00" },
+      { ...base, lineCount: 0 },
+      { ...base, total: 1 },
+    ]) {
+      expect(orderViewOutput.safeParse(withUscite([item])).success, JSON.stringify(item)).toBe(
+        false,
+      );
+    }
+  });
+});
+
 describe("waiter order payloads", () => {
   it.each(Object.entries(SCHEMAS))(
     "%s has no cost, margin, GP, food, EUR, recipe or VAT key outside its exempt path (session.coperto.vatRate on orderViewOutput only)",

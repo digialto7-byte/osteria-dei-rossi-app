@@ -53,6 +53,7 @@ const TILE_SESSION = {
   waiter: { id: W1, displayName: "Cameriere Demo" },
   billRequested: false,
   unsentCount: 2,
+  uscite: { cooking: 1, waiting: 2, cookingDone: false },
   coperto: COPERTO,
 };
 const LIST = {
@@ -62,6 +63,50 @@ const LIST = {
     { id: S1, name: "Tavolo 2 (demo)", position: 2, status: "free", session: null },
   ],
 };
+
+describe("tablesListOutput: uscite (comanda per uscita, plan 2026-11-18 §3.10)", () => {
+  const withUscite = (uscite: unknown) => ({
+    ...LIST,
+    tables: [{ ...LIST.tables[0]!, session: { ...TILE_SESSION, uscite } }],
+  });
+
+  it("refuses a session without uscite", () => {
+    const { uscite: _u, ...noUscite } = TILE_SESSION;
+    expect(
+      tablesListOutput.safeParse({ ...LIST, tables: [{ ...LIST.tables[0]!, session: noUscite }] })
+        .success,
+    ).toBe(false);
+  });
+
+  it("accepts cooking and waiting 1-9 or null, and null for nothing sent", () => {
+    for (const uscite of [
+      null,
+      { cooking: 1, waiting: 2, cookingDone: false },
+      { cooking: 2, waiting: null, cookingDone: true },
+      { cooking: null, waiting: 2, cookingDone: false },
+      { cooking: 9, waiting: 9, cookingDone: false },
+    ]) {
+      expect(tablesListOutput.safeParse(withUscite(uscite)).success, JSON.stringify(uscite)).toBe(
+        true,
+      );
+    }
+  });
+
+  it("refuses an uscita out of range, a waiting 1st, a missing key or an extra key", () => {
+    for (const uscite of [
+      { cooking: 0, waiting: null, cookingDone: false },
+      { cooking: 10, waiting: null, cookingDone: false },
+      { cooking: 1, waiting: 1, cookingDone: false },
+      { cooking: 1.5, waiting: null, cookingDone: false },
+      { cooking: 1, waiting: 2 },
+      { cooking: 1, waiting: 2, cookingDone: false, total: 1 },
+    ]) {
+      expect(tablesListOutput.safeParse(withUscite(uscite)).success, JSON.stringify(uscite)).toBe(
+        false,
+      );
+    }
+  });
+});
 
 describe("tablesListOutput", () => {
   it("parses a list with an open and a free table", () => {

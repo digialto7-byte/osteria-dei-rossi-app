@@ -2256,6 +2256,8 @@ export const en: Record<MessageKey, string> = {
   "billError.bill_changed": "The bill has changed: check the new total.",
   "billError.unsent_lines":
     "Some dishes were not sent to the kitchen: send or remove them before closing.",
+  "billError.uscita_waiting":
+    "A course is still waiting: call it, or void its dishes as “Not prepared”, then close.",
   "billError.split_invalid": "The split is not valid: assign every dish to a bill.",
   "billError.split_line_missing": "Assign every dish to a bill",
   "billError.split_line_twice": "A dish is on two bills: assign it to one only",
