@@ -209,6 +209,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206220200_uscita_fire_call.sql",
   // Comanda per uscita step 7 (20261206220300_uscita_void.sql), re-pinned on purpose by comanda-uscite (step 7; was the list ending at 20261206220200_uscita_fire_call.sql): not_prepared.
   "20261206220300_uscita_void.sql",
+  // Comanda per uscita step 8 (20261206220400_uscita_open_sessions.sql), re-pinned on purpose by comanda-uscite (step 8; was the list ending at 20261206220300_uscita_void.sql): the open sessions placed in place, the NOT VALID check and the default 1.
+  "20261206220400_uscita_open_sessions.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

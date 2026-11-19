@@ -59,6 +59,11 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     functions: ["app.order_void_reason_codes", "public.void_line"],
     tables: [],
     triggers: [],
+  }, // Step 8 (M5): the open sessions placed in place; the NOT VALID check; default 1 and the column comment (lead ruling M5).
+  "20261206220400_uscita_open_sessions.sql": {
+    functions: ["app.uscite_backfill_open_sessions"],
+    tables: [],
+    triggers: [],
   },
 };
 const FILES = Object.keys(EXPECTED);

@@ -62,6 +62,9 @@ insert into p27_objs values
 -- Step 5 (20261206220200_uscita_fire_call.sql): the call and its two JSON helpers.
 insert into p27_objs values
   ('public_fn', 'call_uscita'), ('app_fn', 'uscita_call_json'), ('app_fn', 'uscita_lines_json');
+-- Step 8 (20261206220400_uscita_open_sessions.sql): the backfill and the NOT VALID check (the default and the comment change no structure pinned here).
+insert into p27_objs values
+  ('app_fn', 'uscite_backfill_open_sessions'), ('constraint', 'order_line.order_line_uscita_set_ck');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

@@ -170,9 +170,13 @@ $$;
 select is(pg_temp.sees_a_calls('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner'), 1::bigint, 'control: A''s owner reads A''s call');
 select is(pg_temp.sees_a_calls('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner'), 0::bigint, 'X: B''s owner reads 0 of A''s calls');
 
--- Step 5 (M3, on purpose): call_uscita and the hold fire. A's fired line is placed in uscita 3 (the guard's null -> value), so A has a held
--- uscita that B must not be able to call.
-update public.order_line set uscita = 3 where id = '35000000-0000-4000-8000-000000000001';
+-- Step 5 (M3, on purpose): call_uscita and the hold fire. A held line of A's in uscita 3 (a sent line with no call), inside a savepoint so the
+-- control counts below stay A's two lines.
+savepoint step5;
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, uscita, segue, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by, fired_at, fired_by) values
+  ('35000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000001',
+   'secondi', 1, 3, true, 14.00, 10, 'menu', pg_temp.day_start('11111111-1111-4111-8111-111111111111'), 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
+   pg_temp.day_start('11111111-1111-4111-8111-111111111111'), 'd1000000-0000-4000-8000-00000000000d');
 select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
   $$ select public.call_uscita('34000000-0000-4000-8000-000000000001', '{"uscita": 3}'::jsonb) $$),
   'P0002 session_not_found', 'X: call_uscita as B''s waiter on A''s session is P0002 session_not_found');
@@ -182,8 +186,9 @@ select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-
 select is((select count(*)::int from public.uscita_call where tenant_id = '11111111-1111-4111-8111-111111111111' and uscita = 3), 0, 'X: no call row was written for A');
 -- Step 7 (M4, on purpose): not_prepared on A's held line by B.
 select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
-  $$ select public.void_line('35000000-0000-4000-8000-000000000001', '{"reason": "not_prepared", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
+  $$ select public.void_line('35000000-0000-4000-8000-000000000003', '{"reason": "not_prepared", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
   'P0002 line_not_found', 'X: void_line not_prepared as B''s waiter on A''s held line is P0002 line_not_found');
+rollback to savepoint step5;
 
 -- Mutation: a temporary policy lets any authenticated user read order lines. B's waiter then reads A's lines, so the check that said 0 can fail.
 create policy x_mutation_read_all on public.order_line for select to authenticated using (true);

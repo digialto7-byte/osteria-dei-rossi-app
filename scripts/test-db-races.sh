@@ -221,6 +221,8 @@
 #                         One row, no deadlock.
 #   fire-hold-vs-call:    L3 is a 2nd-uscita draft. A fire of L3 with hold and a call of the 2nd commit in either order: L3 is not held
 #                         afterwards, and its ticket instant greatest(fired_at, called_at) is the later of the two.
+#   backfill-lock:        (step 8, T3) the M5 backfill runs and is parked holding its EXCLUSIVE lock on order_line and uscita_call: a plain
+#                         read of order_line answers at once, a SELECT ... FOR SHARE of it waits until the backfill commits.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -3078,6 +3080,26 @@ for order in fire-first call-first; do
   check "fire-hold-vs-call ($order): no deadlock" "$(fr_no_deadlock)" yes
   drop_db
 done
+
+CASE=backfill-lock
+fresh_db backfill_lock
+fr_setup
+PGAPPNAME=s1 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; select app.uscite_backfill_open_sessions(); $WAIT_GATE commit;" >"$WORK/s1.out" 2>&1 &
+s1=$!
+parked s1 "$s1"
+plain=$(PGOPTIONS="${PGOPTIONS:-} -c lock_timeout=2s" query "select count(*) from public.order_line" 2>&1 || true)
+PGAPPNAME=s2 psql -X -v ON_ERROR_STOP=1 -q -d "$DB" -c "begin; select id from public.order_line for share; commit;" >"$WORK/s2.out" 2>&1 &
+s2=$!
+finished_or_blocked s2 "$s2"
+s2_blocked=$(query "select count(*) from pg_stat_activity where datname = '$DB' and application_name = 's2' and wait_event_type = 'Lock'")
+query "insert into race.gate values (true)" >/dev/null
+rc1=0 rc2=0
+wait "$s1" || rc1=$?
+wait "$s2" || rc2=$?
+check "backfill-lock: a plain read answers while the backfill holds its lock" "$plain" 2
+check "backfill-lock: a FOR SHARE read waits for it" "$s2_blocked" 1
+check "backfill-lock: both commit" "$rc1$rc2" 00
+drop_db
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then

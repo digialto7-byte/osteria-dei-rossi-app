@@ -27,7 +27,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // Comanda per uscita step 4 (20261206220100_uscita_order_entry.sql), re-pinned on purpose by comanda-uscite (step 4; was 20261206220000_uscita_core.sql): order entry with an uscita.
 // Comanda per uscita step 5 (20261206220200_uscita_fire_call.sql), re-pinned on purpose by comanda-uscite (step 5; was 20261206220100_uscita_order_entry.sql): one send with hold and the call.
 // Comanda per uscita step 7 (20261206220300_uscita_void.sql), re-pinned on purpose by comanda-uscite (step 7; was 20261206220200_uscita_fire_call.sql): not_prepared.
-const NEWEST_MIGRATION = "20261206220300_uscita_void.sql";
+// Comanda per uscita step 8 (20261206220400_uscita_open_sessions.sql), re-pinned on purpose by comanda-uscite (step 8; was 20261206220300_uscita_void.sql): the open sessions placed in place, the NOT VALID check and the default 1.
+const NEWEST_MIGRATION = "20261206220400_uscita_open_sessions.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {

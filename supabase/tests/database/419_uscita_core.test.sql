@@ -33,15 +33,19 @@ insert into public.table_session (id, tenant_id, dining_table_id, table_name, co
    '1998-11-04 19:00+00', 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'),
   ('34000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '33000000-0000-4000-8000-000000000002', 'Tavolo 2 Demo', 2,
    '1998-11-04 19:00+00', 'd1000000-0000-4000-8000-00000000000d', '1998-11-04', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
--- L1 draft (S1), L2 fired (S1), L3 fired (S2, closed below).
-insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by, fired_at, fired_by) values
+-- L1 draft (S1), L2 fired (S1), L3 fired (S2, closed below): lines from before uscite, so uscita null. Re-pinned on purpose by comanda-uscite
+-- (step 8): since M5 a null uscita is refused by the NOT VALID check order_line_uscita_set_ck and an omitted one takes the default 1, so the
+-- check is dropped for this fixture only, inside this rolled-back transaction, and the lines name uscita null. The lasting proof of T1 (rows
+-- that existed before M5 keep null) is pgTAP 423 (atthasmissing).
+alter table public.order_line drop constraint if exists order_line_uscita_set_ck;
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, uscita, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by, fired_at, fired_by) values
   ('35000000-0000-4000-8000-000000000001', '11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000001',
-   'secondi', 1, 14.00, 10, 'menu', '1998-11-04 19:01+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', null, null),
+   'secondi', 1, null, 14.00, 10, 'menu', '1998-11-04 19:01+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d', null, null),
   ('35000000-0000-4000-8000-000000000002', '11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000001',
-   'secondi', 1, 14.00, 10, 'menu', '1998-11-04 19:02+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
+   'secondi', 1, null, 14.00, 10, 'menu', '1998-11-04 19:02+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
    '1998-11-04 19:05+00', 'd1000000-0000-4000-8000-00000000000d'),
   ('35000000-0000-4000-8000-000000000003', '11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000002', '31000000-0000-4000-8000-000000000001',
-   'secondi', 1, 14.00, 10, 'menu', '1998-11-04 19:02+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
+   'secondi', 1, null, 14.00, 10, 'menu', '1998-11-04 19:02+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d',
    '1998-11-04 19:05+00', 'd1000000-0000-4000-8000-00000000000d');
 update public.table_session set closed_at = '1998-11-04 21:00+00', closed_by = 'd1000000-0000-4000-8000-00000000000d', closed_business_date = '1998-11-04',
   receipt_type = 'scontrino', receipt_number = '0001-0001', payment_type = 'card', total = 14.00
@@ -126,8 +130,14 @@ select is((select array_agg(r.role order by r.role) from (values ('anon'), ('aut
 -- 14-16: order_line.uscita (T1: added without a default).
 select is((select format_type(atttypid, atttypmod) || ' ' || (not attnotnull)::text || ' ' || atthasmissing::text from pg_attribute
              where attrelid = 'public.order_line'::regclass and attname = 'uscita'), 'smallint true false', 'order_line.uscita is a nullable smallint with no missing value');
-select is((select count(*)::int from public.order_line l join public.table_session s on s.tenant_id = l.tenant_id and s.id = l.table_session_id
-             where s.closed_at is not null and l.uscita is not null), 0, 'uscita is null for every closed-session line (T1)');
+-- Re-pinned on purpose by comanda-uscite (step 8; was "uscita is null for every closed-session line of the fixture (T1)"): a fixture inserted
+-- after every migration cannot show T1 any more (pgTAP 423 does); what holds is that a table-owner line omitting uscita stores the default 1.
+savepoint omitted;
+insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)
+  values ('35000000-0000-4000-8000-000000000009', '11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', '31000000-0000-4000-8000-000000000001',
+          'secondi', 1, 14.00, 10, 'menu', '1998-11-04 19:01+00', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d');
+select is((select uscita::int from public.order_line where id = '35000000-0000-4000-8000-000000000009'), 1, 'a fixture line inserted without uscita stores 1');
+rollback to savepoint omitted;
 select is(left(pg_temp.err($$update public.order_line set uscita = 10 where id = '35000000-0000-4000-8000-000000000001'$$), 5), '23514', 'order_line.uscita 10 -> 23514');
 
 -- 17-20: the guard.
@@ -189,8 +199,8 @@ select is(left(pg_temp.err($$insert into public.uscita_call (tenant_id, table_se
   values ('11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', 4, '1998-11-04 19:10+00', 'b1000000-0000-4000-8000-00000000000b', 'call')$$), 5),
   '23503', 'a call row whose caller is another tenant''s user -> 23503');
 select is((select pg_get_expr(adbin, adrelid) from pg_attrdef where adrelid = 'public.order_line'::regclass
-             and adnum = (select attnum from pg_attribute where attrelid = 'public.order_line'::regclass and attname = 'uscita')), null,
-  'order_line.uscita has no default (M1)');
+             and adnum = (select attnum from pg_attribute where attrelid = 'public.order_line'::regclass and attname = 'uscita')), '1' /* re-pinned on purpose by comanda-uscite (step 8; was null: M1 adds the column without a default, M5 sets 1 by the lead's ruling) */,
+  'order_line.uscita has no default from M1; M5 sets 1 (lead ruling M5, option a)');
 
 select * from finish();
 rollback;
