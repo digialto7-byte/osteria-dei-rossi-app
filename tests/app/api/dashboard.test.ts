@@ -23,11 +23,12 @@ const failure = (code: string, message: string): FakeResult => ({
   error: { code, message },
 });
 
-function as(role: string, reply?: FakeResult) {
+function as(role: string, reply?: FakeResult, opening?: FakeResult) {
   client = fakeSupabase({
     claims: role === "none" ? null : claimsFor(role),
     rpc: {
       dashboard_summary: [reply ?? ok(role === "admin" ? adminSql() : ownerSql())],
+      opening_stock_summary: [opening ?? ok({ booked: false, draftLines: 0 })],
     },
   });
 }
@@ -39,15 +40,17 @@ beforeEach(() => reportError.mockClear());
 
 describe("GET /api/dashboard: who", () => {
   it.each(["owner", "admin"])(
-    "%s: one data RPC, one tenant_settings read and no table read",
+    "%s: two data RPCs (the snapshot and the opening-stock flag), one tenant_settings read and no table read",
     async (role) => {
       as(role);
       const response = await get();
       expect(response.status).toBe(200);
-      expect(dataRpcCalls(client)).toHaveLength(1);
-      expect(tenantSettingsCalls(client)).toBe(1); // the zone for the alert times: two RPCs in all (SP1 step 11)
-      expect(client.rpc).toHaveBeenCalledTimes(2);
+      // Opening stock step 17 (lead ruling 2026-11-18): the set-up flag is read outside the dashboard snapshot on purpose.
+      expect(dataRpcCalls(client)).toHaveLength(2);
+      expect(tenantSettingsCalls(client)).toBe(1); // the zone for the alert times (SP1 step 11)
+      expect(client.rpc).toHaveBeenCalledTimes(3);
       expect(client.rpc).toHaveBeenCalledWith("dashboard_summary");
+      expect(client.rpc).toHaveBeenCalledWith("opening_stock_summary", {});
       expect(client.from).not.toHaveBeenCalled();
     },
   );
@@ -136,13 +139,49 @@ describe("GET /api/dashboard: the yesterday tile (M22) and the push list tile (M
       expect(body.tiles.pushList.count).toBe(3);
       expect(body.tiles.pushList.items).toHaveLength(2);
       expect(body.comingSoon).toEqual([]);
-      expect(dataRpcCalls(client)).toHaveLength(1);
+      expect(dataRpcCalls(client)).toHaveLength(2);
     },
   );
 
   it("a document without the yesterday block is a 500", async () => {
     const { yesterday: _yesterday, ...rest } = adminSql();
     as("admin", ok(rest));
+    expect((await get()).status).toBe(500);
+  });
+});
+
+describe("GET /api/dashboard: the openingStock set-up step (opening stock step 17)", () => {
+  it.each(["owner", "admin"])(
+    "%s: today.setup has openingStock after ingredients, done from booked",
+    async (role) => {
+      as(role, undefined, ok({ booked: true, draftLines: 0 }));
+      const body = (await (await get()).json()) as {
+        today: { setup: { key: string; done: boolean; href: string }[] };
+      };
+      const keys = body.today.setup.map((s) => s.key);
+      expect(keys.indexOf("openingStock")).toBe(keys.indexOf("ingredients") + 1);
+      expect(body.today.setup).toContainEqual({
+        key: "openingStock",
+        done: true,
+        href: "/magazzino/avvio",
+      });
+    },
+  );
+
+  it("a failed opening_stock_summary fails the dashboard like its other reads: 500 dashboard_unavailable, logged by code, never done false", async () => {
+    as("owner", undefined, failure("XX000", 'relation "secret_table" does not exist'));
+    const response = await get();
+    expect(response.status).toBe(500);
+    const text = await response.text();
+    expect(JSON.parse(text).error.code).toBe("dashboard_unavailable");
+    expect(text).not.toContain("secret_table");
+    expect(String((reportError.mock.calls[0]?.[0] as Error).message)).toContain("XX000");
+  });
+
+  it("42501 from opening_stock_summary is a 403; a malformed flag document is a 500", async () => {
+    as("admin", undefined, failure("42501", "insufficient_privilege"));
+    expect((await get()).status).toBe(403);
+    as("admin", undefined, ok({ booked: null, draftLines: 0 }));
     expect((await get()).status).toBe(500);
   });
 });

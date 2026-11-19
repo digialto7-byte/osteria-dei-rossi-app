@@ -53,6 +53,14 @@ insert into public.cost_centre (id, tenant_id, name)
 -- P2-7 S3: the per-rate VAT summary row of the invoice (the fixture needs a row in every public table).
 insert into public.invoice_vat_summary (tenant_id, invoice_id, position, vat_rate, taxable, tax)
   values ('11111111-1111-4111-8111-111111111111', 'e1000000-0000-4000-8000-0000000000e1', 1, 10, 25.50, 2.55);
+-- Opening stock step 5: one operation and one draft line (the fixture needs a row in every public table).
+insert into public.stock_opening (tenant_id, location_id, effective_on, request_id, line_count, created_by)
+  select '11111111-1111-4111-8111-111111111111', (select id from public.location where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1),
+         '2000-01-01', gen_random_uuid(), 1, (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1);
+insert into public.opening_draft_line (id, tenant_id, location_id, ingredient_id, qty, unit_cost, created_by, updated_by)
+  select gen_random_uuid(), '11111111-1111-4111-8111-111111111111', (select id from public.location where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1),
+         '1a000000-0000-4000-8000-00000000001a', 1, 12.5, u.id, u.id
+    from (select id from public.app_user where tenant_id = '11111111-1111-4111-8111-111111111111' limit 1) u;
 
 -- M3 extracted invoice lines, with the M4 review states: a mapped line (position 1), a non-stock
 -- line (position 2), and a split line with one child (position 3).

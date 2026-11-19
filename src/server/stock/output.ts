@@ -8,7 +8,8 @@ import { STOCK_REASON_CODES } from "./reasons";
 // for that.
 
 const baseUnit = z.enum(["kg", "l", "pz"]);
-const movementType = z.enum(["receipt", "consumption", "waste", "transfer", "count"]);
+// opening stock (step 12): `opening` rows (carico iniziale, plan 2026-11-18 section 3.1) join the history; still no cost key.
+const movementType = z.enum(["receipt", "consumption", "waste", "transfer", "count", "opening"]);
 
 const stockLocation = z.strictObject({
   locationId: z.uuid(),

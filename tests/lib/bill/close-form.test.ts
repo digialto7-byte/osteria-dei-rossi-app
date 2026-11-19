@@ -7,6 +7,7 @@ import {
   closeButtonLabel,
   closeOptions,
   EMPTY_CLOSE_FORM,
+  withDefaultReceipt,
 } from "@/lib/bill/close-form";
 import type { OutboxOp } from "@/lib/sync/types";
 import { BIDS, TOKEN } from "../../helpers/bill-data";
@@ -104,6 +105,31 @@ describe("close form", () => {
   it("builds no body while the form is incomplete", () => {
     expect(closeBodyFrom(EMPTY_CLOSE_FORM, TOKEN)).toBeNull();
     expect(closeBodyFrom({ ...filled, paymentType: null }, TOKEN)).toBeNull();
+  });
+});
+
+// Founder, 2026-11-18: "Scontrino should be default when closing tables." The document defaults to the first one the tenant offers (its
+// order, tenant_close_code position 1); the payment never defaults; an empty or missing list guesses nothing.
+describe("withDefaultReceipt", () => {
+  it("preselects the tenant's first document and leaves the payment unchosen", () => {
+    expect(withDefaultReceipt(EMPTY_CLOSE_FORM, "scontrino")).toEqual({
+      receiptType: "scontrino",
+      receiptNumber: "",
+      paymentType: null,
+    });
+  });
+
+  it("defaults to whichever document comes first (the page passes the tenant's first: a Fattura-first tenant gets Fattura)", () => {
+    expect(withDefaultReceipt(EMPTY_CLOSE_FORM, "fattura").receiptType).toBe("fattura");
+  });
+
+  it("keeps a document the user chose", () => {
+    const chosen = { ...EMPTY_CLOSE_FORM, receiptType: "fattura" } as const;
+    expect(withDefaultReceipt(chosen, "scontrino")).toBe(chosen);
+  });
+
+  it("guesses nothing without a first document (no settings, or an empty list)", () => {
+    expect(withDefaultReceipt(EMPTY_CLOSE_FORM, null)).toBe(EMPTY_CLOSE_FORM);
   });
 });
 

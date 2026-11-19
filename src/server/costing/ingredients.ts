@@ -1,8 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { unwrapCost } from "./errors";
-import type { CostBasis, CostSettings, IngredientCost } from "./types";
+import type { CostBasis, CostSettings, CostSource, IngredientCost } from "./types";
 
-interface IngredientCostRow {
+export interface IngredientCostRow {
   ingredient_id: string;
   name: string;
   base_unit: string;
@@ -14,6 +14,12 @@ interface IngredientCostRow {
   max_eur: number | null;
   purchases_used: number;
   last_purchase_on: string | null;
+}
+
+/** 'invoice' once a purchase is in force, 'opening' for the carico fallback (ADR-048), null without any cost. */
+export function costSourceOf(unitCost: number | null, purchasesUsed: number): CostSource {
+  if (unitCost === null) return null;
+  return purchasesUsed > 0 ? "invoice" : "opening";
 }
 
 export interface IngredientCostsResponse {
@@ -47,6 +53,7 @@ export async function getIngredientCosts(
       maxEur: row.max_eur,
       purchasesUsed: row.purchases_used,
       lastPurchaseOn: row.last_purchase_on,
+      costSource: costSourceOf(row.unit_cost_eur, row.purchases_used),
     })),
   };
 }

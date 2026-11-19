@@ -124,20 +124,21 @@ select is((select string_agg(u.sch || '.' || u.name, ', ') from unchanged u
             where (select count(*)::int || ',' || coalesce(min(md5(p.prosrc)), '-') from pg_proc p where p.pronamespace = u.sch::regnamespace and p.proname = u.name) <> u.want), null, 'none is named as changed');
 
 -- 4. The catalogue gains only what the plan lists --------------------------------------------------------------------------------------------------------------------
-select is((select count(*)::int from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace) and relkind in ('r', 'p', 'v', 'm')), 73, 'the tables and views of public and app: main''s 70, invoice_vat_summary, tenant_vat_rate and tenant_close_code'); -- re-pinned on purpose by SP1 (step 3: 71 to 72; step 5: 72 to 73, tenant_close_code)
+select is((select count(*)::int from pg_class where relnamespace in ('public'::regnamespace, 'app'::regnamespace) and relkind in ('r', 'p', 'v', 'm')), 75, 'the tables and views of public and app: main''s 70, invoice_vat_summary, tenant_vat_rate and tenant_close_code, and opening stock''s stock_opening and opening_draft_line'); -- re-pinned on purpose by SP1 (step 3: 71 to 72; step 5: 72 to 73, tenant_close_code); re-pinned on purpose by opening stock (step 5: 73 to 75)
 select is((select string_agg(c.relname::text, ',' order by c.relname) from pg_class c where c.relnamespace = 'public'::regnamespace and c.relkind = 'r' and c.relname like 'invoice%'),
           'invoice,invoice_duplicate_decision,invoice_line,invoice_vat_summary', 'the invoice tables are the three of main and the new one');
-select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 130,
-          'the triggers: main''s 124, three, and SP1''s three (the two sale VAT checks and the tenant seed)'); -- re-pinned on purpose by SP1 (step 3: 127 to 130)
+select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 132,
+          'the triggers: main''s 124, three, and SP1''s three (the two sale VAT checks and the tenant seed), and opening stock''s two append-only guards of stock_opening'); -- re-pinned on purpose by SP1 (step 3: 127 to 130); re-pinned on purpose by opening stock (step 5: 130 to 132)
 select is((select string_agg(c.relname || '.' || t.tgname, ',' order by c.relname, t.tgname collate "C") from pg_trigger t join pg_class c on c.oid = t.tgrelid
             where not t.tgisinternal and c.relnamespace = 'public'::regnamespace and (c.relname = 'invoice_vat_summary' or t.tgname = 'invoice_xml_guard')),
           'invoice.invoice_xml_guard,invoice_vat_summary.invoice_vat_summary_append_only,invoice_vat_summary.invoice_vat_summary_no_truncate', 'which are invoice_xml_guard and the two append-only guards of the VAT summary');
-select is((select count(*)::int from pg_policy p join pg_class c on c.oid = p.polrelid where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 74, 'the row-level security policies: main''s 71, invoice_vat_summary_select, tenant_vat_rate_select and tenant_close_code_select'); -- re-pinned on purpose by SP1 (step 3: 72 to 73; step 5: 73 to 74)
+select is((select count(*)::int from pg_policy p join pg_class c on c.oid = p.polrelid where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 76, 'the row-level security policies: main''s 71, invoice_vat_summary_select, tenant_vat_rate_select and tenant_close_code_select, and opening stock''s stock_opening_select and opening_draft_line_select'); -- re-pinned on purpose by SP1 (step 3: 72 to 73; step 5: 73 to 74); re-pinned on purpose by opening stock (step 5: 74 to 76)
 select is((select string_agg(p.policyname::text || ':' || p.cmd::text, ',' order by p.policyname) from pg_policies p where p.schemaname = 'storage' and p.tablename = 'objects' and p.policyname like 'invoices\_%'),
           'invoices_object_insert:INSERT,invoices_object_select:SELECT', 'the Storage policies of the invoices bucket are the same two names (the insert one re-created, no update, no delete)');
 select is((select string_agg(jobname, ',' order by jobname collate "C") from cron.job), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants,mfa-failure-retention,reservation-mail,reservation-retention',
           'the cron jobs are main''s (eight, no new job)');
-select is((select count(*)::int from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)), 92, 'the enum values are main''s (92)');
+-- re-pinned on purpose by opening stock (step 3; was 92): stock_movement_type gains `opening` (20261206210000). Not in plan section 3.11; found by the full run.
+select is((select count(*)::int from pg_enum e join pg_type et on et.oid = e.enumtypid where et.typnamespace in ('public'::regnamespace, 'app'::regnamespace)), 93, 'the enum values are main''s plus stock_movement_type.opening (93)');
 
 select * from finish();
 rollback;

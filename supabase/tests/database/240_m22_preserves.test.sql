@@ -7,7 +7,7 @@ create extension if not exists pgtap with schema extensions;
 select plan(31);
 
 -- The purge list --------------------------------------------------------------------------------------------------------------------
-select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('invoice_vat_summary', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
+select is((select array_agg(n order by o) from unnest(app.demo_purge_tables()) with ordinality t(n, o) where n not in ('opening_draft_line', 'stock_opening' /* opening stock, step 5, on purpose */, 'invoice_vat_summary', 'daily_kpi', 'dashboard_open', 'menu_push', 'service_override', 'service_schedule', 'reservation_email', 'reservation_event', 'reservation_table', 'reservation_contact', 'reservation', 'table_group_member', 'table_group', 'dining_table_booking', 'reservation_settings')),
           array['alert', 'audit_event',
                 'staff_meal_confirmation', 'staff_meal_rule', 'batch_cost', 'batch_movement', 'batch_input', 'batch',
                 'count_line', 'count_session', 'stock_movement', 'raw_lot',
@@ -48,7 +48,7 @@ select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where pr
 -- re-pinned on purpose by P2-0b A4 (was 83ac74bc4f6a90819913e66747f4f6b6)
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'fire_course' and pronamespace = 'public'::regnamespace), '1,da02adc28182bd691664b5d890339b6d', 'public.fire_course: one definition, re-pinned on purpose by P2-0b A4');
 -- A5b (20261127100000_raw_stock_business_date.sql): stock_reconciliation was replaced on purpose, its movements and counts now fall on the business day of created_at (receipts by the invoice date). The pin is the new definition (pgTAP 259 proves the behaviour).
-select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'stock_reconciliation' and pronamespace = 'public'::regnamespace), '1,794e8991193b2955a0cea672b6788c44', 'public.stock_reconciliation: one definition, re-pinned on purpose by A5b');
+select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'stock_reconciliation' and pronamespace = 'public'::regnamespace), '1,3fc5dedc10e18de47e793538595090d5' /* re-pinned on purpose by opening stock (step 11; was 1,794e8991193b2955a0cea672b6788c44): opening rows fold into openingQty by effective_on */, 'public.stock_reconciliation: one definition, re-pinned on purpose by A5b');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'today_counts' and pronamespace = 'public'::regnamespace), '1,7ff7871c5ef75b08075c58438802bb39', 'public.today_counts: one definition, unchanged');
 select is((select count(*)::int || ',' || min(md5(prosrc)) from pg_proc where proname = 'void_line' and pronamespace = 'public'::regnamespace), '1,5d175ff95794d3bce2b55d26491989df', 'public.void_line: one definition, unchanged');
 -- A5 (20261117100000_batch_movement_business_date.sql): waste_costs was replaced on purpose, its batch side now counts by the business day of created_at. The pin is the new definition (pgTAP 257 proves the behaviour).
@@ -59,7 +59,7 @@ select is((select count(*)::int from app.alert_kind), 15, 'the alert registry st
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(md5(pg_get_constraintdef(oid)), ',' order by conname::text collate "C") from pg_constraint
             where conrelid = 'public.audit_event'::regclass and conname in ('audit_event_entity_type_check', 'audit_event_action_check')),
-          '014e2adc1b25094e2196b7f889851fef,72e5b28132df039351b652a126ed03a3', 'both audit_event checks re-pinned on purpose by reservations (A2); M22 itself adds no entity type and no action'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+          'f1bcb630ef53cdc857e3c2b5944bd31f,8dfaecfa6f53bcbea28c6b96bc14c7ef' /* on purpose by opening stock (step 5; was 014e2adc1b25094e2196b7f889851fef,72e5b28132df039351b652a126ed03a3) */, 'both audit_event checks re-pinned on purpose by reservations (A2); M22 itself adds no entity type and no action'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
 select is((select string_agg(jobname, ',' order by jobname) from cron.job where jobname not in ('reservation-mail', 'reservation-retention', 'mfa-failure-retention')), 'alert-rules,auth-purge,extract-invoices,kpi-rollup,ledger-invariants', 'the cron jobs are main''s four plus kpi-rollup');
 
 -- The five replaced functions keep their name and signature ----------------------------------------------------------------------------------

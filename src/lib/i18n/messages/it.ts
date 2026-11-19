@@ -96,6 +96,7 @@ export const it = {
   "today.hint.waste": "Scegli l'ingrediente nel magazzino.",
   "today.hint.staffMeals": "Le regole e la conferma dei pasti.",
   "today.firstSteps": "Primi passi",
+  "today.step.openingStock": "Carica il magazzino iniziale",
   "today.step.invoice": "Carica la prima fattura",
   "today.step.staff": "Aggiungi il personale",
   "today.step.floor": "Imposta tavoli e menu",
@@ -631,6 +632,38 @@ export const it = {
   "stock.type.transfer": "Spostamento",
   "stock.type.count": "Conteggio",
   "stock.type.reversal": "Annullamento",
+  "stock.type.opening": "Carico iniziale",
+  // opening stock (plan 2026-11-18 §3.9; Italian wording da approvare, Q15)
+  "openingError.opening_draft_changed":
+    "La bozza è cambiata nel frattempo. Ricarica e controlla prima di confermare.",
+  "openingError.opening_location_counted":
+    "Questa ubicazione è già stata contata il {date}: il carico iniziale non è più possibile.",
+  "openingError.opening_count_open":
+    "C'è un conteggio aperto in questa ubicazione: chiudilo o annullalo prima.",
+  "openingError.opening_draft_not_empty":
+    "Conferma o svuota la bozza di questa ubicazione prima di correggere.",
+  "openingError.already_reversed": "Questo carico è già stato corretto.",
+  "openingError.opening_request_reused":
+    "Questa conferma è già stata usata per un'altra ubicazione. Riprova.",
+  "openingError.opening_qty_invalid":
+    "Quantità non valida: maggiore di zero, al massimo 100.000, con al massimo 4 decimali.",
+  "openingError.opening_cost_invalid":
+    "Costo non valido: da 0 a 100.000 €, con al massimo 4 decimali.",
+  "openingError.opening_line_duplicate":
+    "Questo ingrediente è già nella bozza di questa ubicazione.",
+  "openingError.opening_draft_full": "Al massimo 200 righe per ubicazione.",
+  "openingError.opening_date_in_future": "La data non può essere nel futuro.",
+  "openingError.opening_date_too_old": "La data non può essere più vecchia di un anno.",
+  "openingError.opening_date_after_receipt":
+    "La data deve essere prima della prima fattura ricevuta ({date}).",
+  "openingError.opening_reason_invalid": "Motivo non valido.",
+  "openingError.ingredient_not_stock": "Questo ingrediente non è a magazzino.",
+  "openingError.location_not_found": "Ubicazione non trovata.",
+  "openingError.ingredient_not_found": "Ingrediente non trovato.",
+  "openingError.opening_not_found": "Carico non trovato.",
+  "openingError.not_found": "Risorsa non trovata.",
+  "opening.lines.one": "{count} riga",
+  "opening.lines.other": "{count} righe",
   "stockError.lot_empty": "Il lotto scelto è vuoto in questa ubicazione.",
   "stockError.insufficient_stock":
     "In magazzino risulta meno di quanto vuoi spostare: fai prima un conteggio.",

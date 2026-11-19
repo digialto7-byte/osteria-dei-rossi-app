@@ -196,7 +196,7 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
             where c.conname = 'audit_event_entity_type_check'),
   array['app_user', 'count_session', 'device_enrolment', 'dining_table', 'ingredient', 'invoice', 'menu_item',
-        'payable', 'recipe', 'reservation_settings', 'sale_settings', 'staff_meal_rule', 'supplier', 'table_session', 'tenant', 'venue_device'],
+        'payable', 'recipe', 'reservation_settings', 'sale_settings', 'staff_meal_rule', 'stock_opening' /* opening stock, step 5, on purpose */, 'supplier', 'table_session', 'tenant', 'venue_device'],
   'the audit entity types: every earlier one plus app_user, venue_device, device_enrolment (and M13 count_session, M15 staff_meal_rule, M16 supplier, M17 menu_item, dining_table, table_session, sale_settings, reservations reservation_settings)');
 select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
                 lateral regexp_matches(pg_get_constraintdef(c.oid), '''([a-z_.]+)''', 'g') m
@@ -211,7 +211,7 @@ select is((select array_agg(m[1] order by m[1]) from pg_constraint c,
         'payable.payment_reversed', 'payable.status_changed',
         'recipe.deactivated', 'recipe.reactivated', 'recipe.rules_changed', 'reservation_settings.changed', 'sale_settings.changed',
         'staff_meal_rule.created',
-        'staff_meal_rule.updated', 'supplier.delivery_changed', 'table_session.covers_changed',
+        'staff_meal_rule.updated', 'stock.opening_posted', 'stock.opening_reversed' /* opening stock, step 5, on purpose */, 'supplier.delivery_changed', 'table_session.covers_changed',
         'tenant.demo_data_loaded', 'tenant.demo_data_removed', 'tenant.mfa_enforcement_changed', 'tenant.settings_changed', 'venue_device.enrolled',
         'venue_device.revoked', 'venue_device.unlocked'],
   'the audit actions: all nine earlier ones, the nine M11 ones (and the three M13 ones, the two M15 staff_meal_rule ones, the three M16 ones, the six M17 ones, the two demo-data tenant.demo_data_* ones, the reservations reservation_settings.changed, and P2-1''s seven MFA actions: mfa_enrolled, mfa_unenrolled, mfa_reset, mfa_reset_failed, mfa_locked, pin_set_failed, tenant.mfa_enforcement_changed)');

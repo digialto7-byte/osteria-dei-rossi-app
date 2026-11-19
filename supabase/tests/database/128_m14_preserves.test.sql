@@ -240,7 +240,7 @@ set local search_path = "$user", public, extensions;
 select is((select h from pin_md5 where k = 'post_stock_outflow'), 'b50e1690b47e3b3f89dd1da533c59463', 'app.post_stock_outflow is the M12 engine (md5)');
 select is((select h from pin_md5 where k = 'lock_ingredient_stock'), '3ff1f9612e96a6b9a79484e374c4f09c', 'app.lock_ingredient_stock is the M12 lock (md5)');
 select is((select h from pin_md5 where k = 'reverse_movement'), '86315a44ad8596241d21beab13ec00ab', 'public.reverse_movement is the M12 procedure (md5)');
-select is((select h from pin_md5 where k = 'ingredient_unit_costs'), 'c33bfb730c5711aa7bcb9fd4fb9c62bb', 'app.ingredient_unit_costs is the M8 reader (md5)');
+select is((select h from pin_md5 where k = 'ingredient_unit_costs'), '73447505cf20e47e1b4045dadd04a39e' /* re-pinned on purpose by opening stock (step 10; was c33bfb730c5711aa7bcb9fd4fb9c62bb): the opening-cost fallback */, 'app.ingredient_unit_costs is the M8 reader (md5)');
 
 -- No alert kind was added.
 select is((select string_agg(kind, ',' order by kind) from app.alert_kind),
@@ -281,8 +281,9 @@ select is((select count(*)::int from public.batch_input bi join public.stock_mov
             where m.ref_type = 'batch' and m.ref_id = bi.batch_id), 3, 'each is mirrored by a batch_input');
 
 -- The movement types M12 knows were not extended.
+-- re-pinned on purpose by opening stock (step 3; was receipt,consumption,waste,transfer,count): the enum gains `opening` (docs/plans/2026-11-18-opening-stock.md section 3.1).
 select is((select string_agg(e.enumlabel, ',' order by e.enumsortorder) from pg_enum e where e.enumtypid = 'public.stock_movement_type'::regtype),
-  'receipt,consumption,waste,transfer,count', 'stock_movement_type is unchanged');
+  'receipt,consumption,waste,transfer,count,opening', 'stock_movement_type is the six labels (the five of M12, then opening)');
 
 select * from finish();
 rollback;

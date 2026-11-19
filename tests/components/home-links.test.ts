@@ -86,12 +86,13 @@ describe("Oggi, the home page", () => {
     expect(link("Avvisi")).toBeNull();
   });
 
-  it("gives the owner and the admin the first-steps list, with six steps", async () => {
+  it("gives the owner and the admin the first-steps list, with seven steps", async () => {
     for (const who of ["owner", "admin"]) {
       const { container } = await open(who);
       const heading = screen.getByRole("heading", { name: "Primi passi" });
       const list = heading.parentElement!.querySelector("ul")!;
-      expect(list.querySelectorAll("a")).toHaveLength(6);
+      expect(list.querySelectorAll("a")).toHaveLength(7);
+      expect(container.textContent).toContain("Carica il magazzino iniziale");
       expect(container.textContent).toContain("Carica la prima fattura");
       cleanup();
     }

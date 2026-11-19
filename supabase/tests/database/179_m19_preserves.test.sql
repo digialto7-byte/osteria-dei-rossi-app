@@ -87,8 +87,8 @@ select is((select cost_bearing::text || ' ' || default_severity::text || ' ' || 
   'negative_stock is not cost-bearing, a warning for owner and chef (the batch shortage reuses it)');
 
 -- the audit checks
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '72e5b28132df039351b652a126ed03a3', 'audit_event_entity_type_check is the definition on main 7233edc (md5; same as on 035c648, M19 adds no entity type; re-pinned on purpose by reservations (A2))');
-select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), '014e2adc1b25094e2196b7f889851fef' /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'audit_event_action_check is the definition on main 7233edc (md5; the demo-data PR widened it, M19 adds no action; re-pinned on purpose by reservations (A2))'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_entity_type_check'), '8dfaecfa6f53bcbea28c6b96bc14c7ef' /* on purpose by opening stock (step 5; was 72e5b28132df039351b652a126ed03a3) */, 'audit_event_entity_type_check is the definition on main 7233edc (md5; same as on 035c648, M19 adds no entity type; re-pinned on purpose by reservations (A2))');
+select is((select md5(pg_get_constraintdef(oid)) from pg_constraint where conname = 'audit_event_action_check'), 'f1bcb630ef53cdc857e3c2b5944bd31f' /* on purpose by opening stock (step 5; was 014e2adc1b25094e2196b7f889851fef) */ /* re-pinned on purpose by P2-7 S4: invoice.imported_xml */, 'audit_event_action_check is the definition on main 7233edc (md5; the demo-data PR widened it, M19 adds no action; re-pinned on purpose by reservations (A2))'); -- md5 re-pinned on purpose by P2-1 A3 (six MFA audit actions)
 select is((select count(*)::int from pg_constraint where conname in ('audit_event_entity_type_check', 'audit_event_action_check')), 2, 'each exists once');
 
 -- Demo data (ADR-018): M19's one new tenant table joins the purge list, before the order lines and the recipes it points at

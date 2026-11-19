@@ -64,11 +64,12 @@ const OWNER = renderDashboard(dashboardSqlSchema.parse(ownerSql()), "it", "Europ
 const ADMIN = renderDashboard(dashboardSqlSchema.parse(adminSql()), "it", "Europe/Rome");
 
 const card = (key: string, count: number, more = false) => ({ key, count, more, href: "/x" });
-const step = (key: string, done: boolean) => ({ key, done, href: `/${key}` });
+const step = (key: string, done: boolean) => ({ key, done, href: `/${key.toLowerCase()}` });
 const SETUP_KEYS = [
   "locations",
   "suppliers",
   "ingredients",
+  "openingStock",
   "invoice",
   "staff",
   "device",
@@ -186,7 +187,7 @@ describe("Oggi with counts (owner)", () => {
 });
 
 describe("Oggi: Primi passi from the server", () => {
-  it("shows Da fare and Fatto on the six steps", async () => {
+  it("shows Da fare and Fatto on the seven steps", async () => {
     await open("owner");
     const heading = await screen.findByRole("heading", { name: "Primi passi" });
     await screen.findAllByText("Da fare");
@@ -197,7 +198,7 @@ describe("Oggi: Primi passi from the server", () => {
     expect(
       within(list).getByRole("link", { name: /^Carica la prima fattura/ }).textContent,
     ).toContain("Fatto");
-    expect(list.querySelectorAll("a")).toHaveLength(6);
+    expect(list.querySelectorAll("a")).toHaveLength(7);
   });
 
   it("a fresh owner sees Ubicazioni · Da fare, and Fatto once a location exists", async () => {
@@ -225,7 +226,7 @@ describe("Oggi: Primi passi from the server", () => {
     todayReply = () => new Promise(() => {});
     await open("owner");
     const heading = screen.getByRole("heading", { name: "Primi passi" });
-    expect(heading.parentElement!.querySelectorAll("a")).toHaveLength(6);
+    expect(heading.parentElement!.querySelectorAll("a")).toHaveLength(7);
     expect(screen.queryByText("Da fare")).toBeNull();
     expect(screen.queryByText("Fatto")).toBeNull();
   });
@@ -300,7 +301,7 @@ describe("Oggi: when the read fails", () => {
     expect(screen.queryByText(/da rivedere|Avvisi da vedere|Niente da fare/)).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Primi passi" }).parentElement!.querySelectorAll("a"),
-    ).toHaveLength(6);
+    ).toHaveLength(7);
   });
 
   it("the chef's failure keeps the old notice about today's numbers, and Riprova reads /api/today again", async () => {
