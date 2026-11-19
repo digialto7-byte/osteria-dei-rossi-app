@@ -712,6 +712,15 @@ consequence of an object this plan re-creates, and each carries a "re-pinned on 
 | `scripts/test-db-races.sh` (`kitchen-close-twice`) | the ticket body carries `uscita` | 13 |
 | `tests/integration/firing.int.ts` | the ticket key text | 13 |
 | `tests/server/kitchen/*`, `tests/app/api/kitchen-*.test.ts`, `tests/lib/kitchen/*`, `tests/components/{ticket-card,kitchen-page,closed-section}.test.ts`, `tests/helpers/kitchen-data.ts` | the board, body and heading shapes (step 14; the `src/lib/kitchen` heading and body only, no `.tsx` change: lead 2026-11-19) | 14 |
+| `e2e/kitchen.spec.ts`, `e2e/simulation/service.spec.ts` (PR 3) | a ticket is one uscita: found by the course of its line (was `ticket.course` and the key text `\|primi\|`); the close notice names the uscita ("1ª uscita", was "Primi") | 13 |
+| `157` t4, `367` t7 | the session key set gains `uscite` | 17 |
+| `166` t8 | the order view's top-level keys gain `uscite` | 17 |
+| `179` t2, t20; `214` t7; `327` t2 | `public.order_view` (md5 of the definition) | 17 |
+| `367` t2, t3, t8, t17, t20–t22 (+ one new case: a session whose only draft is a segue draft shows 1) | `app.session_unsent_lines` counts every draft: "a segue draft counts in unsentCount" | 17 |
+| `389` t7 (+ one new check: the payload without `session.uscite` is the old pin byte for byte) | SP1 G's sessions have fired uscita-1 lines, so `uscite` is an object there, not null | 17 |
+| `359` `p27_objs` (a step-17 insert) | `app.session_uscite` | 17 |
+| `301` t2; `327` t2 | `app.close_session_at` | 18 |
+| `301` t17 | `public.tables_list` | 17 |
 
 **Must stay unchanged (asserted again by `424`):**
 - `app.freeze_line_cost` (`240:36`);
