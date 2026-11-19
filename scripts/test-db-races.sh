@@ -210,6 +210,17 @@
 #   count-entry-vs-opening:  no count is open. The owner's confirm is parked after its cut-off check, holding the stock lock; the chef
 #                            starts a monthly count (it commits), then enters the ingredient and waits for the stock lock; after the
 #                            confirm commits, the line's expected_qty is 25 (the carico is in the snapshot, never counted twice).
+# Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md section 5 step 6; migrations 20261206220200 and 20261206220300: call_uscita
+# takes the session FOR SHARE, then the held lines of its uscita FOR UPDATE in id order, as fire and void do). The M19 fixture (S1, the stew
+# lines L1 and L2) with L1 in the 2nd uscita (L2 in the 1st), both sent with hold, so L1 is held:
+#   call-vs-not-prepared: W1 voids L1 not_prepared and is parked; W2 calls the 2nd and waits on L1's row; after the void commits the call
+#                         answers nothing_waiting (no row). In the other order (the call parked, the void waiting) the void answers
+#                         uscita_called (no reversal). Never both writes. (Checked once with a mutated copy of the migrations without the
+#                         held-lines FOR UPDATE of call_uscita: the call no longer waits, both writes commit and the case fails.)
+#   two-calls:            W1 calls the 2nd and is parked; W2 calls it too and waits on L1's row; after the commit W2 answers already_called.
+#                         One row, no deadlock.
+#   fire-hold-vs-call:    L3 is a 2nd-uscita draft. A fire of L3 with hold and a call of the 2nd commit in either order: L3 is not held
+#                         afterwards, and its ticket instant greatest(fired_at, called_at) is the later of the two.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
 # Needs only plain Postgres 16+ (no pgTAP). Uses the standard PGHOST/PGPORT/PGUSER variables.
 # MIGRATIONS_DIR overrides the migrations folder (used to check that the cases fail without the fix).
@@ -2988,6 +2999,85 @@ check "count-entry-vs-opening: its expected_qty is 25 (the carico is in the snap
 check "count-entry-vs-opening: one operation, one movement" "$(opening_rows)" 1/1
 check "count-entry-vs-opening: no deadlock" "$(fr_no_deadlock)" yes
 drop_db
+
+# Comanda per uscita (step 6): see the header.
+FR_L3=e1190000-0000-4000-8000-000000190003
+us_setup() { # us_setup: the M19 fixture; L1 in the 2nd uscita, L2 in the 1st, both sent with hold (L1 held)
+  fr_setup
+  query "update public.order_line set uscita = 2 where id = '$OE_L1'; update public.order_line set uscita = 1 where id = '$FR_L2';" >/dev/null
+  as_run "$WAITER1" "select public.fire_course('$OE_S1', '{\"lineIds\":[\"$OE_L1\",\"$FR_L2\"],\"hold\":true}'::jsonb);"
+}
+us_call() { echo "insert into race.result select '$1', public.call_uscita('$OE_S1', '{\"uscita\":2}'::jsonb)::text;"; }
+us_void() { echo "insert into race.result select '$1', public.void_line('$OE_L1', '{\"reason\":\"not_prepared\",\"clientUpdatedAt\":\"2026-10-24T10:30:00Z\"}'::jsonb)::text;"; }
+us_reply() { query "select coalesce(value::jsonb -> 'conflict' ->> 'reason', 'changed:' || (value::jsonb ->> 'changed')) from race.result where label = '$1'"; }
+us_calls() { query "select count(*) from public.uscita_call where table_session_id = '$OE_S1'"; }
+us_reversals() { query "select count(*) from public.batch_movement where ref_id = '$OE_L1' and reverses_id is not null"; }
+
+CASE=call-vs-not-prepared
+fresh_db call_vs_not_prepared
+us_setup
+two_sessions_as "$WAITER1" "$(us_void s1)" "$WAITER2" "$(us_call s2)"
+check "call-vs-not-prepared: the void commits" "$rc1" 0
+check "call-vs-not-prepared: the call waited on the line row" "$s2_blocked" 1
+check "call-vs-not-prepared: the call commits" "$rc2" 0
+check "call-vs-not-prepared: the void reversed the portion" "$(us_reply s1)/$(us_reversals)" changed:true/1
+check "call-vs-not-prepared: the call answers nothing_waiting, no row" "$(us_reply s2)/$(us_calls)" nothing_waiting/0
+check "call-vs-not-prepared: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=not-prepared-vs-call
+fresh_db not_prepared_vs_call
+us_setup
+two_sessions_as "$WAITER2" "$(us_call s1)" "$WAITER1" "$(us_void s2)"
+check "not-prepared-vs-call: the call commits" "$rc1" 0
+check "not-prepared-vs-call: the void waited on the line row" "$s2_blocked" 1
+check "not-prepared-vs-call: the void commits" "$rc2" 0
+check "not-prepared-vs-call: one call row" "$(us_reply s1)/$(us_calls)" changed:true/1
+check "not-prepared-vs-call: the void answers uscita_called, no reversal" "$(us_reply s2)/$(us_reversals)" uscita_called/0
+check "not-prepared-vs-call: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+CASE=two-calls
+fresh_db two_calls
+us_setup
+two_sessions_as "$WAITER1" "$(us_call s1)" "$WAITER2" "$(us_call s2)"
+check "two-calls: W1's call commits" "$rc1" 0
+check "two-calls: W2's call waited on the line row" "$s2_blocked" 1
+check "two-calls: W2's call commits" "$rc2" 0
+check "two-calls: W1 changed, W2 already_called" "$(us_reply s1)/$(us_reply s2)" changed:true/already_called
+check "two-calls: one row" "$(us_calls)" 1
+check "two-calls: no deadlock" "$(fr_no_deadlock)" yes
+drop_db
+
+us_l3() { # us_l3: L3, a 2nd-uscita stew draft on S1
+  query "insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, uscita, segue, unit_price, vat_rate, price_source, client_updated_at, created_by, updated_by)
+    values ('$FR_L3', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 2, true, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1');" >/dev/null
+}
+us_fire_l3() { echo "select public.fire_course('$OE_S1', '{\"lineIds\":[\"$FR_L3\"],\"hold\":true}'::jsonb);"; }
+us_l3_after() { # held / instant = the later of fired_at and called_at
+  query "select (select app.line_held(l.tenant_id, l))::text || '/' ||
+      (greatest(l.fired_at, c.called_at) = case when l.fired_at > c.called_at then l.fired_at else c.called_at end)::text
+    from public.order_line l join public.uscita_call c on c.tenant_id = l.tenant_id and c.table_session_id = l.table_session_id and c.uscita = l.uscita
+    where l.id = '$FR_L3'"
+}
+
+for order in fire-first call-first; do
+  CASE=fire-hold-vs-call-$order
+  fresh_db fire_hold_vs_call_${order//-/_}
+  us_setup
+  us_l3
+  if [ "$order" = fire-first ]; then
+    two_sessions_as "$WAITER1" "$(us_fire_l3)" "$WAITER2" "$(us_call s2)"
+  else
+    two_sessions_as "$WAITER2" "$(us_call s1)" "$WAITER1" "$(us_fire_l3)"
+  fi
+  check "fire-hold-vs-call ($order): both commit" "$rc1$rc2" 00
+  check "fire-hold-vs-call ($order): L3 is fired" "$(query "select state from public.order_line where id = '$FR_L3'")" fired
+  check "fire-hold-vs-call ($order): one call row" "$(us_calls)" 1
+  check "fire-hold-vs-call ($order): L3 is not held; its ticket instant is the later of fired_at and called_at" "$(us_l3_after)" false/true
+  check "fire-hold-vs-call ($order): no deadlock" "$(fr_no_deadlock)" yes
+  drop_db
+done
 
 "${PSQL[@]}" -d postgres -c "drop database if exists $TEMPLATE" >/dev/null
 if [ "$failures" -gt 0 ]; then
