@@ -190,6 +190,18 @@ describe("GET and DELETE", () => {
     expect(client.rpc).toHaveBeenCalledWith("opening_draft", {});
   });
 
+  it.each(["?x=1", "?locationId=" + LOC, "?locale=en"])(
+    "GET with a query string (%s) is a 400 invalid_request without an RPC, as /api/today and /api/dashboard",
+    async (query) => {
+      const response = await draftRoute.GET(new Request(`${BASE}${query}`));
+      expect(response.status).toBe(400);
+      expect(((await response.json()) as { error: { code: string } }).error.code).toBe(
+        "invalid_request",
+      );
+      expect(client.rpc).not.toHaveBeenCalledWith("opening_draft", expect.anything());
+    },
+  );
+
   it("an undeclared key in the RPC answer is a 500, never a leak", async () => {
     as("owner", { opening_draft: [ok({ ...DRAFT, tenantId: LOC })] });
     expect((await getDraft()).status).toBe(500);
