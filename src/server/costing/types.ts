@@ -47,6 +47,9 @@ export interface FixedCostStatus {
   reason: "no_fixed_costs" | "no_sales" | null;
 }
 
+/** Derived server-side: a non-null cost with zero purchases can only come from an opening row (pgTAP 414). */
+export type CostSource = "invoice" | "opening" | null;
+
 export interface CostLine {
   position: number;
   target: { kind: "ingredient" | "recipe"; id: string; name: string };
@@ -57,6 +60,8 @@ export interface CostLine {
   lineCostEur: number | null;
   incomplete: boolean;
   reason: string | null;
+  /** Where the unit cost comes from: an invoice price, the opening carico (ADR-048), or nothing; null on sub-recipe lines. */
+  costSource: CostSource;
 }
 
 export interface RecipeCost {
@@ -98,6 +103,7 @@ export interface IngredientCost {
   maxEur: number | null;
   purchasesUsed: number;
   lastPurchaseOn: string | null;
+  costSource: CostSource;
 }
 
 export interface CostSettings {

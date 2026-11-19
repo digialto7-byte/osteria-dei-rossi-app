@@ -463,9 +463,11 @@ describe("GET /api/costs/ingredients", () => {
       maxEur: 11,
       purchasesUsed: 3,
       lastPurchaseOn: "2026-10-20",
+      costSource: "invoice",
     });
     expect(body.ingredients[1].unitCostEur).toBeNull();
     expect(body.ingredients[1].purchasesUsed).toBe(0);
+    expect(body.ingredients[1].costSource).toBeNull();
   });
 
   it("an empty list when the tenant has no ingredients; error mapping", async () => {

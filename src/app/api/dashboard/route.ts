@@ -3,7 +3,7 @@ import { withApi } from "@/lib/api/with-api";
 import { dashboardSummary } from "@/server/dashboard/summary";
 import { measured, timedJson } from "@/server/orders/timing";
 
-// The owner's and the admin's Oggi, in one data round trip (plus the tenant_settings read for the zone): the chef and the waiter get a 403 before any query. The function
+// The owner's and the admin's Oggi, in one snapshot round trip plus the opening-stock set-up flag (opening stock step 17) and the tenant_settings read for the zone: the chef and the waiter get a 403 before any query. The function
 // behind it is SECURITY DEFINER and checks the role again. No parameters: a query string is a 400.
 export const GET = withApi(
   { roles: ["owner", "admin"] },

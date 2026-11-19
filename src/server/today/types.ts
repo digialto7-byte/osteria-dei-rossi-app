@@ -16,6 +16,8 @@ export const SETUP_KEYS = [
   "locations",
   "suppliers",
   "ingredients",
+  // Opening stock step 17: read from opening_stock_summary, not from today_counts (outside the dashboard snapshot on purpose).
+  "openingStock",
   "invoice",
   "staff",
   "device",

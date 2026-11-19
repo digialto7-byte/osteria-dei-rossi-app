@@ -167,3 +167,15 @@ describe("stockAction", () => {
     expect(stockAction("?location=abc")).toBeNull();
   });
 });
+
+describe("movementTypeWord for the opening stock (opening stock step 12)", () => {
+  it("an opening row reads 'Carico iniziale' (en 'Opening stock')", () => {
+    expect(movementTypeWord("opening", false)).toBe("Carico iniziale");
+    expect(movementTypeWord("opening", false, "en")).toBe("Opening stock");
+    expect(movementTypeWord("opening", false, "it", "opening")).toBe("Carico iniziale");
+  });
+  it("its reversal reads 'Annullamento', as every reversal", () => {
+    expect(movementTypeWord("opening", true)).toBe("Annullamento");
+    expect(movementTypeWord("opening", true, "en", "reversal")).toBe("Reversal");
+  });
+});
