@@ -8,7 +8,7 @@
 begin;
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(25);
 
 -- What the migration left, before this file changes anything (T1, T2, the ruling).
 select is((select atthasmissing::text || ' ' || pg_get_expr(d.adbin, d.adrelid) from pg_attribute a
@@ -108,9 +108,13 @@ create temp table writers as
     from pg_proc p, regexp_matches(p.prosrc, 'insert\s+into\s+(?:public\.)?order_line\s*\(([^)]*)\)', 'gi') m
    where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace);
 select ok((select count(*) > 0 from writers where fn = 'add_order_line(uuid,jsonb)'), 'positive control: the scan finds public.add_order_line, so it is not empty');
-select is((select count(*)::int from pg_proc p where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace)
-             and p.prosrc ~* 'insert\s+into\s+(public\.)?order_line\M'), (select count(*)::int from writers),
-  'every insert into order_line in a public or app function has a column list the scan read');
+-- Statement by statement: every insert into order_line (with or without a column list) is one the scan read with its columns.
+select is((select count(*)::int from pg_proc p, regexp_matches(p.prosrc, 'insert\s+into\s+(public\.)?order_line\M', 'gi') m
+            where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace)), (select count(*)::int from writers),
+  'every insert statement into order_line in a public or app function has a column list the scan read');
+-- The writer set is pinned: a new writer fails here until it gets its own null-uscita case below.
+select is((select array_agg(distinct fn order by fn) from writers), array['add_order_line(uuid,jsonb)'],
+  'the only writer of order_line is add_order_line (a new one needs its own refusal case)');
 select is((select array_agg(fn order by fn) from writers where cols !~* '\muscita\M'), null, 'every insert into order_line names uscita, statement by statement');
 select is((select array_agg(p.oid::regprocedure::text order by 1) from pg_proc p where p.pronamespace in ('public'::regnamespace, 'app'::regnamespace)
              and p.prosrc ~* '\mexecute\M' and p.prosrc ~* 'order_line\M'), null, 'no public or app function builds SQL with execute and mentions order_line');

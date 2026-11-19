@@ -219,8 +219,9 @@
 #                         held-lines FOR UPDATE of call_uscita: the call no longer waits, both writes commit and the case fails.)
 #   two-calls:            W1 calls the 2nd and is parked; W2 calls it too and waits on L1's row; after the commit W2 answers already_called.
 #                         One row, no deadlock.
-#   fire-hold-vs-call:    L3 is a 2nd-uscita draft. A fire of L3 with hold and a call of the 2nd commit in either order: L3 is not held
-#                         afterwards, and its ticket instant greatest(fired_at, called_at) is the later of the two.
+#   fire-hold-vs-call:    L3 is a 2nd-uscita draft. A fire of L3 with hold and a call of the 2nd, each parked in turn (neither waits:
+#                         the call's FOR UPDATE skips L3, a draft in its snapshot), commit in both orders: L3 is not held afterwards,
+#                         and its ticket instant is called_at when the call commits first, fired_at when the fire does.
 #   backfill-lock:        (step 8, T3) the M5 backfill runs and is parked holding its EXCLUSIVE lock on order_line and uscita_call: a plain
 #                         read of order_line answers at once, a SELECT ... FOR SHARE of it waits until the backfill commits.
 # The order of the two sessions is fixed by race.gate and pg_stat_activity, not by sleeps.
@@ -3056,9 +3057,8 @@ us_l3() { # us_l3: L3, a 2nd-uscita stew draft on S1
     values ('$FR_L3', '$TENANT_A', '$OE_S1', '$OE_ITEM', 'secondi', 1, 2, true, 14, 10, 'menu', '2026-10-24T10:00:00Z', '$OT_W1', '$OT_W1');" >/dev/null
 }
 us_fire_l3() { echo "select public.fire_course('$OE_S1', '{\"lineIds\":[\"$FR_L3\"],\"hold\":true}'::jsonb);"; }
-us_l3_after() { # held / instant = the later of fired_at and called_at
-  query "select (select app.line_held(l.tenant_id, l))::text || '/' ||
-      (greatest(l.fired_at, c.called_at) = case when l.fired_at > c.called_at then l.fired_at else c.called_at end)::text
+us_l3_after() { # held / which instant is later: fired (the fire committed after the call) or called
+  query "select (select app.line_held(l.tenant_id, l))::text || '/' || case when l.fired_at > c.called_at then 'fired' else 'called' end
     from public.order_line l join public.uscita_call c on c.tenant_id = l.tenant_id and c.table_session_id = l.table_session_id and c.uscita = l.uscita
     where l.id = '$FR_L3'"
 }
@@ -3076,7 +3076,10 @@ for order in fire-first call-first; do
   check "fire-hold-vs-call ($order): both commit" "$rc1$rc2" 00
   check "fire-hold-vs-call ($order): L3 is fired" "$(query "select state from public.order_line where id = '$FR_L3'")" fired
   check "fire-hold-vs-call ($order): one call row" "$(us_calls)" 1
-  check "fire-hold-vs-call ($order): L3 is not held; its ticket instant is the later of fired_at and called_at" "$(us_l3_after)" false/true
+  # Neither session waits (the call's FOR UPDATE skips L3, still a draft in its snapshot), so the parked one commits second: with the
+  # fire parked the call commits first and L3's ticket instant is called_at; with the call parked the fire is later and it is fired_at.
+  [ "$order" = fire-first ] && want=false/called || want=false/fired
+  check "fire-hold-vs-call ($order): L3 is not held; its ticket instant greatest(fired_at, called_at) is the expected one" "$(us_l3_after)" "$want"
   check "fire-hold-vs-call ($order): no deadlock" "$(fr_no_deadlock)" yes
   drop_db
 done
