@@ -196,7 +196,7 @@ select is((select (e ->> 'unitPrice') || '/' || (e ->> 'qty') || '/' || (e ->> '
 select is((select count(*)::int from r, jsonb_array_elements(j -> 'lines') e where nm = 's1' and e ->> 'id' in ('e1000000-0000-4000-8000-000000000308', 'e1000000-0000-4000-8000-0000000000b1')), 0, 'lines of another session or tenant do not show');
 
 -- Key sets.
-select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where nm = 's1'), array['lines', 'session'], 'the top-level keys are {session, lines}');
+select is((select array_agg(k order by k) from r, jsonb_object_keys(j) k where nm = 's1'), array['lines', 'session', 'uscite'] /* re-pinned on purpose by comanda-uscite (step 17; was {lines, session}) */, 'the top-level keys are {session, lines, uscite} (pgTAP 428 proves uscite)');
 select is((select array_agg(k order by k collate "C") from r, jsonb_object_keys(j -> 'session') k where nm = 's1'),
   array['billRequested', 'closed', 'coperto', 'covers', 'id', 'openedAt', 'openedBy', 'openedToday', 'status', 'tableId', 'tableName'],
   'the session has exactly eleven keys (DS-BQ-2 adds openedAt, openedToday, openedBy, coperto; re-pinned on purpose)');

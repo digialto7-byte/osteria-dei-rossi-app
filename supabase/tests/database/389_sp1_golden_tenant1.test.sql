@@ -16,7 +16,7 @@ begin;
 -- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(19);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-g@example.test'),
@@ -129,7 +129,11 @@ insert into g select 'day_report', app.app_vs_register_json('11111111-1111-4111-
 select is((select md5(j::text) from g where k = 'menu_list'), 'e8aaf7b372b1ceeb68727af4df3dc10f', 'G: menu_list() payload');
 select is((select md5(j::text) from g where k = 'menu_items_manage'), '88d08bb5dcaf51d10e19a8dc8ecea317', 'G: menu_items_manage() payload (vatRates, defaults, items)');
 select is((select md5(j::text) from g where k = 'sale_settings_read'), 'b7fc06840c7017dc8d9e77b0751eff51', 'G: sale_settings_read() payload (coperto, vatRates)');
-select is((select md5(j::text) from g where k = 'tables_list'), 'de747e37221d98278854897c89b867a6', 'G: tables_list() payload (without the business date of today)');
+select is((select md5(j::text) from g where k = 'tables_list'), '6f39804196abe6409d5d9bdd10137a51' /* re-pinned on purpose by comanda-uscite (step 17; was de747e37: every session gains session.uscite) */, 'G: tables_list() payload (without the business date of today)');
+-- comanda-uscite step 17: with session.uscite taken out again, the payload is still the pre-uscite one byte for byte (nothing else moved).
+select is((select md5(jsonb_set(j, '{tables}', (select jsonb_agg(case when t -> 'session' <> 'null'::jsonb then jsonb_set(t, '{session}', (t -> 'session') - 'uscite') else t end order by o)
+                                               from jsonb_array_elements(j -> 'tables') with ordinality x(t, o)))::text) from g where k = 'tables_list'),
+  'de747e37221d98278854897c89b867a6', 'G: tables_list() without session.uscite is the pre-uscite payload (the pin before comanda-uscite)');
 select is((select md5(j::text) from g where k = 'bill_open'), 'ce41449545f6df3ec956c1c379ad339a', 'G: the bill of an open session with coperto (app.session_bill_json)');
 select is((select md5(j::text) from g where k = 'bill_closed'), '6807963ece6973da138997ea1f110027', 'G: the bill of a closed session (receipt block)');
 select is((select md5(j::text) from g where k = 'day_report'), '9a910a8c69bbea8a6e87a067e09f7693', 'G: the day report (app.app_vs_register_json, without asOf and the date)');

@@ -1,9 +1,11 @@
--- BQ-1: public.tables_list gives every tile's session an integer unsentCount (drafts that are not fired, not voided and not
--- "a seguire": the server half of unsentLines in src/lib/orders/order-view.ts). One helper, app.session_unsent_lines, holds the rule.
+-- BQ-1: public.tables_list gives every tile's session an integer unsentCount (drafts that are not fired and not voided: the server
+-- half of unsentLines in src/lib/orders/order-view.ts). One helper, app.session_unsent_lines, holds the rule.
+-- Re-pinned on purpose by comanda-uscite (step 17; was "and not a seguire"): every draft goes with the one send, so a segue draft
+-- counts in unsentCount (docs/plans/2026-11-18-comanda-uscite.md section 3.10).
 -- The bill and close_table keep their wider rule (any draft) on purpose. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(28);
+select plan(29);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -120,11 +122,11 @@ select ('25000000-0000-4000-8000-0000000000' || lpad(n::text, 2, '0'))::uuid, '2
 -- The helper: one definition, the rule in its text, no API role can run it.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = 'session_unsent_lines'
               and pg_get_function_identity_arguments(p.oid) = 'p_tenant uuid, p_session_ids uuid[]'), 1, 'app.session_unsent_lines(uuid, uuid[]) exists once');
-select is((select prosrc ~* 'state = ''draft''' and prosrc ~* 'not l\.segue' from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), true,
-  'and it counts the drafts that are not "a seguire"');
+select is((select prosrc ~* 'state = ''draft''' and prosrc !~* 'segue' from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), true,
+  'and it counts every draft: a segue draft counts in unsentCount (no segue clause)') /* re-pinned on purpose by comanda-uscite (step 17; was state = draft and not l.segue) */;
 -- The body is pinned (plan risk table): an added clause such as "or l.state = 'fired'" would still match the rule above. Re-pin on purpose, together with
 -- unsentLines in src/lib/orders/order-view.ts, which applies the same rule on the phone.
-select is((select md5(prosrc) from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), '1917c071681f718ae61c579ff50f222a',
+select is((select md5(prosrc) from pg_proc where oid = 'app.session_unsent_lines(uuid, uuid[])'::regprocedure), '5f37e876677081e482b21a47e1e4f884' /* re-pinned on purpose by comanda-uscite (step 17; was 1917c071) */,
   'and its body is the pinned one (md5 of prosrc)');
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r
             where has_function_privilege(r, 'app.session_unsent_lines(uuid, uuid[])', 'execute')), 0, 'no API role can execute it');
@@ -137,8 +139,9 @@ select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-411
 create temp table lst (j jsonb);
 insert into lst select public.tables_list();
 select is((select array_agg(x order by x collate "C") from lst, jsonb_object_keys(pg_temp.tbl(j, pg_temp.tid(2)) -> 'session') x),
-  array['billRequested', 'coperto', 'covers', 'id', 'openedAt', 'openedToday', 'unsentCount', 'waiter'], 'a session gets unsentCount beside the seven documented keys');
-select is((select pg_temp.uc(j, 1) from lst), '2'::jsonb, '2 plain drafts count; the "a seguire" draft, the fired, the voided and the removed line do not');
+  array['billRequested', 'coperto', 'covers', 'id', 'openedAt', 'openedToday', 'unsentCount', 'uscite', 'waiter'] /* re-pinned on purpose by comanda-uscite (step 17; was without uscite) */,
+  'a session gets unsentCount beside the other documented keys (uscite added by comanda-uscite, pgTAP 428)');
+select is((select pg_temp.uc(j, 1) from lst), '3'::jsonb /* re-pinned on purpose by comanda-uscite (step 17; was 2) */, 'a segue draft counts in unsentCount: 2 plain drafts and the segue draft count 3; the fired, the voided and the removed line do not');
 select is((select jsonb_typeof(pg_temp.uc(j, 1)) from lst), 'number', 'and it is a JSON number');
 select is((select pg_temp.uc(j, 2) from lst), '0'::jsonb, 'a session with no lines: 0');
 select is((select pg_temp.uc(j, 3) from lst), '0'::jsonb, 'a session closed today: 0');
@@ -159,18 +162,18 @@ select is((select pg_temp.uc(public.tables_list(), 4)), '0'::jsonb, 'and after t
 
 -- Tenant isolation.
 select is((select count(*)::int from lst, jsonb_array_elements(j -> 'tables') t where t -> 'session' ->> 'id' = '24000000-0000-4000-8000-0000000000b1'), 0, 'tenant B''s session is not in tenant A''s payload');
-select is((select pg_temp.uc(j, 1) from lst), '2'::jsonb, 'and tenant B''s drafts changed nothing in A''s counts');
+select is((select pg_temp.uc(j, 1) from lst), '3'::jsonb /* re-pinned on purpose by comanda-uscite (step 17; was 2) */, 'and tenant B''s drafts changed nothing in A''s counts (a segue draft counts in unsentCount)');
 select pg_temp.act_as('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner');
 select is((select pg_temp.tbl(public.tables_list(), '23000000-0000-4000-8000-000000000001') -> 'session' -> 'unsentCount'), '3'::jsonb, 'owner B sees B''s count');
 select is((select jsonb_array_length(public.tables_list() -> 'tables')), 1, 'and only B''s table');
 
 -- Roles: waiter, owner and admin get the same number; chef is refused.
 select pg_temp.act_as('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner');
-select is((select pg_temp.uc(public.tables_list(), 1)), '2'::jsonb, 'owner A: the same 2');
+select is((select pg_temp.uc(public.tables_list(), 1)), '3'::jsonb /* re-pinned on purpose by comanda-uscite (step 17; was 2) */, 'owner A: the same 3 (a segue draft counts in unsentCount)');
 select pg_temp.act_as('f0000000-0000-4000-8000-00000000000f', '11111111-1111-4111-8111-111111111111', 'admin');
-select is((select pg_temp.uc(public.tables_list(), 1)), '2'::jsonb, 'admin A: the same 2');
+select is((select pg_temp.uc(public.tables_list(), 1)), '3'::jsonb /* re-pinned on purpose by comanda-uscite (step 17; was 2) */, 'admin A: the same 3 (a segue draft counts in unsentCount)');
 select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
-select is((select pg_temp.uc(public.tables_list(), 1)), '2'::jsonb, 'waiter A: the same 2');
+select is((select pg_temp.uc(public.tables_list(), 1)), '3'::jsonb /* re-pinned on purpose by comanda-uscite (step 17; was 2) */, 'waiter A: the same 3 (a segue draft counts in unsentCount)');
 select pg_temp.act_as('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef');
 select is(pg_temp.err('select public.tables_list()'), '42501 permission denied: the service menu and tables need owner, admin or waiter', 'chef: 42501');
 
@@ -183,6 +186,13 @@ select is((select count(*)::int from public.order_line), 12, 'the read wrote not
 select is((select count(*)::int from jsonb_array_elements(public.tables_list() -> 'tables') t
             where t -> 'session' <> 'null'::jsonb and jsonb_typeof(t -> 'session' -> 'unsentCount') is distinct from 'number'), 0, 'every session in the reply has a numeric unsentCount');
 select is((select bool_and((t -> 'session' ->> 'unsentCount')::int >= 0) from jsonb_array_elements(public.tables_list() -> 'tables') t where t -> 'session' <> 'null'::jsonb), true, 'and none is negative');
+
+-- Comanda per uscita (step 17, section 3.10): a session whose only draft is a segue draft has 1 unsent line. Under the old rule
+-- ("and not l.segue") it showed 0, so this case fails there.
+reset role;
+select pg_temp.addl(10, pg_temp.sid(2), 'draft', true);
+select pg_temp.act_as('d0000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', 'waiter');
+select is((select pg_temp.uc(public.tables_list(), 2)), '1'::jsonb, 'a segue draft counts in unsentCount: a session whose only draft is a segue draft shows 1 (the old rule showed 0)');
 
 select * from finish();
 rollback;

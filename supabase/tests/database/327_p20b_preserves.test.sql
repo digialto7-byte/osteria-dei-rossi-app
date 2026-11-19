@@ -14,10 +14,10 @@ select p.sch, p.name, p.want,
   from (values
   ('public', 'void_line', '1,4b2c9df7d910b054edb208f621f10305' /* re-pinned on purpose by comanda-uscite (step 7; was 1,d1c3cfff8a2b7a38baad22ef5fa1260d) */),
   ('public', 'remove_order_line', '1,d6c44c8d39bb757783ee8d0fd6077a9f'),
-  ('public', 'order_view', '1,3cf6534d35ec04025a649aa668449686'), -- re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
+  ('public', 'order_view', '1,79f12c27f923e3173e31f25d62f8aa6a' /* re-pinned on purpose by comanda-uscite (step 17; was 1,3cf6534d) */), -- earlier re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
   ('public', 'open_table', '1,db9f3287a1a7a398338cbd793355041a'),
   ('public', 'close_table', '1,f9161bb02afe6c8870ef1d89bbeda9d7'),
-  ('app', 'close_session_at', '1,648d20678f5bfa2230fc16dae2c2f96a'), -- re-pinned on purpose by SP1 (step 6: the tenant's receipt and payment lists after the catalogue checks; was de835f1c09830ee8b23c1e5a4fe07641)
+  ('app', 'close_session_at', '1,e0630890e57c2ae61a4196d651f938f4' /* re-pinned on purpose by comanda-uscite (step 18; was 1,648d2067) */), -- earlier re-pinned on purpose by SP1 (step 6: the tenant's receipt and payment lists after the catalogue checks; was de835f1c09830ee8b23c1e5a4fe07641)
   ('app', 'app_vs_register_json', '1,d11de099acd97026ff10322c635d1445'), -- re-pinned on purpose by SP1 (step 6: the buckets are the tenant's active codes, then a deactivated code the day used; was 3abf16eeaba926f671a0fb5872dc79f2)
   ('public', 'enter_day_close', '1,6075533f69641d9c932290389df8c928'),
   ('app', 'split_cents', '1,d05ade62dbe834bd44f49266e96e4808'),
@@ -104,7 +104,7 @@ set local search_path = "$user", public, extensions;
 
 select is((select count(*)::int from fn_pin), 26, '26 functions are on the unchanged list');
 select is_empty($$ select sch || '.' || name from fn_pin where got <> want $$,
-  'every "unchanged on purpose" function has exactly its pinned definition (from before P2-0b; order_view re-pinned on purpose by DS-BQ-2): void_line, remove_order_line, order_view, open_table, close_table, close_session_at, app_vs_register_json, enter_day_close, split_cents, bill_split_items, rollup_daily_kpi, kpi_day_row, kpi_session_rows, plates_sold, menu_item_price_at, menu_item_availability, apply_op_dispatch, apply_op, deplete_line_batches, post_plate_raw_outflow, lock_fire_batches, set_sale_settings, sale_settings_read, coperto_settings, plate_margins_pct, recipe_cost_at');
+  'every "unchanged on purpose" function has exactly its pinned definition (from before P2-0b; order_view re-pinned on purpose by DS-BQ-2 and comanda-uscite step 17, close_session_at by comanda-uscite step 18): void_line, remove_order_line, order_view, open_table, close_table, close_session_at, app_vs_register_json, enter_day_close, split_cents, bill_split_items, rollup_daily_kpi, kpi_day_row, kpi_session_rows, plates_sold, menu_item_price_at, menu_item_availability, apply_op_dispatch, apply_op, deplete_line_batches, post_plate_raw_outflow, lock_fire_batches, set_sale_settings, sale_settings_read, coperto_settings, plate_margins_pct, recipe_cost_at');
 select is((select count(*)::int from fn_new), 32, '32 functions are on the PR 1 list (18 replaced, 2 dropped and created again, 12 new)');
 select is_empty($$ select sch || '.' || name from fn_new where got <> want $$, 'every replaced or new function has its PR 1 definition (A1 to A5)');
 select is_empty($$ select n.sch || '.' || n.name from fn_new n join fn_old o on o.sch = n.sch and o.name = n.name where o.was = n.got $$,
