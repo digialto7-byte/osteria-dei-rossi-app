@@ -804,7 +804,11 @@ describe.skipIf(!env)("menu items, tables, sessions and coperto on the real stac
         a.waiter,
         fireRoute.POST as Handler,
         `/api/table-sessions/${sessionId}/fire`,
-        { method: "POST", body: { lineIds: [normal.lineId, segue.lineId] }, params: { id: sessionId } },
+        {
+          method: "POST",
+          body: { lineIds: [normal.lineId, segue.lineId] },
+          params: { id: sessionId },
+        },
       );
       expect(sent.status).toBe(200);
       expect(await unsent()).toBe(0);
