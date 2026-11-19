@@ -115,7 +115,7 @@ create function pg_temp.ids(p jsonb) returns uuid[] language sql as $$ select co
 -- The founder's send: 1st Bruschetta + Tagliatelle, 2nd two Spezzatino; one "Invia comanda" with hold.
 select pg_temp.draft(1, 1, 1, 1), pg_temp.draft(2, 1, 2, 1), pg_temp.draft(3, 1, 3, 2), pg_temp.draft(4, 1, 3, 2);
 -- 1-4
-select pg_temp.run('send', pg_temp.fire(1, array[1, 2, 3, 4], 'true'));
+select count(*) from (select pg_temp.run('send', pg_temp.fire(1, array[1, 2, 3, 4], 'true'))) x;
 select is(jsonb_array_length(pg_temp.j('send') -> 'fired')
           || ' ' || (select count(*) from public.order_line_cost c where c.order_line_id in (pg_temp.l(1), pg_temp.l(2), pg_temp.l(3), pg_temp.l(4)))
           || ' ' || (pg_temp.ids(pg_temp.j('send') -> 'held') = array[pg_temp.l(3), pg_temp.l(4)])::text,
@@ -169,9 +169,9 @@ select is(pg_temp.run('u1', pg_temp.call(1, '{"uscita": 1}')) || ' / ' || pg_tem
           || ' / ' || pg_temp.run('us', pg_temp.call(1, '{"uscita": "3"}')) || ' / ' || pg_temp.run('ux', pg_temp.call(1, '{"uscita": 3, "x": 1}')),
   '22023 invalid_request / 22023 invalid_request / 22023 invalid_request / 22023 invalid_request', 'uscita 1, 10, "3" or an extra key -> 22023');
 select pg_temp.draft(11, 1, 3, 3);
-select pg_temp.run('send3', pg_temp.fire(1, array[11], 'true'));
+select count(*) from (select pg_temp.run('send3', pg_temp.fire(1, array[11], 'true'))) x;
 update public.order_line set voided_at = now(), voided_by = 'd1000000-0000-4000-8000-00000000000d', void_reason = 'comp' where id = pg_temp.l(11);
-select pg_temp.run('none', pg_temp.call(1, '{"uscita": 3}'));
+select count(*) from (select pg_temp.run('none', pg_temp.call(1, '{"uscita": 3}'))) x;
 select is('ok ' || (pg_temp.j('none') -> 'conflict' ->> 'reason') || ' ' || (pg_temp.j('none') -> 'conflict' ->> 'uscita')
           || ' ' || (select count(*) from public.uscita_call where table_session_id = '14000000-0000-4000-8000-000000000001' and uscita = 3),
   'ok nothing_waiting 3 0', 'all held lines voided -> nothing_waiting, no row');

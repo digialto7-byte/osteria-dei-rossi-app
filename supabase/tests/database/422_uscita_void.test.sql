@@ -118,8 +118,8 @@ grant all on before_send to authenticated;
 -- 1-6 (AT6): the founder's held spezzatino, voided not_prepared.
 select pg_temp.draft(1, 1, 1, 1), pg_temp.draft(3, 1, 3, 2), pg_temp.draft(4, 1, 3, 2);
 insert into before_send values (pg_temp.onions(), pg_temp.rem('a'));
-select pg_temp.run('send', pg_temp.fire(1, array[1, 3]));
-select pg_temp.run('v3', pg_temp.void(3, 'not_prepared'));
+select count(*) from (select pg_temp.run('send', pg_temp.fire(1, array[1, 3]))) x;
+select count(*) from (select pg_temp.run('v3', pg_temp.void(3, 'not_prepared'))) x;
 select is(pg_temp.moves(3) || ' / ' || pg_temp.rem('a') || ' ' || (select rem_a from before_send),
   'b:consume:-1:order_line:false:-,b:consume:1:order_void:true:-,s:consumption:-0.1:order_line:false:-,s:consumption:0.1:order_void:true:- / 1 1',
   'voiding a held spezzatino not_prepared writes one consume reversal per original and no waste, and the batch remaining equals its value before the send');
@@ -133,10 +133,10 @@ select is((select count(*)::int from public.order_line_cost where order_line_id 
 
 -- 7-10: replay and conflicts.
 select is(pg_temp.run('v3b', pg_temp.void(3, 'not_prepared')) || ' ' || (pg_temp.j('v3b') ->> 'changed'), 'ok false', 'a replay -> changed: false');
-select pg_temp.run('send4', pg_temp.fire(1, array[4]));
+select count(*) from (select pg_temp.run('send4', pg_temp.fire(1, array[4]))) x;
 select is(pg_temp.run('ret', pg_temp.void(4, 'returned')) || ' ' || (pg_temp.j('ret') -> 'conflict' ->> 'reason') || ' ' || pg_temp.moves(4),
   'ok held b:consume:-1:order_line:false:-,s:consumption:-0.1:order_line:false:-', 'returned on a held line -> conflict held, nothing written');
-select pg_temp.run('call', 'select public.call_uscita(''14000000-0000-4000-8000-000000000001'', ''{"uscita": 2}''::jsonb)');
+select count(*) from (select pg_temp.run('call', 'select public.call_uscita(''14000000-0000-4000-8000-000000000001'', ''{"uscita": 2}''::jsonb)')) x;
 select is(pg_temp.run('np', pg_temp.void(4, 'not_prepared')) || ' ' || (pg_temp.j('np') -> 'conflict' ->> 'reason') || ' ' || pg_temp.moves(4),
   'ok uscita_called b:consume:-1:order_line:false:-,s:consumption:-0.1:order_line:false:-', 'not_prepared on a called line -> conflict uscita_called, nothing written');
 select is(pg_temp.run('ret2', pg_temp.void(4, 'returned')) || ' ' || pg_temp.moves(4),
@@ -145,12 +145,12 @@ select is(pg_temp.run('ret2', pg_temp.void(4, 'returned')) || ' ' || pg_temp.mov
 
 -- 11-14: a held portion of a batch discarded since stays waste, with the discard's reason; the batch stays discarded.
 select pg_temp.draft(5, 2, 3, 2), pg_temp.draft(6, 2, 3, 2);
-select pg_temp.run('send2', pg_temp.fire(2, array[5, 6]));
+select count(*) from (select pg_temp.run('send2', pg_temp.fire(2, array[5, 6]))) x;
 select is((select string_agg(pg_temp.l(n)::text || '>' || (select right(b.batch_id::text, 1) from public.batch_movement b where b.ref_id = pg_temp.l(n) and b.type = 'consume'), ',' order by n)
              from unnest(array[5, 6]) n), pg_temp.l(5) || '>b,' || pg_temp.l(6) || '>b', 'fixture: lines 5 and 6 took batch B''s portions (A''s one went to line 4, voided returned)');
 select is(pg_temp.run('disc', 'select public.discard_batch(''ba000000-0000-4000-8000-00000000000b'', ' || pg_temp.rem('b') || ', ''spoilage'')', 'chef'), 'ok',
   'fixture: the chef discards what is left of batch B (spoilage)');
-select pg_temp.run('v6', pg_temp.void(6, 'not_prepared'));
+select count(*) from (select pg_temp.run('v6', pg_temp.void(6, 'not_prepared'))) x;
 select is(pg_temp.moves(6) || ' / ' || (select state::text from public.batch where id = 'ba000000-0000-4000-8000-00000000000b') || ' ' || pg_temp.rem('b'),
   'b:consume:-1:order_line:false:-,b:consume:1:order_void:true:-,b:waste:-1:order_void:false:spoilage,s:consumption:-0.1:order_line:false:-,s:consumption:0.1:order_void:true:- / discarded 0',
   'a held line whose batch was discarded since -> reversal + waste with the discard''s reason, and the batch stays discarded');

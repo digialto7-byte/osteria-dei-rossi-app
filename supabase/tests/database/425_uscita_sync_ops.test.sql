@@ -109,42 +109,42 @@ create temp table o (k text primary key, op jsonb not null);
 -- Table 1: the founder's 2nd sent with hold through the queue.
 select pg_temp.draft(1, 1, 1, 1), pg_temp.draft(3, 1, 3, 2);
 insert into o values ('fire', pg_temp.op('fire', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'lineIds', jsonb_build_array(pg_temp.l(1), pg_temp.l(3)), 'hold', true)));
-select pg_temp.apply('fire', (select op from o where k = 'fire'));
+select count(*) from (select pg_temp.apply('fire', (select op from o where k = 'fire'))) x;
 -- 1
 select is((pg_temp.r('fire') ->> 'status') || ' ' || (pg_temp.r('fire') -> 'result' -> 'held')::text || ' ' || pg_temp.calls(1),
   'applied ["' || pg_temp.l(3) || '"] -', 'a fire op with hold: true is applied, the 2nd is held and no call row exists');
 -- 2-4: the call op, once.
 insert into o values ('call', pg_temp.op('call_uscita', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'uscita', 2)));
-select pg_temp.apply('call', (select op from o where k = 'call'));
+select count(*) from (select pg_temp.apply('call', (select op from o where k = 'call'))) x;
 select is((pg_temp.r('call') ->> 'status') || ' ' || (pg_temp.r('call') -> 'result' ->> 'changed') || ' ' || pg_temp.calls(1), 'applied true 2:call',
   'apply_op of a call_uscita op calls once');
-select pg_temp.apply('call_dup', (select op from o where k = 'call'));
+select count(*) from (select pg_temp.apply('call_dup', (select op from o where k = 'call'))) x;
 select is((pg_temp.r('call_dup') ->> 'status') || ' ' || (pg_temp.r('call_dup') -> 'stored' ->> 'status') || ' ' || pg_temp.calls(1)
           || ' ' || (select count(*) from public.applied_op where op_id = (select (op ->> 'opId')::uuid from o where k = 'call')),
   'duplicate applied 2:call 1', 'the same op again answers duplicate with no second row');
 insert into o values ('call2', pg_temp.op('call_uscita', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'uscita', 2), null, 2));
-select pg_temp.apply('call2', (select op from o where k = 'call2'));
+select count(*) from (select pg_temp.apply('call2', (select op from o where k = 'call2'))) x;
 select is((pg_temp.r('call2') ->> 'status') || ' ' || (pg_temp.r('call2') -> 'result' ->> 'changed') || ' ' || pg_temp.calls(1), 'applied false 2:call',
   'a second op id for the same call -> applied, changed: false');
 
 -- 5-6: legacy ops (an old bundle's queue).
 select pg_temp.draft(5, 2, 3, 2);
 insert into o values ('legacy', pg_temp.op('fire', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000002', 'lineIds', jsonb_build_array(pg_temp.l(5)))));
-select pg_temp.apply('legacy', (select op from o where k = 'legacy'));
+select count(*) from (select pg_temp.apply('legacy', (select op from o where k = 'legacy'))) x;
 select is((pg_temp.r('legacy') ->> 'status') || ' ' || (pg_temp.r('legacy') -> 'result' -> 'held')::text || ' ' || pg_temp.calls(2), 'applied [] 2:fire_now',
   'a legacy fire op without hold on a segue line -> fired and called (fire_now)');
 select pg_temp.draft(6, 2, 2, 1);
 insert into o values ('edit', pg_temp.op('edit_line', jsonb_build_object('lineId', pg_temp.l(6), 'segue', true)));
-select pg_temp.apply('edit', (select op from o where k = 'edit'));
+select count(*) from (select pg_temp.apply('edit', (select op from o where k = 'edit'))) x;
 select is((pg_temp.r('edit') ->> 'status') || ' ' || (select uscita || '/' || segue from public.order_line where id = pg_temp.l(6)), 'applied 2/true',
   'a legacy edit_line {segue: true} op -> uscita 2');
 
 -- 7-10: refusals and conflicts are stored, never raised.
 insert into o values ('u1', pg_temp.op('call_uscita', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'uscita', 1)));
-select pg_temp.apply('u1', (select op from o where k = 'u1'));
+select count(*) from (select pg_temp.apply('u1', (select op from o where k = 'u1'))) x;
 select is((pg_temp.r('u1') ->> 'status') || ' ' || (pg_temp.r('u1') -> 'result' ->> 'message'), 'rejected invalid_request', 'a call_uscita with uscita 1 -> stored rejected invalid_request');
 insert into o values ('none', pg_temp.op('call_uscita', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'uscita', 5)));
-select pg_temp.apply('none', (select op from o where k = 'none'));
+select count(*) from (select pg_temp.apply('none', (select op from o where k = 'none'))) x;
 select is((pg_temp.r('none') ->> 'status') || ' ' || (pg_temp.r('none') -> 'result' -> 'conflict' ->> 'reason') || ' ' || (pg_temp.r('none') ->> 'stop'),
   'conflict nothing_waiting false', 'a call with nothing waiting -> stored conflict nothing_waiting, and the batch goes on');
 select is(pg_temp.apply('x', pg_temp.op('call_uscita', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'uscita', 2, 'hold', true))),
@@ -152,7 +152,7 @@ select is(pg_temp.apply('x', pg_temp.op('call_uscita', jsonb_build_object('sessi
 select is(pg_temp.apply('y', pg_temp.op('fire', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'lineIds', jsonb_build_array(pg_temp.l(1)), 'uscita', 2))),
   '22023 invalid_request', 'uscita is not a fire key');
 insert into o values ('hold_bad', pg_temp.op('fire', jsonb_build_object('sessionId', '14000000-0000-4000-8000-000000000001', 'lineIds', jsonb_build_array(pg_temp.l(1)), 'hold', 'yes')));
-select pg_temp.apply('hold_bad', (select op from o where k = 'hold_bad'));
+select count(*) from (select pg_temp.apply('hold_bad', (select op from o where k = 'hold_bad'))) x;
 select is((pg_temp.r('hold_bad') ->> 'status') || ' ' || (pg_temp.r('hold_bad') -> 'result' ->> 'message'), 'rejected invalid_request', 'hold "yes" in a fire op -> stored rejected');
 
 -- 12-14: the kind list.
