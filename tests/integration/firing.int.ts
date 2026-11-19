@@ -586,7 +586,8 @@ describe.skipIf(!env)("firing, voids and the kitchen list on the real stack", ()
         (item) => item.sessionId === s1 && item.lines.some((line) => line.id === l1),
       );
       expect(ticket).toBeDefined();
-      expect(ticket!.key).toBe(`${s1}|${ticket!.firedAt}|${ticket!.course}|${ticket!.segue}`);
+      // Re-pinned on purpose by comanda-uscite (step 13; was `${s1}|${firedAt}|${course}|${segue}`): the ticket key is the uscita key.
+      expect(ticket!.key).toBe(`${s1}|${ticket!.firedAt}|u${ticket!.uscita}`);
       expect(ticket!.tableName).toBe("Tavolo 1 (demo)");
       expect(ticket!.lines.find((line) => line.id === l1)).toMatchObject({
         name: FIRING_NAMES.stew,

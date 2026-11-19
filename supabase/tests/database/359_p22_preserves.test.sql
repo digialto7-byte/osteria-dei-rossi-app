@@ -65,6 +65,11 @@ insert into p27_objs values
 -- Step 8 (20261206220400_uscita_open_sessions.sql): the backfill and the NOT VALID check (the default and the comment change no structure pinned here).
 insert into p27_objs values
   ('app_fn', 'uscite_backfill_open_sessions'), ('constraint', 'order_line.order_line_uscita_set_ck');
+-- Step 13 (20261206220500_uscita_kitchen.sql): kitchen_event.uscita, its CHECK and the uscita ticket index; the ticket instant helper and the
+-- remap (kitchen_event_shape_ck and the four keyed helpers keep their names; their new texts are pinned by 426, 427 and 229).
+insert into p27_objs values
+  ('column', 'kitchen_event.uscita'), ('constraint', 'kitchen_event.kitchen_event_uscita_check'), ('index', 'kitchen_event_uscita_ticket_idx'),
+  ('app_fn', 'line_ticket_at'), ('app_fn', 'uscite_kitchen_remap_open_sessions');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -139,7 +144,7 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               and p.proname not in ('require_trace_reader', 'lot_code_norm', 'trace_constants', 'batch_family', 'batch_root', 'trace_lot_search_json', 'lot_capture_json', 'trace_lot_json', 'trace_batch_json',
                                     'trace_line_search_json', 'trace_line_json', 'push_sell_through_json', 'require_covers_reader', 'reservations_covers_json')
               and p.proname not in (select o.name from p27_objs o where o.kind = 'app_fn')),
-          '432,842f4e64b6e0508ee30877add21f58c9', 'the app functions other than the 14 new ones are exactly those of main (432)');
+          '432,04d11932103a517862e0443c6e504017' /* re-pinned on purpose by comanda-uscite (step 13; was 432,842f4e64b6e0508ee30877add21f58c9: the four keyed kitchen helpers take the uscita key) */, 'the app functions other than the 14 new ones are exactly those of main (432)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace
               and p.proname in ('require_trace_reader', 'lot_code_norm', 'trace_constants', 'batch_family', 'batch_root', 'trace_lot_search_json', 'lot_capture_json', 'trace_lot_json', 'trace_batch_json',
                                 'trace_line_search_json', 'trace_line_json', 'push_sell_through_json', 'require_covers_reader', 'reservations_covers_json')), 14, 'and the 14 new app functions exist (446 in all)');
@@ -185,7 +190,7 @@ select is((select count(*)::int || ',' || md5(string_agg(
             where n.nspname in ('public', 'app')
               and t.relname not in (select o.name from p27_objs o where o.kind = 'table')
               and t.relname || '.' || c.conname not in (select o.name from p27_objs o where o.kind = 'constraint')),
-          '614,46cfcd4ce5b529bb3557d02974fd813f', 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
+          '614,0a0ad4954ee4c9d060eef6cae44a6a98' /* re-pinned on purpose by comanda-uscite (step 13; was 614,46cfcd4ce5b529bb3557d02974fd813f: kitchen_event_shape_ck gains the uscita ticket branch) */, 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
                and tc.relname not in (select o.name from p27_objs o where o.kind = 'table')

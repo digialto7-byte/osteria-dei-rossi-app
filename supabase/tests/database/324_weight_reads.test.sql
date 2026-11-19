@@ -115,13 +115,15 @@ select isnt((select public.session_bill(pg_temp.sid(1), null) ->> 'billToken'),
 
 -- Kitchen ----------------------------------------------------------------------------------------------------------------------------------
 create temporary table kt as select app.kitchen_ticket_rows('11111111-1111-4111-8111-111111111111', '1998-11-04 20:00+00') as j;
-select is((select count(*)::int from kt, jsonb_array_elements(j -> 'tickets') t where t ->> 'sessionId' = pg_temp.sid(4)::text), 2, 'the fired comande of s4 are on the board (one per course)');
+-- Re-pinned on purpose by comanda-uscite (step 13; was 2, one ticket per course): M6 groups a send by uscita, and both courses of s4 are in the 1st.
+select is((select count(*)::int from kt, jsonb_array_elements(j -> 'tickets') t where t ->> 'sessionId' = pg_temp.sid(4)::text), 1, 'the fired comande of s4 are on the board (one ticket: both courses are in the 1st uscita)');
 select is((select (e ->> 'weightG')::int from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.lid(6)::text), 1200,
   'the weighted kitchen line has weightG 1200');
 select is((select (e -> 'weightG')::text from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.lid(7)::text), 'null',
   'a portion kitchen line has weightG null');
 select is((select array_agg(k order by k collate "C") from (select distinct jsonb_object_keys(e) k from kt, jsonb_array_elements(j -> 'tickets') t, jsonb_array_elements(t -> 'lines') e) x),
-  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'the kitchen line keys: the M19b set + weightG');
+  -- Re-pinned on purpose by comanda-uscite (step 13; was the M19b set + weightG): a kitchen line gains its course.
+  array['course', 'done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'the kitchen line keys: the M19b set + weightG + course');
 select is(pg_temp.all_keys((select j from kt)) && array['unitPrice', 'amount', 'pricePer100g', 'price', 'cost', 'total'], false, 'no money key anywhere on the kitchen board');
 select is((select count(*)::int from kt, jsonb_path_query(j, 'strict $.**') v where jsonb_typeof(v) = 'string' and v #>> '{}' ~ '[€]'), 0, 'and no euro sign in the board');
 

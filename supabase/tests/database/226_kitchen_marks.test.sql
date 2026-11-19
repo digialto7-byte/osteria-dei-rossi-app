@@ -1,6 +1,11 @@
 -- M19b step 4 (docs/plans/2026-10-31-m19b-kitchen-done.md §3.2; AT1-AT5, AT8, AT10, T1): public.kitchen_mark_line and public.kitchen_set_ticket, called as chef A unless named.
 -- Lines are fired at the start of the current business day (never after now, safe at any hour incl. the 02:00 cut-off and DST nights), so the board in each reply
--- (read at the server's clock) contains them. Comande are told apart by session, course and segue. Errors are asserted as 'SQLSTATE message'. Fake data only.
+-- (read at the server's clock) contains them. Comande are told apart by session, instant and uscita. Errors are asserted as 'SQLSTATE message'. Fake data only.
+-- Re-pinned on purpose by comanda-uscite (step 13; was the (course, segue) ticket key): M6 keys a ticket by (session, instant, uscita). Only the
+-- key fields moved. Here several comande of one table share an instant and differ by course, so each legacy (course, segue) comanda is given
+-- its own uscita (antipasti 1, primi 2, secondi 3, dolci 4, bevande 5; +4 for segue), with a 'migration' call at the line's fired_at for an
+-- uscita >= 2 (as M5 does), so every comanda of this file is still one ticket; ticket events and bodies carry uscita instead of course and
+-- segue; the key sets gain uscita, addition, calledAt (ticket), course (line), waiting, waitingCount.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(55);
@@ -60,23 +65,31 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- An order line fired at p_fired (null = draft). Item 1 secondi, 2 antipasti, 3 primi; the waiter who sent it is p_by.
+-- The uscita of a legacy (course, segue) comanda (comanda-uscite step 13).
+create function pg_temp.uscita_of(p_course text, p_segue boolean) returns smallint language sql immutable as $$
+  select (array_position(array['antipasti', 'primi', 'secondi', 'dolci', 'bevande'], p_course) + case when p_segue then 4 else 0 end)::smallint $$;
 create function pg_temp.mkl(p_k text, p_session text, p_course text, p_item int, p_fired timestamptz, p_segue boolean default false,
     p_qty numeric default 1, p_note text default null, p_shared boolean default false, p_void text default null, p_by text default 'd1000000-0000-4000-8000-00000000000d',
     p_tenant text default '11111111-1111-4111-8111-111111111111', p_created timestamptz default null) returns void language plpgsql as $$
 begin
   insert into reg values (p_k, gen_random_uuid());
-  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, note, is_shared, unit_price, vat_rate, price_source,
+  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, uscita, note, is_shared, unit_price, vat_rate, price_source,
       client_updated_at, created_at, created_by, updated_by, fired_at, fired_by, voided_at, voided_by, void_reason)
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
+      p_course::public.course, p_qty, p_segue, pg_temp.uscita_of(p_course, p_segue), p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
       coalesce(p_created, '1998-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
       case when p_void is null then null else p_fired + interval '1 minute' end,
       case when p_void is null then null else p_by::uuid end, p_void);
+  if pg_temp.uscita_of(p_course, p_segue) >= 2 and p_fired is not null then
+    insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+      values (p_tenant::uuid, pg_temp.id(p_session), pg_temp.uscita_of(p_course, p_segue), p_fired, p_by::uuid, 'migration')
+      on conflict on constraint uscita_call_once_uq do nothing;
+  end if;
 end
 $$;
 
@@ -93,10 +106,10 @@ create function pg_temp.claims(p_who text) returns void language sql as $$
     else '' end, true) $$;
 create function pg_temp.mark(p_line text, p_done boolean) returns jsonb language sql as $$
   select public.kitchen_mark_line(pg_temp.id(p_line), jsonb_build_object('done', p_done)) $$;
--- The five-field body of the comanda a line belongs to.
+-- The four-field body {sessionId, firedAt, uscita, closed} of the comanda a line belongs to.
 create function pg_temp.kbody(p_line text, p_closed boolean) returns jsonb language sql as $$
-  select jsonb_build_object('sessionId', l.table_session_id, 'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
-                            'course', l.course::text, 'segue', l.segue, 'closed', p_closed)
+  select jsonb_build_object('sessionId', l.table_session_id, 'firedAt', to_char(app.line_ticket_at(l.tenant_id, l) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+                            'uscita', l.uscita, 'closed', p_closed)
     from public.order_line l where l.id = pg_temp.id(p_line) $$;
 create function pg_temp.setk(p_line text, p_closed boolean) returns jsonb language sql as $$
   select public.kitchen_set_ticket(pg_temp.kbody(p_line, p_closed)) $$;
@@ -106,7 +119,7 @@ create function pg_temp.lev(p_line text) returns text language sql as $$
 create function pg_temp.tev(p_line text) returns text language sql as $$
   select coalesce(string_agg(e.subject || ':' || e.action || ':' || e.cause, ',' order by e.seq), '-')
     from public.kitchen_event e join public.order_line l on l.id = pg_temp.id(p_line)
-   where e.subject = 'ticket' and e.table_session_id = l.table_session_id and e.fired_at = l.fired_at and e.course = l.course and e.segue = l.segue $$;
+   where e.subject = 'ticket' and e.table_session_id = l.table_session_id and e.fired_at = app.line_ticket_at(l.tenant_id, l) and e.uscita = l.uscita $$;
 create function pg_temp.nev() returns integer language sql as $$ select count(*)::int from public.kitchen_event $$;
 -- A comanda of a board (from a reply), found by one of its line ids; list = tickets / closedTickets. Null when absent.
 create function pg_temp.bt(p_board jsonb, p_list text, p_line text) returns jsonb language sql as $$
@@ -242,11 +255,11 @@ select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '{}')$
 select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '{"done":1}')$$), '22023 invalid_request', '{done: 1}: invalid_request');
 select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '{"done":true,"x":1}')$$), '22023 invalid_request', 'an extra key: invalid_request');
 select is(pg_temp.err($$select public.kitchen_mark_line(pg_temp.id('p1'), '[true]')$$), '22023 invalid_request', 'an array body: invalid_request');
-select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('p1', true) - 'segue')$$), '22023 invalid_request', 'a ticket body missing segue: invalid_request');
+select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('p1', true) - 'uscita')$$), '22023 invalid_request', 'a ticket body missing uscita: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"1998-11-04T20:10:00.123Z"'))$$), '22023 invalid_request', 'a firedAt with 3 decimals: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{closed}', '"yes"'))$$), '22023 invalid_request', 'closed as a string: invalid_request');
 select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('p1', true) || '{"x":1}')$$), '22023 invalid_request', 'an extra key in a ticket body: invalid_request');
-select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{course}', '"dolci"'))$$), 'P0002 ticket_not_found', 'a key with no fired line: ticket_not_found');
+select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{uscita}', '9'))$$), 'P0002 ticket_not_found', 'a key with no fired line: ticket_not_found');
 select is(pg_temp.err($$select public.kitchen_set_ticket(jsonb_set(pg_temp.kbody('p1', true), '{firedAt}', '"1998-11-04T20:10:00.123456Z"'))$$), 'P0002 ticket_not_found', 'a well-formed key with an instant no line was fired at: ticket_not_found');
 select is(pg_temp.err($$select public.kitchen_set_ticket(pg_temp.kbody('b1', true))$$), 'P0002 ticket_not_found', 'tenant B''s key: ticket_not_found');
 select is((select count(*)::int from unnest(array[

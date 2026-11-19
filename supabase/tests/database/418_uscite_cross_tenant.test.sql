@@ -8,14 +8,14 @@
 --   tables_list     as B's waiter: B's table, nothing of A's;
 --   order_line      as B's waiter and owner: 0 rows of A's (the policy).
 -- It passes on main by design (nothing of the feature exists yet). Later steps add their B rows (3: uscita_call; 5: call_uscita and the
--- hold fire; 7: not_prepared; 13: the board by uscita; 17: the waiter reads).
+-- hold fire; 7: not_prepared; 13: the board by uscita, its waiting list and the uscita-keyed marks; 17: the waiter reads).
 -- The proof that the checks can fail is the mutation block at the end: a temporary policy letting B read A's order_line, and the leak count
 -- must leave 0. Fake data only. The board reads "today's business day", so the lines are fired at the start of that day, never after now.
 begin;
 -- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(24);
+select plan(28);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -188,6 +188,23 @@ select is((select count(*)::int from public.uscita_call where tenant_id = '11111
 select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
   $$ select public.void_line('35000000-0000-4000-8000-000000000003', '{"reason": "not_prepared", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
   'P0002 line_not_found', 'X: void_line not_prepared as B''s waiter on A''s held line is P0002 line_not_found');
+-- Step 13 (M6, on purpose): the board by uscita. A's held line waits on A's board (the control) and on no board of B's; B's chef can neither
+-- mark A's line nor close A's ticket on the uscita key.
+insert into board values
+  ('a13', pg_temp.as_json('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111', 'chef', 'select public.kitchen_tickets()')),
+  ('b13', pg_temp.as_json('b2000000-0000-4000-8000-0000000000c2', '22222222-2222-4222-8222-222222222222', 'chef', 'select public.kitchen_tickets()'));
+select is((select (j ->> 'waitingCount')::int || ' ' || (j -> 'waiting' -> 0 ->> 'sessionId') from board where who = 'a13'), '1 34000000-0000-4000-8000-000000000001',
+  'control: A''s held line waits on A''s board');
+select is((select (j ->> 'waitingCount')::int || ' ' || (j -> 'waiting')::text || ' ' || (j::text like '%34000000-0000-4000-8000-000000000001%')::text from board where who = 'b13'), '0 [] false',
+  'X: B''s chef has nothing of A''s waiting and no A ticket');
+select is(pg_temp.as_err('b2000000-0000-4000-8000-0000000000c2', '22222222-2222-4222-8222-222222222222', 'chef',
+  $$ select public.kitchen_mark_line('35000000-0000-4000-8000-000000000001', '{"done": true}'::jsonb) $$),
+  'P0002 line_not_found', 'X: kitchen_mark_line as B''s chef on A''s fired line is P0002 line_not_found');
+select is(pg_temp.as_err('b2000000-0000-4000-8000-0000000000c2', '22222222-2222-4222-8222-222222222222', 'chef',
+  format($$ select public.kitchen_set_ticket(%L::jsonb) $$, (select jsonb_build_object('sessionId', l.table_session_id,
+    'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'), 'uscita', l.uscita, 'closed', true)::text
+    from public.order_line l where l.id = '35000000-0000-4000-8000-000000000001'))),
+  'P0002 ticket_not_found', 'X: kitchen_set_ticket as B''s chef on A''s uscita ticket is P0002 ticket_not_found');
 rollback to savepoint step5;
 
 -- Mutation: a temporary policy lets any authenticated user read order lines. B's waiter then reads A's lines, so the check that said 0 can fail.

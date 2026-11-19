@@ -1,5 +1,9 @@
 -- M19b step 2 (docs/plans/2026-10-31-m19b-kitchen-done.md §3.2): the kitchen helpers in schema app. Role gate, key parser (T3: the six-decimal text round-trips),
 -- ticket lock, line done, ticket state, open-line count. Events are inserted as the migration owner with fixed created_at. Fake data only.
+-- Re-pinned on purpose by comanda-uscite (step 13; was the (course, segue) key): M6 keys a ticket by (session, instant, uscita). Only the key
+-- fields moved: a line is placed as M5 places an old line (segue false -> uscita 1; a fired segue line -> uscita 2 with a 'migration' call at its
+-- own fired_at), so "the segue comanda of the same course" is still a separate ticket at the same instant; the bodies send uscita instead of
+-- course and segue; the helpers take an uscita.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(34);
@@ -64,18 +68,22 @@ create function pg_temp.mkl(p_k text, p_session text, p_course text, p_item int,
     p_tenant text default '11111111-1111-4111-8111-111111111111', p_created timestamptz default null) returns void language plpgsql as $$
 begin
   insert into reg values (p_k, gen_random_uuid());
-  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, note, is_shared, unit_price, vat_rate, price_source,
+  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, uscita, note, is_shared, unit_price, vat_rate, price_source,
       client_updated_at, created_at, created_by, updated_by, fired_at, fired_by, voided_at, voided_by, void_reason)
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
+      p_course::public.course, p_qty, p_segue, case when p_segue then 2 else 1 end, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
       coalesce(p_created, '1998-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
       case when p_void is null then null else p_fired + interval '1 minute' end,
       case when p_void is null then null else p_by::uuid end, p_void);
+  if p_segue and p_fired is not null then
+    insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+      values (p_tenant::uuid, pg_temp.id(p_session), 2, p_fired, p_by::uuid, 'migration') on conflict on constraint uscita_call_once_uq do nothing;
+  end if;
 end
 $$;
 
@@ -87,10 +95,10 @@ create function pg_temp.lev(p_line text, p_action text, p_at timestamptz, p_tena
   insert into public.kitchen_event (tenant_id, subject, action, order_line_id, created_at, created_by)
     values (p_tenant::uuid, 'line', p_action, pg_temp.id(p_line), p_at, 'c1000000-0000-4000-8000-00000000000c')
 $$;
-create function pg_temp.tev(p_action text, p_cause text, p_session text, p_course text, p_segue boolean, p_fired timestamptz, p_at timestamptz,
+create function pg_temp.tev(p_action text, p_cause text, p_session text, p_uscita int, p_fired timestamptz, p_at timestamptz,
     p_tenant text default '11111111-1111-4111-8111-111111111111', p_by text default 'c1000000-0000-4000-8000-00000000000c') returns void language sql as $$
-  insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, course, segue, fired_at, created_at, created_by)
-    values (p_tenant::uuid, 'ticket', p_action, p_cause, pg_temp.id(p_session), p_course::public.course, p_segue, p_fired, p_at, p_by::uuid)
+  insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, uscita, fired_at, created_at, created_by)
+    values (p_tenant::uuid, 'ticket', p_action, p_cause, pg_temp.id(p_session), p_uscita, p_fired, p_at, p_by::uuid)
 $$;
 
 -- Fire instants carry microseconds, so the round trip of T3 is a real test.
@@ -120,25 +128,25 @@ select is(split_part(pg_temp.err($$select app.require_kitchen_marker()$$), ' ', 
 -- Key parser (T3) -----------------------------------------------------------------------------------------------------------------
 create function pg_temp.key(p_body text) returns text language plpgsql as $$
 begin
-  return (select k.session_id::text || '|' || k.fired_at::text || '|' || k.course::text || '|' || k.segue::text from app.kitchen_ticket_key(p_body::jsonb) k);
+  return (select k.session_id::text || '|' || k.fired_at::text || '|' || k.uscita::text from app.kitchen_ticket_key(p_body::jsonb) k);
 exception when others then
   return 'err ' || sqlstate || ' ' || sqlerrm;
 end
 $$;
 select is((select k.fired_at = '1998-11-04 20:10:00.123456+00'::timestamptz from app.kitchen_ticket_key(
-             jsonb_build_object('sessionId', pg_temp.id('t1'), 'firedAt', '1998-11-04T20:10:00.123456Z', 'course', 'primi', 'segue', false)) k), true,
+             jsonb_build_object('sessionId', pg_temp.id('t1'), 'firedAt', '1998-11-04T20:10:00.123456Z', 'uscita', 1)) k), true,
           'firedAt with six decimals round-trips to the stored instant');
 select is((select to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') from public.order_line l where l.id = pg_temp.id('p1')), '1998-11-04T20:10:00.123456Z',
           'and the printed instant of a stored line is that same text');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123Z","course":"primi","segue":false}'), 'err 22023 invalid_request', 'three decimals are refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456","course":"primi","segue":false}'), 'err 22023 invalid_request', 'no Z is refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456+01:00","course":"primi","segue":false}'), 'err 22023 invalid_request', 'an offset is refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"x","course":"primi","segue":false}'), 'err 22023 invalid_request', 'a word is refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","course":"pizze","segue":false}'), 'err 22023 invalid_request', 'an unknown course is refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","course":"primi","segue":"true"}'), 'err 22023 invalid_request', 'segue as a string is refused');
-select is(pg_temp.key('{"sessionId":"not-a-uuid","firedAt":"1998-11-04T20:10:00.123456Z","course":"primi","segue":true}'), 'err 22023 invalid_request', 'a bad uuid is refused');
-select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","course":"secondi","segue":true,"closed":true}'),
-          pg_temp.id('t1') || '|1998-11-04 20:10:00.123456+00|secondi|true', 'a valid body parses (extra keys such as closed are the caller''s business)');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123Z","uscita":1}'), 'err 22023 invalid_request', 'three decimals are refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456","uscita":1}'), 'err 22023 invalid_request', 'no Z is refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456+01:00","uscita":1}'), 'err 22023 invalid_request', 'an offset is refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"x","uscita":1}'), 'err 22023 invalid_request', 'a word is refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","uscita":10}'), 'err 22023 invalid_request', 'uscita 10 is refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","uscita":"1"}'), 'err 22023 invalid_request', 'uscita as a string is refused');
+select is(pg_temp.key('{"sessionId":"not-a-uuid","firedAt":"1998-11-04T20:10:00.123456Z","uscita":0}'), 'err 22023 invalid_request', 'a bad uuid is refused');
+select is(pg_temp.key('{"sessionId":"' || pg_temp.id('t1') || '","firedAt":"1998-11-04T20:10:00.123456Z","uscita":2,"closed":true}'),
+          pg_temp.id('t1') || '|1998-11-04 20:10:00.123456+00|2', 'a valid body parses (extra keys such as closed are the caller''s business)');
 
 -- Line done: the latest event by seq wins -------------------------------------------------------------------------------------------
 select is(app.kitchen_line_done('11111111-1111-4111-8111-111111111111', pg_temp.id('p1')), false, 'no event: not done');
@@ -159,29 +167,29 @@ select is(app.kitchen_line_done('22222222-2222-4222-8222-222222222222', pg_temp.
 
 -- Ticket state ----------------------------------------------------------------------------------------------------------------------
 select is((select s.closed::text || ',' || coalesce(s.closed_at::text, '-') || ',' || coalesce(s.closed_by::text, '-') || ',' || s.auto::text
-             from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false) s),
+             from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint) s),
           'false,-,-,false', 'no ticket event: open');
-select pg_temp.tev('closed', 'auto', 't1', 'primi', false, '1998-11-04 20:10:00.123456+00', '1998-11-04 20:30:00+00');
+select pg_temp.tev('closed', 'auto', 't1', 1, '1998-11-04 20:10:00.123456+00', '1998-11-04 20:30:00+00');
 select is((select s.closed::text || ',' || s.closed_at::text || ',' || s.closed_by::text || ',' || s.auto::text
-             from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false) s),
+             from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint) s),
           'true,1998-11-04 20:30:00+00,c1000000-0000-4000-8000-00000000000c,true', 'closed auto: closed with its instant, user and auto flag');
-select is((select s.closed from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', true) s),
-          false, 'the segue comanda of the same course is not affected');
-select is((select s.closed from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t2'), '1998-11-04 20:10:00.123456+00', 'primi', false) s),
+select is((select s.closed from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 2::smallint) s),
+          false, 'the segue comanda of the same course (uscita 2) is not affected');
+select is((select s.closed from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t2'), '1998-11-04 20:10:00.123456+00', 1::smallint) s),
           false, 'another session with the same instant and course is not affected');
-select pg_temp.tev('reopened', 'tap', 't1', 'primi', false, '1998-11-04 20:10:00.123456+00', '1998-11-04 20:31:00+00', '11111111-1111-4111-8111-111111111111', 'f1000000-0000-4000-8000-00000000000f');
-select is((select s.closed::text || ',' || coalesce(s.closed_at::text, '-') from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false) s),
+select pg_temp.tev('reopened', 'tap', 't1', 1, '1998-11-04 20:10:00.123456+00', '1998-11-04 20:31:00+00', '11111111-1111-4111-8111-111111111111', 'f1000000-0000-4000-8000-00000000000f');
+select is((select s.closed::text || ',' || coalesce(s.closed_at::text, '-') from app.kitchen_ticket_state('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint) s),
           'false,-', 'closed then reopened: open');
-select is((select s.closed from app.kitchen_ticket_state('22222222-2222-4222-8222-222222222222', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false) s),
+select is((select s.closed from app.kitchen_ticket_state('22222222-2222-4222-8222-222222222222', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint) s),
           false, 'tenant B''s read of the key sees nothing');
 
 -- Open lines: p1 done, p4 voided, p2 and p3 mixed, draft not counted ---------------------------------------------------------------------
-select is(app.kitchen_ticket_open_lines('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false), 1,
+select is(app.kitchen_ticket_open_lines('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint), 1,
           'four fired lines: p1 done, p2 not done, p3 done, p4 voided -> one open (p2); the draft and the segue line are not counted');
-select is(app.kitchen_ticket_open_lines('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', true), 1, 'the segue comanda has its own open line');
+select is(app.kitchen_ticket_open_lines('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 2::smallint), 1, 'the segue comanda has its own open line');
 
 -- Lock and ACL -------------------------------------------------------------------------------------------------------------------------
-select is(pg_temp.err($$select app.kitchen_ticket_lock('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 'primi', false)$$), 'ok',
+select is(pg_temp.err($$select app.kitchen_ticket_lock('11111111-1111-4111-8111-111111111111', pg_temp.id('t1'), '1998-11-04 20:10:00.123456+00', 1::smallint)$$), 'ok',
           'the ticket lock runs for a valid key (its serialisation is proved by the race cases)');
 select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'app' and p.proname in ('require_kitchen_marker', 'kitchen_ticket_key', 'kitchen_ticket_lock', 'kitchen_line_done', 'kitchen_ticket_state', 'kitchen_ticket_open_lines')), 6, 'all six exist');
