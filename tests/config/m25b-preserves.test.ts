@@ -201,6 +201,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206210600_ingredient_cost_opening_fallback.sql",
   // Opening stock step 11 (20261206210700_reconciliation_opening.sql), re-pinned on purpose by opening stock (step 11; was the list ending at 20261206210600_ingredient_cost_opening_fallback.sql): the reconciliation folds opening rows into openingQty.
   "20261206210700_reconciliation_opening.sql",
+  // Comanda per uscita step 3 (20261206220000_uscita_core.sql), re-pinned on purpose by comanda-uscite (step 3; was the list ending at 20261206210700_reconciliation_opening.sql): order_line.uscita, uscita_call, the guard, the purge list and the helpers.
+  "20261206220000_uscita_core.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

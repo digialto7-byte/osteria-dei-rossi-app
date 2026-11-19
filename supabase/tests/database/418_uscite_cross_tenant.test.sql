@@ -15,7 +15,7 @@ begin;
 -- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(18);
+select plan(20);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -151,6 +151,24 @@ insert into tl values
 select ok((select j::text like '%34000000-0000-4000-8000-000000000001%' and j::text like '%Tavolo A Demo%' from tl where who = 'a'), 'control: A''s waiter lists A''s table and session');
 select ok((select j::text like '%44000000-0000-4000-8000-000000000001%' and j::text like '%Tavolo B Demo%'
              and j::text not like '%34000000-0000-4000-8000-000000000001%' and j::text not like '%Tavolo A Demo%' from tl where who = 'b'), 'X: B''s waiter lists B''s table and nothing of A''s');
+
+-- Step 3 (M1, on purpose): uscita_call. A's call row, read through the table policy.
+insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+  values ('11111111-1111-4111-8111-111111111111', '34000000-0000-4000-8000-000000000001', 2, pg_temp.day_start('11111111-1111-4111-8111-111111111111'),
+          'd1000000-0000-4000-8000-00000000000d', 'call');
+create function pg_temp.sees_a_calls(p_auth uuid, p_tenant uuid, p_role text) returns bigint language plpgsql as $$
+declare
+  n bigint;
+begin
+  perform pg_temp.claims(p_auth, p_tenant, p_role);
+  set local role authenticated;
+  select count(*) into n from public.uscita_call where tenant_id = '11111111-1111-4111-8111-111111111111';
+  reset role;
+  return n;
+end
+$$;
+select is(pg_temp.sees_a_calls('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner'), 1::bigint, 'control: A''s owner reads A''s call');
+select is(pg_temp.sees_a_calls('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner'), 0::bigint, 'X: B''s owner reads 0 of A''s calls');
 
 -- Mutation: a temporary policy lets any authenticated user read order lines. B's waiter then reads A's lines, so the check that said 0 can fail.
 create policy x_mutation_read_all on public.order_line for select to authenticated using (true);

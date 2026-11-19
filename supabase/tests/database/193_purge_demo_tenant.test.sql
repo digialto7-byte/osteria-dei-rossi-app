@@ -174,6 +174,10 @@ begin
       values (p_tenant, 'line', 'done', 'tap', pg_temp.id(p_tag, 'ol' || k), v_owner);
     insert into public.kitchen_event (tenant_id, subject, action, cause, table_session_id, fired_at, course, segue, created_by)
       values (p_tenant, 'ticket', 'closed', 'auto', pg_temp.id(p_tag, 'ts' || k), '1998-10-24T19:00:00Z', 'primi', false, v_owner);
+    -- Comanda per uscita (step 3, on purpose): a call row of the fixture session (it references the session and the user, so it goes
+    -- before both; its delete guard is app.append_only, which honours the reset). uscita 1 + i keeps the two rows apart.
+    insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+      values (p_tenant, pg_temp.id(p_tag, 'ts' || k), 1 + i, '1998-10-24T19:30:00Z', v_owner, 'call');
     -- M25c: a saved service schedule (it references the users only) and an override of the fixture session (it references the session and the users, so it goes
     -- before both); their delete guard is app.append_only, which honours the reset.
     insert into public.service_schedule (tenant_id, periods, created_by)

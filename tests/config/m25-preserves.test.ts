@@ -33,7 +33,8 @@ const ROOT = new URL("../../", import.meta.url);
 // Opening stock step 9 (20261206210500_reverse_opening_stock.sql), re-pinned on purpose by opening stock (step 9; was 20261206210400_post_opening_stock.sql): reverse_opening_stock and the reason list.
 // Opening stock step 10 (20261206210600_ingredient_cost_opening_fallback.sql), re-pinned on purpose by opening stock (step 10; was 20261206210500_reverse_opening_stock.sql): the opening-cost fallback in app.ingredient_unit_costs.
 // Opening stock step 11 (20261206210700_reconciliation_opening.sql), re-pinned on purpose by opening stock (step 11; was 20261206210600_ingredient_cost_opening_fallback.sql): the reconciliation folds opening rows into openingQty.
-const LAST_MIGRATION = "20261206210700_reconciliation_opening.sql";
+// Comanda per uscita step 3 (20261206220000_uscita_core.sql), re-pinned on purpose by comanda-uscite (step 3; was 20261206210700_reconciliation_opening.sql): order_line.uscita, uscita_call, the guard, the purge list and the helpers.
+const LAST_MIGRATION = "20261206220000_uscita_core.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

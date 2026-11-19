@@ -44,7 +44,7 @@ select p.sch, p.name, p.want,
        (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text collate "C")), '-')
           from pg_proc x where x.proname = p.name and x.pronamespace = p.sch::regnamespace) as got
   from (values
-  ('app', 'order_line_guard', '1,2f36b83c7a229b62d17bb56248656cc7'),
+  ('app', 'order_line_guard', '1,fe047d2a5b707be68c687bbea96ffcfc' /* re-pinned on purpose by comanda-uscite (step 3; was 1,2f36b83c7a229b62d17bb56248656cc7) */),
   ('app', 'menu_items_json', '1,222411150c44a925c33076583c4fe5f6'), -- re-pinned on purpose by the review fix (portionWeightG from the terms row; was 1e616ddc3e30ad04fab00dd52512d14d after A2)
   ('public', 'create_menu_item', '1,8aac30040e9222745c2808bf2c6a9a38'), -- re-pinned on purpose by the review fix (the weight goes on the price row; was 11215c54811bca810a01829e7d1822a2 after A2)
   ('public', 'update_menu_item', '1,ad440f86e5f9bd43f12d4a7b1aa8df35'), -- re-pinned on purpose by the review fix (push_active, then the weight versioned with the terms row; was 85ae2385eec6b809cf7c8a7f856cef50 after A2)
@@ -112,7 +112,7 @@ select is_empty($$ select n.sch || '.' || n.name from fn_new n join fn_old o on 
 select is((select count(*)::int from fn_new where want like '0,%'), 0, 'no function on the list is missing');
 
 -- Registry, purge list, audit checks, jobs, op kinds -----------------------------------------------------------------------------------------------
-select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (re-pinned on purpose by P2-7 S3; was 244dbb02cefe9a6ea25146717a2bcbb4)');
+select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '184b7f9825ba4b3c658d4c2e903cfe15' /* re-pinned on purpose by comanda-uscite (step 3; was 7921893e) */ /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (re-pinned on purpose by P2-7 S3; was 244dbb02cefe9a6ea25146717a2bcbb4)');
 select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), 'e5dc43795b439b56a1a17c5d59a9d564', 'app.sync_op_kinds is unchanged (no new op kind)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');

@@ -129,7 +129,7 @@ select is(pg_temp.try_write($$ update public.invoice_vat_summary set tax = 0 $$)
 reset role;
 
 -- 6. The purge list (ADR-018) ---------------------------------------------------------------------------------------------------------------------------
-select is(cardinality(app.demo_purge_tables()), 61 /* re-pinned on purpose by opening stock (step 5; was 59) */, 'the purge list holds 59 names');
+select is(cardinality(app.demo_purge_tables()), 62 /* re-pinned on purpose by comanda-uscite (step 3; was 61: uscita_call) */ /* re-pinned on purpose by opening stock (step 5; was 59) */, 'the purge list holds 59 names');
 select is((select array_position(app.demo_purge_tables(), 'invoice') - array_position(app.demo_purge_tables(), 'invoice_vat_summary')), 1,
   'invoice_vat_summary is right before invoice');
 select is(array_position(app.demo_purge_tables(), 'invoice_line') < array_position(app.demo_purge_tables(), 'invoice_vat_summary'), true, 'and after invoice_line');
