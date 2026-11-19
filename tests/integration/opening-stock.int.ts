@@ -314,6 +314,10 @@ describe.skipIf(!env)("opening stock on the real stack", () => {
   }, 60_000);
 
   it("after a closed monthly count at Dispensa, a draft PUT and a confirm there are 409 opening_location_counted", async () => {
+    // A line put in the draft BEFORE the count: post_opening_stock checks the draft match (step 5) before the cut-off (step 8), so the confirm
+    // below matches the draft and reaches opening_check_bookable instead of stopping at opening_draft_changed.
+    const late = draftLine(randomUUID(), flourId, 1, 0.8);
+    expect((await putLines(a.owner, [late])).status).toBe(200);
     const started = await call<CountSessionDetail>(
       a.chef,
       countsRoute.POST as Handler,
@@ -349,8 +353,7 @@ describe.skipIf(!env)("opening stock on the real stack", () => {
     );
     expect(closed.status).toBe(200);
 
-    const late = draftLine(randomUUID(), flourId, 1, 0.8);
-    const put = await putLines(a.owner, [late]);
+    const put = await putLines(a.owner, [{ ...late, qty: 2 }]);
     expect(put.status).toBe(409);
     expect(put.error.code).toBe("opening_location_counted");
     const booked = await confirm(a.owner, {

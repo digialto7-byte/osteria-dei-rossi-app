@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mapOpeningDbError } from "./errors";
-import { historyResponse, summaryResponse } from "./output";
+import { historyResponse } from "./output";
 
 /** GET /api/stock/opening/history?locationId=: the location's operations, newest first, at most 50 (plan 2026-11-18 §3.5). */
 export async function getOpeningHistory(supabase: SupabaseClient, locationId: string) {
@@ -8,10 +8,4 @@ export async function getOpeningHistory(supabase: SupabaseClient, locationId: st
   if (error) throw mapOpeningDbError(error);
   return historyResponse.parse(data);
 }
-
-/** For /api/today: {booked, draftLines}, owner and admin only. No money. */
-export async function getOpeningSummary(supabase: SupabaseClient) {
-  const { data, error } = await supabase.rpc("opening_stock_summary", {});
-  if (error) throw mapOpeningDbError(error);
-  return summaryResponse.parse(data);
-}
+// The {booked, draftLines} summary for the set-up step is read by readOpeningBooked (src/server/today/summary.ts), with the summary's own errors.
