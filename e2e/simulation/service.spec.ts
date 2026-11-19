@@ -276,30 +276,27 @@ test.describe("the service simulation (AT1)", () => {
       // Nothing of B reached the server, and the kitchen has A's primi only.
       await Promise.all(pending);
       expect(replies.length).toBe(syncedBefore);
-      const primiCard = (sessionId: string) =>
-        chef.page.locator(
-          `[data-ticket-key^="${sessionId}|"][data-ticket-key*="|primi|"]:not([data-closed])`,
+      // Re-pinned on purpose by comanda-uscite (step 13; was the key text "|primi|" and ticket.course): a ticket is one uscita, so the
+      // primi tickets are the ones whose dish is a primo, found in the board JSON and then on the screen by their key.
+      type Board = { tickets: { key: string; sessionId: string; lines: { course: string }[] }[] };
+      const primiTickets = async () =>
+        (await getJson<Board>(chef.page, "/api/kitchen/tickets")).tickets.filter(
+          (ticket) => ticket.lines[0]?.course === "primi",
         );
       await chef.page.goto("/cucina");
       await expect(
         main(chef.page).getByRole("heading", { name: "Cucina", exact: true }),
       ).toBeVisible();
-      for (const index of A_TABLES) {
-        await expect(primiCard(sessions[index]!)).toBeVisible({ timeout: 20_000 });
+      await expect
+        .poll(async () => (await primiTickets()).map((ticket) => ticket.sessionId).sort(), {
+          timeout: 20_000,
+        })
+        .toEqual(A_TABLES.map((index) => sessions[index]!).sort());
+      for (const ticket of await primiTickets()) {
+        await expect(
+          chef.page.locator(`[data-ticket-key="${ticket.key}"]:not([data-closed])`),
+        ).toBeVisible({ timeout: 20_000 });
       }
-      for (const index of B_TABLES) {
-        await expect(primiCard(sessions[index]!)).toHaveCount(0);
-      }
-      const board = await getJson<{ tickets: { sessionId: string; course: string }[] }>(
-        chef.page,
-        "/api/kitchen/tickets",
-      );
-      expect(
-        board.tickets
-          .filter((ticket) => ticket.course === "primi")
-          .map((ticket) => ticket.sessionId)
-          .sort(),
-      ).toEqual(A_TABLES.map((index) => sessions[index]!).sort());
 
       // The connection is back: every queued operation is applied, none is left on the phone.
       await goOnline(b.context);
@@ -315,8 +312,15 @@ test.describe("the service simulation (AT1)", () => {
         .toBe(bOps);
       const replayed = replies.slice(syncedBefore).flatMap((reply) => reply.results);
       expect(replayed.every((result) => result.status === "applied")).toBe(true);
-      for (const index of B_TABLES) {
-        await expect(primiCard(sessions[index]!)).toBeVisible({ timeout: 30_000 });
+      await expect
+        .poll(async () => (await primiTickets()).map((ticket) => ticket.sessionId).sort(), {
+          timeout: 30_000,
+        })
+        .toEqual(sessions.slice().sort());
+      for (const ticket of await primiTickets()) {
+        await expect(
+          chef.page.locator(`[data-ticket-key="${ticket.key}"]:not([data-closed])`),
+        ).toBeVisible({ timeout: 30_000 });
       }
       expect(await portionsLeft(a.page, menu.tagliatelle)).toBe(PORTIONS - TOTAL_COVERS);
     });
