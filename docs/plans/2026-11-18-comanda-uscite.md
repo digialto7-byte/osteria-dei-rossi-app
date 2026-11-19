@@ -721,6 +721,7 @@ consequence of an object this plan re-creates, and each carries a "re-pinned on 
 | `359` `p27_objs` (a step-17 insert) | `app.session_uscite` | 17 |
 | `301` t2; `327` t2 | `app.close_session_at` | 18 |
 | `301` t17 | `public.tables_list` | 17 |
+| `tests/integration/menu-tables.int.ts` ("BQ-1: the unsent count of a tile", lead 2026-11-19) | a segue draft counts in unsentCount: 1 → 2, and the one send fires both drafts | 17 |
 
 **Must stay unchanged (asserted again by `424`):**
 - `app.freeze_line_cost` (`240:36`);
