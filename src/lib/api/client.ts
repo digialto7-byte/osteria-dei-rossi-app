@@ -43,6 +43,8 @@ interface Options {
   body?: unknown;
   /** Aborts the request (a thrown fetch comes back as a `network` result). */
   signal?: AbortSignal;
+  /** Extra request headers (POST /api/sync names its output version, comanda per uscita). */
+  headers?: Record<string, string>;
 }
 
 const NO_CONTENT = 204;
@@ -122,7 +124,7 @@ async function send<T>(
  */
 export function apiJson<T>(
   path: string,
-  { method = "GET", body, signal }: Options = {},
+  { method = "GET", body, signal, headers }: Options = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<ApiResult<T>> {
   return send<T>(
@@ -131,10 +133,12 @@ export function apiJson<T>(
       method,
       // Every write declares JSON, with or without a body: the API refuses a write without it (CSRF
       // guard), and a body-less DELETE (revoke a device) is a write too.
-      headers:
-        method === "GET" && body === undefined
+      headers: {
+        ...(method === "GET" && body === undefined
           ? { accept: "application/json" }
-          : { accept: "application/json", "content-type": "application/json" },
+          : { accept: "application/json", "content-type": "application/json" }),
+        ...headers,
+      },
       body: body === undefined ? undefined : JSON.stringify(body),
       ...(signal ? { signal } : {}),
     },

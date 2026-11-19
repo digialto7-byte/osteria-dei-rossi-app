@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { syncOutputV1 } from "@/server/sync/output-v1";
 import { z } from "zod";
 import { opResult, syncOutput } from "@/server/sync/output";
 import { ADD_REPLY, LINE_STEW, OIDS } from "../../helpers/orders-data";
@@ -24,7 +25,13 @@ function propertyNames(schema: z.ZodType): string[] {
 }
 
 describe("syncOutput", () => {
+  // Comanda per uscita (step 10): the snapshot below is main's, unchanged; it now pins syncOutputV1, the shape an old bundle parses
+  // (a request without X-Sync-Version). The new bundle's shape is pinned by the version-2 snapshot.
   it("its JSON Schema is the one the phone relies on (snapshot)", () => {
+    expect(z.toJSONSchema(syncOutputV1, { io: "output" })).toMatchSnapshot();
+  });
+
+  it("version 2 (comanda per uscita): its JSON Schema (snapshot)", () => {
     expect(z.toJSONSchema(syncOutput, { io: "output" })).toMatchSnapshot();
   });
 

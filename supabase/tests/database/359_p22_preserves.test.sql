@@ -51,6 +51,20 @@ insert into p27_objs values
 -- Step 9 (20261206210500_reverse_opening_stock.sql): the correction by reversal.
 insert into p27_objs values
   ('app_fn', 'opening_reversal_reasons'), ('public_fn', 'reverse_opening_stock');
+-- Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md section 3.15), re-pinned on purpose by comanda-uscite: its additions since main, in
+-- a separate insert placed right after opening stock's.
+-- Step 3 (20261206220000_uscita_core.sql): order_line.uscita, its CHECK and the held index; uscita_call (its columns, constraints, triggers, policy
+-- and indexes go with the table name); the four helpers.
+insert into p27_objs values
+  ('column', 'order_line.uscita'), ('constraint', 'order_line.order_line_uscita_ck'), ('index', 'order_line_uscita_held_idx'),
+  ('table', 'uscita_call'),
+  ('app_fn', 'uscita_default'), ('app_fn', 'order_uscita'), ('app_fn', 'held_lines'), ('app_fn', 'line_held');
+-- Step 5 (20261206220200_uscita_fire_call.sql): the call and its two JSON helpers.
+insert into p27_objs values
+  ('public_fn', 'call_uscita'), ('app_fn', 'uscita_call_json'), ('app_fn', 'uscita_lines_json');
+-- Step 8 (20261206220400_uscita_open_sessions.sql): the backfill and the NOT VALID check (the default and the comment change no structure pinned here).
+insert into p27_objs values
+  ('app_fn', 'uscite_backfill_open_sessions'), ('constraint', 'order_line.order_line_uscita_set_ck');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -89,8 +103,8 @@ insert into unchanged values
   ('public.split_batch(uuid, integer, integer, uuid)', '2b6b097d7e6089bf47f871e08af7e120'),
   ('public.discard_batch(uuid, numeric, text)', 'ca7a329aa1cc3e74f04d2afebe740c21'),
   ('public.adjust_batch(uuid, numeric)', '183b24bb94f35ce98cab78be9d266f93'),
-  ('public.fire_course(uuid, jsonb)', 'd31530c375e143f5b7813c5ffa49e7ee'),
-  ('public.void_line(uuid, jsonb)', 'd1c3cfff8a2b7a38baad22ef5fa1260d'),
+  ('public.fire_course(uuid, jsonb)', '13a4f9d5d90a3ed9cff409a4a5a40b36' /* re-pinned on purpose by comanda-uscite (step 5; was d31530c3) */),
+  ('public.void_line(uuid, jsonb)', '4b2c9df7d910b054edb208f621f10305' /* re-pinned on purpose by comanda-uscite (step 7; was d1c3cfff) */),
   ('public.push_menu_item(uuid, jsonb)', 'b6893d6fefa09c2f856212813b31d9da'),
   ('app.push_list_json(uuid, text, timestamp with time zone)', 'c72146f85b64c299cc45052812d9a2d4'),
   ('app.menu_push_periods(uuid, timestamp with time zone, timestamp with time zone)', '9a8ca48215fb1935bf1f208b8eb1feb6'),
@@ -99,7 +113,7 @@ insert into unchanged values
   ('app.reservations_day_json(uuid, text, date, timestamp with time zone)', '1352702ca1e2e04db40103c899829602'),
   ('app.kpi_sales_lines(uuid, date, date)', '062abe6d320266baa73fd790a495bb74'),
   ('app.order_line_portions(numeric, integer, integer)', 'd2aa06dd9d58279d904107b6bf0f9bb4'),
-  ('app.demo_purge_tables()', '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */),
+  ('app.demo_purge_tables()', '184b7f9825ba4b3c658d4c2e903cfe15' /* re-pinned on purpose by comanda-uscite (step 3; was 7921893e) */ /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */),
   ('app.tenant_has_operational_data(uuid)', '79f31c13b79b96ff0cecd8b38a3507b5'),
   ('app.payload_money_keys(jsonb)', '028401e1ca05beeced0dc1a7fb66572f'),
   ('app.tenant_id()', '9120a54efc015457eae0667af6f4fe60'),
@@ -109,8 +123,8 @@ select is((select count(*)::int from unchanged u where to_regprocedure(u.sig) is
 select is((select string_agg(u.sig, ', ' order by u.sig) from unchanged u where md5(pg_get_functiondef(to_regprocedure(u.sig))) <> u.md5), null,
           'each equals its value on main (demo_purge_tables: its value after P2-7 S3, which adds invoice_vat_summary to the list): approve_invoice, produce_batch, split_batch, discard_batch, adjust_batch, fire_course, void_line, push_menu_item, push_list_json, menu_push_periods, discards_vs_push_json, forecast_json, reservations_day_json, kpi_sales_lines, order_line_portions, demo_purge_tables, tenant_has_operational_data, payload_money_keys, tenant_id, role, app_user_id');
 -- Re-pinned on purpose by P2-7 S3 (was 244dbb02cefe9a6ea25146717a2bcbb4 and 58 names on main): invoice_vat_summary joins the list right before invoice (ADR-018; pgTAP 362 checks the position).
-select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '7921893efbddd407fa64945d1ab87e08' /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
-select is(cardinality(app.demo_purge_tables()), 61 /* re-pinned on purpose by opening stock (step 5; was 59) */, 'and the purge list holds 61 names (main''s 58, the P2-7 table and opening stock''s two)');
+select is(md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure)), '184b7f9825ba4b3c658d4c2e903cfe15' /* re-pinned on purpose by comanda-uscite (step 3; was 7921893e) */ /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (ADR-018)');
+select is(cardinality(app.demo_purge_tables()), 62 /* re-pinned on purpose by comanda-uscite (step 3; was 61: uscita_call) */ /* re-pinned on purpose by opening stock (step 5; was 59) */, 'and the purge list holds 61 names (main''s 58, the P2-7 table and opening stock''s two)');
 
 -- 2. The function catalogue: main's plus the 22 new functions -----------------------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C")) from pg_proc p

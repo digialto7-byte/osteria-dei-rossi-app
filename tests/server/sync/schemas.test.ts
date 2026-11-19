@@ -17,6 +17,7 @@ const PAYLOAD_OF: Record<(typeof SYNC_KINDS)[number], object> = {
   remove_line: { lineId: LINE },
   fire: { sessionId: SESSION, lineIds: [LINE] },
   void_line: { lineId: LINE, reason: "order_error" },
+  call_uscita: { sessionId: SESSION, uscita: 2 },
 };
 
 const op = (n: number, extra: object = {}) => ({

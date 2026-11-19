@@ -21,7 +21,7 @@ insert into pins values
   ('app.raise_alert(uuid, text, text, uuid, jsonb, public.alert_severity, public.app_role[], timestamptz, date)', '466bf2bd34105a9df1f229fb8c423262'),
   ('app.payload_has_money_value(jsonb)', '981c0b371c1db3d69232692b8cf26eb6'),
   -- re-pinned on purpose by P2-7 S3 (invoice_vat_summary joins the list; was 244dbb02cefe9a6ea25146717a2bcbb4)
-  ('app.demo_purge_tables()', '7921893efbddd407fa64945d1ab87e08' /* on purpose by opening stock (step 5; was 5a0d9d6ebf852c5955d1b935bbcbfbe8) */);
+  ('app.demo_purge_tables()', '184b7f9825ba4b3c658d4c2e903cfe15' /* re-pinned on purpose by comanda-uscite (step 3; was 7921893e) */ /* on purpose by opening stock (step 5; was 5a0d9d6ebf852c5955d1b935bbcbfbe8) */);
 select is((select count(*)::int from pins where md5(pg_get_functiondef(fn)) <> pins.md5), 0, 'the twelve functions that must stay as they are equal their md5 on main');
 select is((select string_agg(fn::text, ', ') from pins where md5(pg_get_functiondef(fn)) <> pins.md5), null, 'none is named as changed');
 select is((select count(*)::int from pins), 12, 'and the list has twelve');
@@ -67,13 +67,15 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'tenant_settings', 'set_tenant_settings',
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
-              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */)), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
+              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), -- P2-2 (20261203*): its public functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
           '184,5a2eab03d76e48e89fe269f8609c70bf', 'the public functions other than the thirteen are exactly those of main (catalogue md5)');
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
               'tenant_settings', 'set_tenant_settings',
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
-              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
+              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace

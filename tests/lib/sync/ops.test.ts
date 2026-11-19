@@ -287,3 +287,66 @@ describe("fireDrafts", () => {
     expect(syncBody.safeParse({ ops: [op] }).success).toBe(true);
   });
 });
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 10).
+describe("comanda per uscita ops", () => {
+  it("callUscitaDraft builds the op with the Chiamata label, accepted by its payload schema", async () => {
+    const { callUscitaDraft } = await import("@/lib/sync/ops");
+    const draft = callUscitaDraft({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      tableName: "Tavolo 2",
+      uscita: 2,
+      now: NOW,
+    });
+    expect(draft).toMatchObject({
+      kind: "call_uscita",
+      payload: { sessionId: SYNC_IDS.s1, uscita: 2 },
+      scope: { sessionId: SYNC_IDS.s1 },
+      label: { tableName: "Tavolo 2", uscita: 2 },
+    });
+    expect(PAYLOADS.call_uscita.safeParse(draft.payload).success).toBe(true);
+  });
+
+  it("fireDrafts({hold: true}) chunks 50 and keeps hold on every chunk", () => {
+    const ids = Array.from({ length: 120 }, (_v, i) => lineId(i + 1));
+    const drafts = fireDrafts({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      tableName: "t",
+      lineIds: ids,
+      hold: true,
+      now: NOW,
+    });
+    expect(drafts.map((d) => (d.payload.lineIds as string[]).length)).toEqual([50, 50, 20]);
+    for (const d of drafts) {
+      expect(d.payload.hold).toBe(true);
+      expect(PAYLOADS.fire.safeParse(d.payload).success).toBe(true);
+    }
+  });
+
+  it("addLineDraft carries uscita; editLineDraft sends uscita, not segue", async () => {
+    const { addLineDraft, editLineDraft } = await import("@/lib/sync/ops");
+    const add = addLineDraft({
+      me: ME,
+      sessionId: SYNC_IDS.s1,
+      tableName: "t",
+      lineId: lineId(1),
+      item: { id: LINE_STEW.menuItemId, name: "x", unitPrice: 1 },
+      uscita: 2,
+      now: NOW,
+    });
+    expect(add.payload.uscita).toBe(2);
+    expect(PAYLOADS.add_line.safeParse(add.payload).success).toBe(true);
+    const edit = editLineDraft({
+      me: ME,
+      line: LINE_STEW,
+      tableName: "t",
+      changes: { uscita: 3, segue: true },
+      sessionId: SYNC_IDS.s1,
+      now: NOW,
+    });
+    expect(edit?.payload).toEqual({ lineId: LINE_STEW.id, uscita: 3 });
+    expect(PAYLOADS.edit_line.safeParse(edit!.payload).success).toBe(true);
+  });
+});

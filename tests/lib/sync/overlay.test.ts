@@ -308,3 +308,31 @@ describe("overlayOrder, weighted lines (P2-0b)", () => {
     expect(added.pricePer100g).toBeNull();
   });
 });
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 10).
+describe("overlayOrder: comanda per uscita", () => {
+  it("applies a queued uscita edit, and segue follows it", () => {
+    const result = overlayOrder(ORDER_VIEW, [editOf(1, LINE_STEW.id, { uscita: 2 })], S1);
+    expect(byId(result!.lines, LINE_STEW.id)).toMatchObject({
+      uscita: 2,
+      segue: true,
+      queue: "edit",
+    });
+  });
+
+  it("a queued legacy segue edit lands in the 2nd", () => {
+    const result = overlayOrder(ORDER_VIEW, [editOf(1, LINE_STEW.id, { segue: true })], S1);
+    expect(byId(result!.lines, LINE_STEW.id)).toMatchObject({ uscita: 2, segue: true });
+  });
+
+  it("marks a queued call 'in coda' (queuedCalls), once per uscita", () => {
+    const call = (n: number): OutboxOp => ({
+      ...queued(fireDraft(n, [], "s1"), n),
+      kind: "call_uscita",
+      payload: { sessionId: S1, uscita: 2 },
+    });
+    const result = overlayOrder(ORDER_VIEW, [call(1), call(2)], S1);
+    expect(result!.queuedCalls).toEqual([2]);
+    expect(overlayOrder(ORDER_VIEW, [], S1)!.queuedCalls).toEqual([]);
+  });
+});

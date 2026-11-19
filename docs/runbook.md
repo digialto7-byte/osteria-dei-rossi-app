@@ -506,6 +506,23 @@ unit cost per ingredient, a "Data del carico", then one confirmation per locatio
   confirmation (the last write wins). After confirming, reload the draft: if a location that was just booked shows lines again, check them
   before confirming again.
 
+## Comanda per uscita
+
+The waiter sends a table once ("Invia comanda"); dishes are grouped in uscite and the later ones wait in the kitchen until "Via la n". The
+design is in `docs/adr/adr-049-comanda-per-uscita.md`.
+
+- **Deploy outside service.** The migration that places the open tables' lines (M5) locks the order lines for a few milliseconds and must
+  run with the room closed. Afterwards **every phone and the kitchen screen close the app and reopen it**, so they load the new version;
+  until then an old phone keeps working with today's buttons, and its queued dishes keep their meaning ("Invia a seguire" still calls the
+  2ª at once). (test: supabase/tests/database/423_uscita_open_sessions.test.sql)
+- **Reading the calls.** Every "Via la n" is one row of `uscita_call` (session, uscita, when, who, cause): `call` is a waiter's tap,
+  `fire_now` a send from an old phone, `migration` the deploy. Rows are never changed or deleted.
+  (test: supabase/tests/database/421_uscita_fire_call.test.sql)
+- **A dish that waits and is not wanted.** Before its uscita is called, a held dish is voided "Non preparato": its portions go back to
+  stock and nothing is counted as waste. After the call, the usual reasons apply. (test: supabase/tests/database/422_uscita_void.test.sql)
+- **`uscita_waiting`.** A table cannot be closed while an uscita is still waiting: call it, or void its dishes "Non preparato", then close.
+  The message lists the waiting dishes.
+
 ## Go-live day
 
 The go-live gate is 12 January. Before it, with the founder:

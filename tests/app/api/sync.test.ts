@@ -92,7 +92,11 @@ describe("POST /api/sync: access and limits", () => {
   it.each(["owner", "admin", "waiter"])(
     "%s: one apply_op RPC per op, in order, with p_op exactly the op",
     async (role) => {
-      as(role, [addApplied(1), editApplied(2), applied(3, { lines: [], fired: [], skipped: [] })]);
+      as(role, [
+        addApplied(1),
+        editApplied(2),
+        applied(3, { lines: [], fired: [], skipped: [], held: [] }),
+      ]);
       const ops = [ADD(1), EDIT(2), FIRE(3)];
       const response = await post({ ops });
       expect(response.status).toBe(200);
@@ -339,5 +343,75 @@ describe("POST /api/sync: leaks", () => {
     expect(response.status).toBe(500);
     expect(JSON.stringify(await response.json())).not.toContain("unit_cost");
     expect(reportError).toHaveBeenCalledTimes(1);
+  });
+});
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 10, §3.12 "Versions").
+describe("POST /api/sync: X-Sync-Version", () => {
+  const v2 = { headers: { "content-type": "application/json", "x-sync-version": "2" } };
+  const CALL = {
+    opId: opId(9),
+    seq: 9,
+    kind: "call_uscita",
+    clientTs: AT,
+    userId: OIDS.waiterA,
+    payload: { sessionId: OIDS.session, uscita: 2 },
+  };
+
+  it("without the header (an old bundle): lines without uscita", async () => {
+    const response = await post({ ops: [ADD(1)] });
+    expect(response.status).toBe(200);
+    expect(JSON.stringify(await response.json())).not.toContain("uscita");
+  });
+
+  it("with X-Sync-Version: 2: the full shape", async () => {
+    const response = await post({ ops: [ADD(1)] }, v2);
+    expect(response.status).toBe(200);
+    expect((await response.json()).results[0].reply.line.uscita).toBe(LINE_STEW.uscita);
+  });
+
+  it("a held conflict reaches an old bundle as stale", async () => {
+    as("waiter", [
+      ok({
+        opId: opId(1),
+        status: "conflict",
+        receivedAt: RECEIVED,
+        stop: false,
+        result: { conflict: { reason: "held", line: { ...LINE_STEW, state: "fired" } } },
+      }),
+    ]);
+    const json = await (await post({ ops: [EDIT(1)] })).json();
+    expect(json.results[0].conflict.reason).toBe("stale");
+  });
+
+  it("an unknown version is a 400 before any RPC", async () => {
+    const response = await post(
+      { ops: [ADD(1)] },
+      { headers: { "content-type": "application/json", "x-sync-version": "9" } },
+    );
+    expect(response.status).toBe(400);
+    expect(client.rpc).not.toHaveBeenCalled();
+  });
+
+  it("call_uscita cannot come from version 1 (400 before any RPC); from version 2 it is applied", async () => {
+    expect((await post({ ops: [CALL] })).status).toBe(400);
+    expect(client.rpc).not.toHaveBeenCalled();
+    as("waiter", [
+      applied(9, {
+        changed: true,
+        call: {
+          uscita: 2,
+          calledAt: RECEIVED,
+          calledBy: { id: OIDS.waiterA, displayName: "Cameriere Demo" },
+        },
+        lines: [],
+      }),
+    ]);
+    const response = await post({ ops: [CALL] }, v2);
+    expect(response.status).toBe(200);
+    expect((await response.json()).results[0]).toMatchObject({
+      status: "applied",
+      kind: "call_uscita",
+    });
   });
 });

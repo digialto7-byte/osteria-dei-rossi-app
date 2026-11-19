@@ -297,6 +297,11 @@ insert into public.kitchen_event (tenant_id, subject, action, cause, order_line_
   values ('11111111-1111-4111-8111-111111111111', 'line', 'done', 'tap', '15000000-0000-4000-8000-000000000001',
           (select id from public.app_user limit 1));
 
+-- Comanda per uscita uscita_call (owner/admin read it; the chef and the waiter read no row). Added on purpose by comanda-uscite (step 3).
+insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+  values ('11111111-1111-4111-8111-111111111111', '14000000-0000-4000-8000-000000000001', 2, '1998-10-23 20:00+00',
+          (select id from public.app_user limit 1), 'call');
+
 -- M23 menu_push (owner/admin read it; the chef and the waiter read no row).
 insert into public.menu_push (tenant_id, menu_item_id, action, push_until, push_price, created_by)
   values ('11111111-1111-4111-8111-111111111111', '11000000-0000-4000-8000-000000000001', 'start', '1998-10-24 23:00+00', 12.00,

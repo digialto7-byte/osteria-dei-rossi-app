@@ -95,3 +95,19 @@ describe("planPrune: nothing to do", () => {
     expect(plan.drops).toEqual([]);
   });
 });
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 10): a queued call of a session that was never created goes with it.
+describe("planPrune: a queued call", () => {
+  it("is dropped with the dead session's other ops", () => {
+    const call = {
+      ...queued(fireDraft(9, [], "s1"), 9),
+      kind: "call_uscita" as const,
+      payload: { sessionId: SYNC_IDS.s1, uscita: 2 },
+    };
+    const plan = planPrune([call], { sessionId: SYNC_IDS.s1 }, newId, NOW);
+    expect(plan.drops).toEqual([
+      { opId: call.opId, reason: "session_not_created", settledAt: NOW },
+    ]);
+    expect(plan.rewrites).toEqual([]);
+  });
+});

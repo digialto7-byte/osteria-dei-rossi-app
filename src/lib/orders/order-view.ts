@@ -5,7 +5,7 @@ import { formatEuro, formatPricePerEtto } from "@/lib/money/format";
 import type { QueueFlag } from "@/lib/sync/overlay";
 import { formatTime } from "@/lib/time/format";
 import type { ServiceMenu, ServiceMenuItem } from "@/server/menu/output";
-import { COURSES, type Course } from "@/server/orders/constants";
+import { COURSES, type Course, uscitaDefault } from "@/server/orders/constants";
 import type { CONFLICT_REASONS, ItemStock, OrderLine } from "@/server/orders/output";
 
 // Presentation helpers for the order screen. Pure: they only word what the API already decided (availability, the
@@ -217,6 +217,10 @@ export function conflictMessage(
       return t("orderError.conflict_voided", {}, locale);
     case "session_closed":
       return t("orderError.session_closed", {}, locale);
+    case "held":
+      return t("orderError.conflict_held", {}, locale);
+    case "uscita_called":
+      return t("orderError.conflict_uscita_called", {}, locale);
   }
 }
 
@@ -247,6 +251,7 @@ export function pendingLine(
     name: item.name,
     course,
     qty: 1,
+    uscita: uscitaDefault(course),
     segue: false,
     note: null,
     isShared: false,

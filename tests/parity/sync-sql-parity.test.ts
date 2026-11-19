@@ -9,8 +9,10 @@ import { PAYLOADS } from "@/server/sync/schemas";
 
 const read = (name: string) =>
   readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), "utf8");
-const applied = read("20261109100000_applied_op.sql");
+
 const apply = read("20261109100100_apply_op.sql");
+// Comanda per uscita M3 re-creates app.sync_op_kinds (call_uscita last) and app.apply_op_dispatch (re-pinned on purpose, step 10).
+const usciteFireCall = read("20261206220200_uscita_fire_call.sql");
 const found = (name: string, text: string, pattern: RegExp) => {
   const match = pattern.exec(text);
   if (!match) throw new Error(`${name}: not found in the migration`);
@@ -22,7 +24,7 @@ describe("the sync lists match the migrations", () => {
   it("SYNC_KINDS are app.sync_op_kinds(), in order", () => {
     const m = found(
       "kinds",
-      applied,
+      usciteFireCall,
       /sync_op_kinds\(\) returns text\[\][\s\S]*?select array\[([^\]]*)\]/,
     );
     expect(quoted(m[1]!)).toEqual([...SYNC_KINDS]);
@@ -40,7 +42,7 @@ describe("the sync lists match the migrations", () => {
   it("every kind has a payload schema and a branch in the dispatcher", () => {
     for (const kind of SYNC_KINDS) {
       expect(PAYLOADS[kind], kind).toBeDefined();
-      expect(apply, kind).toContain(`when '${kind}' then`);
+      expect(usciteFireCall, kind).toContain(`when '${kind}' then`);
     }
     expect(Object.keys(PAYLOADS).sort()).toEqual([...SYNC_KINDS].sort());
   });

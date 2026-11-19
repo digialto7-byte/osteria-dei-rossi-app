@@ -21,6 +21,8 @@ const HEADINGS = [
   "Releases",
   "Venue settings",
   "Avvio magazzino (carico iniziale)",
+  // Comanda per uscita (plan step 12), added on purpose.
+  "Comanda per uscita",
   "Go-live day",
 ];
 

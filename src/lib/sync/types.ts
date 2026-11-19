@@ -20,6 +20,8 @@ export interface OpLabel {
   /** A weighted line (P2-0b): its weight and the price per 100 g the menu quoted. Never a line total: that is the server's. */
   weightG?: number;
   pricePer100g?: number;
+  /** Comanda per uscita: the uscita a queued call names ("Chiamata in coda"). */
+  uscita?: number;
 }
 
 /** Who queued the op (local only, never sent). */

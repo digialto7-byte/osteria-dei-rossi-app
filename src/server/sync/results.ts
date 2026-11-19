@@ -6,6 +6,8 @@ import type { DbError } from "@/server/master/db-errors";
 import { mapOrderDbError } from "@/server/orders/errors";
 import {
   addLineOutput,
+  callConflict,
+  callOutput,
   conflictDetails,
   fireOutput,
   lineWriteOutput,
@@ -48,9 +50,40 @@ const REPLY_OF = {
   remove_line: lineWriteOutput,
   fire: fireOutput,
   void_line: lineWriteOutput,
+  call_uscita: callOutput,
 } satisfies Record<SyncKind, z.ZodType>;
 
-const CONFLICT_WRAPPER = z.object({ conflict: conflictDetails });
+const CONFLICT_WRAPPER = z.object({ conflict: z.union([conflictDetails, callConflict]) });
+
+/** A line as the database stored it before comanda per uscita: no uscita key. It predates uscite, so it gains null (nothing invented). */
+function upgradeLine(line: unknown): unknown {
+  if (line && typeof line === "object" && !Array.isArray(line) && !("uscita" in line)) {
+    return { ...line, uscita: null };
+  }
+  return line;
+}
+
+/**
+ * Comanda per uscita (plan §3.12 "Stored-reply upgrade"): a reply stored before the deploy is answered again to a duplicate, so it is
+ * brought to today's shape before the strict parse: a line without uscita gains uscita: null, a fire reply without held gains held: [].
+ * Everything else stays strict: an unknown key still throws.
+ */
+export function upgradeStored(result: unknown): unknown {
+  if (!result || typeof result !== "object" || Array.isArray(result)) return result;
+  const r = { ...(result as Record<string, unknown>) };
+  if ("line" in r) r.line = upgradeLine(r.line);
+  if (Array.isArray(r.lines)) {
+    r.lines = r.lines.map(upgradeLine);
+    if ("fired" in r && "skipped" in r && !("held" in r)) r.held = [];
+  }
+  if (r.conflict && typeof r.conflict === "object" && "line" in (r.conflict as object)) {
+    r.conflict = {
+      ...(r.conflict as object),
+      line: upgradeLine((r.conflict as { line: unknown }).line),
+    };
+  }
+  return r;
+}
 
 function dbErrorOf(kind: SyncKind, raw: z.infer<typeof rejection>): DbError {
   return {
@@ -80,11 +113,11 @@ function storedOf(kind: SyncKind, s: z.infer<typeof stored>): StoredResult {
     return storedResult.parse({
       status: "applied",
       receivedAt: s.receivedAt,
-      reply: REPLY_OF[kind].parse(s.result),
+      reply: REPLY_OF[kind].parse(upgradeStored(s.result)),
     });
   }
   if (s.status === "conflict") {
-    const wrapped = CONFLICT_WRAPPER.safeParse(s.result);
+    const wrapped = CONFLICT_WRAPPER.safeParse(upgradeStored(s.result));
     if (wrapped.success) {
       return storedResult.parse({
         status: "conflict",

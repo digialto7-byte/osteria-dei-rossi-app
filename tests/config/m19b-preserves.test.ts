@@ -88,7 +88,8 @@ describe("M19b migrations leave the earlier milestones' objects alone", () => {
 });
 
 describe("kitchen marks are online-only (AT12)", () => {
-  it("the offline queue still carries the six M20 op kinds", () => {
+  // call_uscita added on purpose by comanda-uscite (step 10): the kitchen still adds no op kind.
+  it("the offline queue still carries the six M20 op kinds, plus comanda per uscita's call", () => {
     expect([...SYNC_KINDS]).toEqual([
       "open_table",
       "add_line",
@@ -96,6 +97,7 @@ describe("kitchen marks are online-only (AT12)", () => {
       "remove_line",
       "fire",
       "void_line",
+      "call_uscita",
     ]);
   });
 

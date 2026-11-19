@@ -1978,6 +1978,12 @@ export const it = {
     "Questa riga è stata cambiata da un collega: ricarica la comanda.",
   "orderError.conflict_fired": "Questa riga è già stata inviata in cucina.",
   "orderError.conflict_voided": "Questa riga è stata tolta.",
+  // Comanda per uscita (da approvare).
+  "orderError.conflict_held":
+    "Questo piatto aspetta la sua uscita: si può solo stornare come non preparato.",
+  "orderError.conflict_uscita_called": "L'uscita di questo piatto è già stata chiamata.",
+  "orderError.call_already_called": "La {n}ª uscita era già stata chiamata.",
+  "orderError.call_nothing_waiting": "Nella {n}ª uscita non c'è nessun piatto in attesa.",
   "orderError.session_not_found": "Sessione non trovata.",
   "orderError.menu_item_not_found": "Piatto non trovato.",
   "orderError.line_not_found": "Riga non trovata.",
@@ -2081,6 +2087,7 @@ export const it = {
   "orders.void.reason.returned": "Rimandato indietro",
   "orders.void.reason.comp": "Offerto dalla casa",
   "orders.void.reason.breakage": "Caduto o rotto",
+  "orders.void.reason.not_prepared": "Non preparato",
   "kitchen.forbidden": "La lista della cucina non è disponibile per il tuo ruolo.",
   "kitchen.asOf": "Aggiornato alle {time}",
   "kitchen.voided": "Stornato \u00b7 {reason}",

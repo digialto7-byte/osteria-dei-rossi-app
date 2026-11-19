@@ -509,3 +509,48 @@ describe("opening stock routes are owner/admin only", () => {
     },
   );
 });
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 9; §3.16 "Waiters never see costs"): POST /api/table-sessions/:id/call
+// answers the call and the uscita's lines as a waiter reads them. No key may name a cost; a cost injected into the RPC reply is a 500.
+const callRoute = await import("@/app/api/table-sessions/[id]/call/route");
+const CALL_REPLY = {
+  changed: true,
+  call: {
+    uscita: 2,
+    calledAt: "2026-11-19T20:02:00+00:00",
+    calledBy: { id: OIDS.waiterA, displayName: "Cameriere Demo" },
+  },
+  lines: [{ ...LINE_STEAK, uscita: 2, segue: true, state: "fired" }],
+};
+const postCall = () =>
+  callRoute.POST(
+    new Request(`http://localhost:3000/api/table-sessions/${OIDS.session}/call`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ uscita: 2 }),
+    }),
+    routeContext({ id: OIDS.session }),
+  );
+
+describe("POST /api/table-sessions/:id/call as a waiter", () => {
+  it("has no key naming a cost, margin, food cost, GP, VAT or recipe, at any depth", async () => {
+    client = fakeSupabase({ claims: claimsFor("waiter"), rpc: { call_uscita: [ok(CALL_REPLY)] } });
+    const response = await postCall();
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/table-sessions/:id/call", json)).toEqual([]);
+  });
+
+  it("a cost injected into the reply is a 500 and never reaches the client", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("waiter"),
+      rpc: {
+        call_uscita: [ok({ ...CALL_REPLY, lines: [{ ...CALL_REPLY.lines[0], unitCost: 3.2 }] })],
+      },
+    });
+    const response = await postCall();
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("3.2");
+  });
+});

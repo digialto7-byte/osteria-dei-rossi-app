@@ -2,10 +2,12 @@ import { z } from "zod";
 import { COURSES, VOID_REASONS } from "@/server/orders/constants";
 import {
   addLineObject,
+  callBody,
   clientUpdatedAt,
   fireBody,
   note,
   qty,
+  uscita,
   weightG,
   weightOrQty,
 } from "@/server/orders/schemas";
@@ -16,18 +18,24 @@ import { MAX_SYNC_OPS, SYNC_KINDS, type SyncKind } from "./constants";
 // stamp of a line write is the op's `clientTs`, and a `clientUpdatedAt` inside a payload is refused. The database stays the
 // authority; these schemas turn the obvious mistakes into a result before any RPC.
 
+/** uscita replaces the legacy segue: a payload names one or the other (the database answers 22023 otherwise). */
+const uscitaOrSegue = (body: { uscita?: number | undefined; segue?: boolean | undefined }) =>
+  body.uscita === undefined || body.segue === undefined;
+
 const addPayload = addLineObject
   .omit({ clientUpdatedAt: true })
   .extend({ sessionId: z.uuid() })
-  .refine(weightOrQty, { message: "weight and qty are exclusive" });
+  .refine(weightOrQty, { message: "weight and qty are exclusive" })
+  .refine(uscitaOrSegue, { message: "uscita and segue are exclusive" });
 
-const EDITABLE = ["qty", "weightG", "course", "segue", "note", "isShared"] as const;
+const EDITABLE = ["qty", "weightG", "course", "uscita", "segue", "note", "isShared"] as const;
 const editPayload = z
   .strictObject({
     lineId: z.uuid(),
     qty: qty.optional(),
     weightG: weightG.optional(),
     course: z.enum(COURSES).optional(),
+    uscita: uscita.optional(),
     segue: z.boolean().optional(),
     note: note.optional(),
     isShared: z.boolean().optional(),
@@ -35,12 +43,14 @@ const editPayload = z
   .refine((body) => EDITABLE.some((key) => body[key] !== undefined), {
     message: "nothing to change",
   })
-  .refine(weightOrQty, { message: "weight and qty are exclusive" });
+  .refine(weightOrQty, { message: "weight and qty are exclusive" })
+  .refine(uscitaOrSegue, { message: "uscita and segue are exclusive" });
 
 const removePayload = z.strictObject({ lineId: z.uuid() });
 const firePayload = fireBody.extend({ sessionId: z.uuid() });
 const voidPayload = z.strictObject({ lineId: z.uuid(), reason: z.enum(VOID_REASONS) });
 const openPayload = openTableBody.extend({ tableId: z.uuid() });
+const callPayload = callBody.extend({ sessionId: z.uuid() });
 
 /** The payload schema of each kind. */
 export const PAYLOADS = {
@@ -50,6 +60,7 @@ export const PAYLOADS = {
   remove_line: removePayload,
   fire: firePayload,
   void_line: voidPayload,
+  call_uscita: callPayload,
 } satisfies Record<SyncKind, z.ZodType>;
 
 export const opEnvelope = z.strictObject({

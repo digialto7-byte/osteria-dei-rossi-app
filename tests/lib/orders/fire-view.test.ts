@@ -128,8 +128,12 @@ describe("skippedMessage", () => {
 });
 
 describe("void reasons", () => {
-  it("has a label for each reason, in the order of VOID_REASONS", () => {
-    expect(voidReasonOptions().map((o) => o.value)).toEqual([...VOID_REASONS]);
+  // not_prepared left out of the dialog on purpose by comanda-uscite (step 9): only a held line takes it, and that dialog is PR4's.
+  it("has a label for each reason but not_prepared, in the order of VOID_REASONS", () => {
+    expect(voidReasonOptions().map((o) => o.value)).toEqual(
+      VOID_REASONS.filter((r) => r !== "not_prepared"),
+    );
+    expect(voidReasonLabel("not_prepared")).toBe("Non preparato");
     expect(voidReasonOptions().map((o) => o.label)).toEqual([
       "Errore di comanda",
       "Il cliente ha cambiato idea",

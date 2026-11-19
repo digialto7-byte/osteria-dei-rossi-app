@@ -38,6 +38,8 @@ export function addLineDraft(input: {
   /** `unitPrice` for a portion dish; `pricePer100g` for a weighted one (the menu's price per etto). */
   item: { id: string; name: string; unitPrice?: number; pricePer100g?: number };
   course?: Course;
+  /** Comanda per uscita: the uscita (0..9); absent, the server places the line (drinks 0, else 1). */
+  uscita?: number;
   qty?: number;
   /** A weighted dish: the grams (no `qty`, the line is one plate). */
   weightG?: number;
@@ -52,6 +54,7 @@ export function addLineDraft(input: {
       lineId: input.lineId,
       menuItemId: input.item.id,
       ...(input.course !== undefined ? { course: input.course } : {}),
+      ...(input.uscita !== undefined ? { uscita: input.uscita } : {}),
       ...(input.weightG !== undefined
         ? { weightG: input.weightG }
         : input.qty !== undefined
@@ -128,23 +131,50 @@ export function voidLineDraft(input: {
   );
 }
 
-/** One fire op per 50 ids (the server takes 1 to 50 per fire), in order, none lost. */
+/**
+ * One fire op per 50 ids (the server takes 1 to 50 per fire), in order, none lost. Comanda per uscita: `hold` ("Invia comanda") rides on
+ * every chunk, so the later uscite of every chunk wait for their call whatever the chunking.
+ */
 export function fireDrafts(input: {
   me: QueuedBy;
   sessionId: string;
   tableName: string;
   lineIds: readonly string[];
+  hold?: boolean;
   now: Date;
 }): OpDraft[] {
   return chunkFireIds(input.lineIds).map((lineIds) => ({
     kind: "fire",
     clientTs: input.now.toISOString(),
     userId: input.me.id,
-    payload: { sessionId: input.sessionId, lineIds },
+    payload: {
+      sessionId: input.sessionId,
+      lineIds,
+      ...(input.hold !== undefined ? { hold: input.hold } : {}),
+    },
     scope: { sessionId: input.sessionId },
     label: { tableName: input.tableName },
     queuedBy: input.me,
   }));
+}
+
+/** Comanda per uscita: "Via la n" queued offline, labelled for the "Chiamata in coda" notice. */
+export function callUscitaDraft(input: {
+  me: QueuedBy;
+  sessionId: string;
+  tableName: string;
+  uscita: number;
+  now: Date;
+}): OpDraft {
+  return {
+    kind: "call_uscita",
+    clientTs: input.now.toISOString(),
+    userId: input.me.id,
+    payload: { sessionId: input.sessionId, uscita: input.uscita },
+    scope: { sessionId: input.sessionId },
+    label: { tableName: input.tableName, uscita: input.uscita },
+    queuedBy: input.me,
+  };
 }
 
 function lineDraft(

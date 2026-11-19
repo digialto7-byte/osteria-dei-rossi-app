@@ -34,3 +34,8 @@
 - Good: every fired plate is in the ledger with its batch and lots (traceability); replays are safe before M20; the chef sees quantities only; balances stay derived.
 - Bad / accepted trade-offs: a negative batch must be fixed by a count (M15 `adjust_batch`); a batch produced during a fire is used only from the next fire; the kitchen sees a new ticket up to 5 s late; tickets have no "done" state in the MVP.
 - What would make us revisit this: founder answers to Q97 (segue), Q98 (instant kitchen), Q99 (chef sends), Q100 (one service location), Q101 (expired batches); the supervised run showing frequent shortages.
+
+## Note 2026-11-19 (comanda per uscita, ADR-049)
+- A sent line of uscita ≥ 2 may be **held**: fired, depleted and costed at the send like any other, but not yet called. Voiding a held line
+  accepts only the new reason `not_prepared`, which writes the reversals and no waste (the stock comes back); a held portion of a batch
+  discarded since stays waste with the discard's reason. After the call, voids behave exactly as this ADR says. See ADR-049.

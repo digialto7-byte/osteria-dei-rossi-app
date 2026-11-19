@@ -114,7 +114,7 @@ select is((select bool_or(has_table_privilege(r, 'public.applied_op', p)) from u
           false, 'anon and authenticated hold no privilege at all');
 
 -- app.sync_op_kinds() --------------------------------------------------------------------------------------------------------------
-select is(app.sync_op_kinds(), array['open_table', 'add_line', 'edit_line', 'remove_line', 'fire', 'void_line'], 'the six kinds, in plan §3.1.2 order');
+select is(app.sync_op_kinds(), array['open_table', 'add_line', 'edit_line', 'remove_line', 'fire', 'void_line', 'call_uscita' /* added on purpose by comanda-uscite (step 5) */], 'the six kinds, in plan §3.1.2 order');
 select is((select provolatile from pg_proc where oid = 'app.sync_op_kinds()'::regprocedure), 'i', 'sync_op_kinds is immutable');
 select is((select bool_or(has_function_privilege(r, 'app.sync_op_kinds()', 'execute')) from unnest(array['anon', 'authenticated', 'service_role']) r), false,
           'no API role can execute sync_op_kinds');

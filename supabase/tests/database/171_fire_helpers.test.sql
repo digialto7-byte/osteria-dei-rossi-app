@@ -285,14 +285,14 @@ insert into public.recipe_line (tenant_id, recipe_id, position, ingredient_id, s
 
 -- Void reasons ----------------------------------------------------------------------------------------------------------
 select is(app.order_void_reason_codes(),
-  array['order_error', 'customer_changed', 'kitchen_error', 'returned', 'comp', 'breakage'],
+  array['order_error', 'customer_changed', 'kitchen_error', 'returned', 'comp', 'breakage', 'not_prepared'] /* not_prepared added on purpose by comanda-uscite (step 7) */,
   'the six void reasons, in order');
 select is((select provolatile from pg_proc where oid = 'app.order_void_reason_codes()'::regprocedure), 'i'::"char",
   'order_void_reason_codes is immutable');
 select is(
   (select string_agg(r || '=' || coalesce(app.void_waste_reason(r), 'null'), ' ' order by o)
      from unnest(app.order_void_reason_codes()) with ordinality u (r, o)),
-  'order_error=plating_error customer_changed=over_production kitchen_error=plating_error returned=plating_error comp=comp breakage=breakage',
+  'order_error=plating_error customer_changed=over_production kitchen_error=plating_error returned=plating_error comp=comp breakage=breakage not_prepared=null' /* not_prepared added on purpose by comanda-uscite (step 7) */,
   'void_waste_reason maps each reason as the plan table says');
 select is_empty(
   $$ select app.void_waste_reason(r) from unnest(app.order_void_reason_codes()) r

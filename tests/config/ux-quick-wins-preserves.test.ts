@@ -23,7 +23,12 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // Opening stock step 9 (20261206210500_reverse_opening_stock.sql), re-pinned on purpose by opening stock (step 9; was 20261206210400_post_opening_stock.sql): reverse_opening_stock and the reason list.
 // Opening stock step 10 (20261206210600_ingredient_cost_opening_fallback.sql), re-pinned on purpose by opening stock (step 10; was 20261206210500_reverse_opening_stock.sql): the opening-cost fallback in app.ingredient_unit_costs.
 // Opening stock step 11 (20261206210700_reconciliation_opening.sql), re-pinned on purpose by opening stock (step 11; was 20261206210600_ingredient_cost_opening_fallback.sql): the reconciliation folds opening rows into openingQty.
-const NEWEST_MIGRATION = "20261206210700_reconciliation_opening.sql";
+// Comanda per uscita step 3 (20261206220000_uscita_core.sql), re-pinned on purpose by comanda-uscite (step 3; was 20261206210700_reconciliation_opening.sql): order_line.uscita, uscita_call, the guard, the purge list and the helpers.
+// Comanda per uscita step 4 (20261206220100_uscita_order_entry.sql), re-pinned on purpose by comanda-uscite (step 4; was 20261206220000_uscita_core.sql): order entry with an uscita.
+// Comanda per uscita step 5 (20261206220200_uscita_fire_call.sql), re-pinned on purpose by comanda-uscite (step 5; was 20261206220100_uscita_order_entry.sql): one send with hold and the call.
+// Comanda per uscita step 7 (20261206220300_uscita_void.sql), re-pinned on purpose by comanda-uscite (step 7; was 20261206220200_uscita_fire_call.sql): not_prepared.
+// Comanda per uscita step 8 (20261206220400_uscita_open_sessions.sql), re-pinned on purpose by comanda-uscite (step 8; was 20261206220300_uscita_void.sql): the open sessions placed in place, the NOT VALID check and the default 1.
+const NEWEST_MIGRATION = "20261206220400_uscita_open_sessions.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {
