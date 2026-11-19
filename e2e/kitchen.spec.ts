@@ -102,12 +102,12 @@ test.describe("the kitchen list", () => {
       tickets: {
         key: string;
         sessionId: string;
-        course: string;
-        lines: { id: string; name: string }[];
+        lines: { id: string; name: string; course: string }[];
       }[];
     };
+    // Re-pinned on purpose by comanda-uscite (step 13; was ticket.course): a ticket is one uscita; it is found by the course of its line.
     const ticketOf = (course: string) =>
-      body.tickets.find((t) => t.sessionId === sessionId && t.course === course)!;
+      body.tickets.find((t) => t.sessionId === sessionId && t.lines[0]?.course === course)!;
     const stewTicket = ticketOf("secondi");
     const pastaTicket = ticketOf("primi");
     expect(stewTicket.lines.map((l) => l.id)).toEqual([stew]);
@@ -264,7 +264,7 @@ test.describe("Fatto e chiusura", () => {
   }
   const board = async (page: Page) =>
     (await (await page.request.get("/api/kitchen/tickets")).json()) as {
-      tickets: { key: string; sessionId: string; course: string; lines: { id: string }[] }[];
+      tickets: { key: string; sessionId: string; lines: { id: string; course: string }[] }[];
       closedTickets: { key: string }[];
     };
   const remaining = (page: Page) => page.locator("main [data-remaining]");
@@ -302,11 +302,12 @@ test.describe("Fatto e chiusura", () => {
     await chef.page.goto("/cucina");
     await chef.page.clock.fastForward(5_000);
     const first = await board(chef.page);
+    // Re-pinned on purpose by comanda-uscite (step 13; was ticket.course): a ticket is one uscita; it is found by the course of its line.
     const pastaKey = first.tickets.find(
-      (t) => t.sessionId === sessionId && t.course === "primi",
+      (t) => t.sessionId === sessionId && t.lines[0]?.course === "primi",
     )!.key;
     const stewKey = first.tickets.find(
-      (t) => t.sessionId === sessionId && t.course === "secondi",
+      (t) => t.sessionId === sessionId && t.lines[0]?.course === "secondi",
     )!.key;
     // A closed comanda keeps its key in "Chiuse oggi" (data-closed), so the open cards exclude it.
     const pastaCard = chef.page.locator(`[data-ticket-key="${pastaKey}"]:not([data-closed])`);
@@ -365,8 +366,9 @@ test.describe("Fatto e chiusura", () => {
     );
     expect(last.autoClosed).toBe(true);
     await expect(pastaCard).toHaveCount(0);
+    // Re-pinned on purpose by comanda-uscite (step 13; was "· Primi:"): the notice names the uscita.
     await expect(inMain.getByRole("status")).toContainText(
-      "Tavolo 1 (demo) · Primi: comanda chiusa",
+      "Tavolo 1 (demo) · 1ª uscita: comanda chiusa",
     );
     await chef.page.clock.fastForward(600);
     const undone = await tap(
