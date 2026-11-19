@@ -157,7 +157,8 @@ describe("fireBody (M19)", () => {
 });
 
 describe("voidBody (M19)", () => {
-  it("takes each of the six reasons, exactly VOID_REASONS", () => {
+  // not_prepared added on purpose by comanda-uscite (step 9; the database list gained it in M4).
+  it("takes each of the seven reasons, exactly VOID_REASONS", () => {
     expect([...VOID_REASONS]).toEqual([
       "order_error",
       "customer_changed",
@@ -165,6 +166,7 @@ describe("voidBody (M19)", () => {
       "returned",
       "comp",
       "breakage",
+      "not_prepared",
     ]);
     for (const reason of VOID_REASONS) {
       expect(voidBody.safeParse({ reason, clientUpdatedAt: AT }).success, reason).toBe(true);
@@ -184,5 +186,59 @@ describe("voidBody (M19)", () => {
     expect(voidBody.safeParse({ reason: "comp", clientUpdatedAt: "yesterday" }).success).toBe(
       false,
     );
+  });
+});
+
+// Comanda per uscita (docs/plans/2026-11-18-comanda-uscite.md step 9).
+describe("comanda per uscita bodies", () => {
+  it("callBody refuses {uscita: 1} and {uscita: 2, extra: 1}", async () => {
+    const { callBody } = await import("@/server/orders/schemas");
+    expect(callBody.safeParse({ uscita: 1 }).success).toBe(false);
+    expect(callBody.safeParse({ uscita: 2, extra: 1 }).success).toBe(false);
+    expect(callBody.safeParse({ uscita: 2 }).success).toBe(true);
+    expect(callBody.safeParse({ uscita: 9 }).success).toBe(true);
+    expect(callBody.safeParse({ uscita: 10 }).success).toBe(false);
+    expect(callBody.safeParse({ uscita: 2.5 }).success).toBe(false);
+    expect(callBody.safeParse({ uscita: "2" }).success).toBe(false);
+  });
+
+  it("addLineBody accepts uscita 0..9 and refuses it together with segue", async () => {
+    const { addLineBody } = await import("@/server/orders/schemas");
+    const base = {
+      lineId: "00000000-0000-4000-8000-000000000001",
+      menuItemId: "00000000-0000-4000-8000-000000000002",
+      clientUpdatedAt: "2026-11-19T10:00:00Z",
+    };
+    expect(addLineBody.safeParse({ ...base, uscita: 0 }).success).toBe(true);
+    expect(addLineBody.safeParse({ ...base, uscita: 9 }).success).toBe(true);
+    expect(addLineBody.safeParse({ ...base, uscita: 10 }).success).toBe(false);
+    expect(addLineBody.safeParse({ ...base, uscita: -1 }).success).toBe(false);
+    expect(addLineBody.safeParse({ ...base, uscita: 2, segue: true }).success).toBe(false);
+    expect(addLineBody.safeParse({ ...base, segue: true }).success).toBe(true);
+  });
+
+  it("updateLineBody accepts uscita alone and refuses it with segue", async () => {
+    const { updateLineBody } = await import("@/server/orders/schemas");
+    const at = { clientUpdatedAt: "2026-11-19T10:00:00Z" };
+    expect(updateLineBody.safeParse({ ...at, uscita: 3 }).success).toBe(true);
+    expect(updateLineBody.safeParse({ ...at, uscita: 3, segue: false }).success).toBe(false);
+    expect(updateLineBody.safeParse({ ...at, uscita: null }).success).toBe(false);
+  });
+
+  it("fireBody accepts a boolean hold and nothing else", async () => {
+    const { fireBody } = await import("@/server/orders/schemas");
+    const lineIds = ["00000000-0000-4000-8000-000000000001"];
+    expect(fireBody.safeParse({ lineIds, hold: true }).success).toBe(true);
+    expect(fireBody.safeParse({ lineIds, hold: false }).success).toBe(true);
+    expect(fireBody.safeParse({ lineIds }).success).toBe(true);
+    expect(fireBody.safeParse({ lineIds, hold: "yes" }).success).toBe(false);
+  });
+
+  it("voidBody accepts not_prepared", async () => {
+    const { voidBody } = await import("@/server/orders/schemas");
+    expect(
+      voidBody.safeParse({ reason: "not_prepared", clientUpdatedAt: "2026-11-19T10:00:00Z" })
+        .success,
+    ).toBe(true);
   });
 });

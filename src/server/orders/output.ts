@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { UNAVAILABLE_REASONS } from "@/server/menu/output";
 import { SESSION_STATUS_VALUES, sessionCoperto } from "@/server/tables/output";
-import { COURSES } from "./constants";
+import { COURSES, USCITA_MAX, USCITA_MIN } from "./constants";
 
 // Strict output schemas of the order endpoints (M18 plan §3.1.9, §3.4). The services parse every database reply here,
 // so a key that is not declared (a cost that slipped into an RPC reply) makes the parse throw: a 500, never a leak.
@@ -20,6 +20,9 @@ export const orderLine = z.strictObject({
   name: z.string(),
   course,
   qty: z.number(),
+  /** Comanda per uscita: 0 ("Subito") to 9; null for a line from before uscite (a closed session of today). Screens treat null as 1. */
+  uscita: z.number().int().min(USCITA_MIN).max(USCITA_MAX).nullable(),
+  /** Mirrors uscita >= 2 (legacy readers); kept until the Q9 cleanup. */
   segue: z.boolean(),
   note: z.string().nullable(),
   isShared: z.boolean(),
@@ -78,7 +81,15 @@ export const addLineOutput = z.strictObject({
 
 export const lineWriteOutput = z.strictObject({ changed: z.boolean(), line: orderLine });
 
-export const CONFLICT_REASONS = ["stale", "fired", "voided", "session_closed"] as const;
+/** held: a sent line whose uscita is not called accepts only not_prepared; uscita_called: not_prepared after the call (comanda per uscita). */
+export const CONFLICT_REASONS = [
+  "stale",
+  "fired",
+  "voided",
+  "session_closed",
+  "held",
+  "uscita_called",
+] as const;
 
 /** A `conflict`: why, and the line as it is now. It is a result of the database, never a DETAIL (logs carry codes only). */
 export const conflictDetails = z.strictObject({
@@ -115,6 +126,37 @@ export const fireOutput = z.strictObject({
   lines: z.array(orderLine),
   fired: z.array(z.uuid()),
   skipped: z.array(z.strictObject({ lineId: z.uuid(), reason: z.enum(SKIP_REASONS) })),
+  /** Comanda per uscita: the ids this call fired that are held afterwards (waiting for "Via la n"). */
+  held: z.array(z.uuid()),
 });
 
 export type FireOutput = z.infer<typeof fireOutput>;
+
+// Comanda per uscita: the call (docs/plans/2026-11-18-comanda-uscite.md section 3.6, 3.13).
+/** One call: the uscita, its instant (the database's text) and who called it (display name, no money). */
+export const uscitaCall = z.strictObject({
+  uscita: z.number().int().min(2).max(USCITA_MAX),
+  calledAt: z.string(),
+  calledBy: z.strictObject({ id: z.uuid(), displayName: z.string() }),
+});
+
+export const callOutput = z.strictObject({
+  changed: z.boolean(),
+  call: uscitaCall,
+  lines: z.array(orderLine),
+});
+
+export const CALL_CONFLICT_REASONS = ["already_called", "nothing_waiting"] as const;
+
+/** A call conflict, a result of the database: another waiter called first (with the instant), or nothing is waiting. */
+export const callConflict = z.strictObject({
+  reason: z.enum(CALL_CONFLICT_REASONS),
+  uscita: z.number().int().min(2).max(USCITA_MAX),
+  calledAt: z.string().optional(),
+});
+
+export const callResult = z.union([callOutput, z.strictObject({ conflict: callConflict })]);
+
+export type UscitaCall = z.infer<typeof uscitaCall>;
+export type CallOutput = z.infer<typeof callOutput>;
+export type CallConflict = z.infer<typeof callConflict>;

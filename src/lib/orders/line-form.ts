@@ -71,6 +71,8 @@ export function addBody(
 }
 
 type Changes = Partial<Pick<OrderLine, "qty" | "course" | "segue" | "isShared">> & {
+  /** Comanda per uscita: the line's uscita (0..9). It replaces segue: a patch carries one or the other. */
+  uscita?: number;
   note?: string | null;
   /** The new weight of a weighted draft line, in grams (the line price follows it, in the database). */
   weightG?: number;
@@ -90,7 +92,11 @@ export function patchFor(line: OrderLine, changes: Changes, now: Date): UpdateLi
   const patch: Omit<UpdateLineBody, "clientUpdatedAt"> = {};
   if (changes.qty !== undefined && changes.qty !== line.qty) patch.qty = changes.qty;
   if (changes.course !== undefined && changes.course !== line.course) patch.course = changes.course;
-  if (changes.segue !== undefined && changes.segue !== line.segue) patch.segue = changes.segue;
+  if (changes.uscita !== undefined && changes.uscita !== line.uscita) {
+    patch.uscita = changes.uscita;
+  } else if (changes.segue !== undefined && changes.segue !== line.segue) {
+    patch.segue = changes.segue;
+  }
   if (changes.isShared !== undefined && changes.isShared !== line.isShared) {
     patch.isShared = changes.isShared;
   }

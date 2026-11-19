@@ -36,6 +36,8 @@ describe("sendOps", () => {
     expect((calls[0]!.init.headers as Record<string, string>)["content-type"]).toBe(
       "application/json",
     );
+    // Comanda per uscita (step 10): this bundle names version 2 of the output.
+    expect((calls[0]!.init.headers as Record<string, string>)["x-sync-version"]).toBe("2");
   });
 
   it("a thrown fetch is a network failure", async () => {

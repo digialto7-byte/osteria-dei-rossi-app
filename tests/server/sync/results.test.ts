@@ -56,6 +56,7 @@ describe("toOpResult: applied", () => {
           lines: [LINE_STEW],
           fired: [LINE_STEW.id],
           skipped: [{ lineId: OIDS.line2, reason: "already_fired" }],
+          held: [],
         }),
       ).result,
     ).toMatchObject({ status: "applied", reply: { skipped: [{ reason: "already_fired" }] } });

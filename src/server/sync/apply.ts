@@ -1,8 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ApiError } from "@/lib/api/errors";
 import { t } from "@/lib/i18n";
-import type { SyncKind } from "./constants";
+import type { SyncKind, SyncVersion } from "./constants";
 import { syncOutput, type OpResult, type SyncOutput } from "./output";
+import { syncOutputV1, type SyncOutputV1 } from "./output-v1";
 import { toOpResult } from "./results";
 import { PAYLOADS, type OpEnvelope } from "./schemas";
 
@@ -63,11 +64,65 @@ async function callApplyOp(supabase: SupabaseClient, op: OpEnvelope): Promise<Ca
   }
 }
 
-/** Applies 1 to 20 ops in order. Throws a 503 when the very first op could not be tried at all. */
+/** The conflict reasons a version-1 bundle does not know: it shows its generic "changed by someone else" notice and refetches. */
+const V1_STALE = new Set(["held", "uscita_called", "already_called", "nothing_waiting"]);
+
+function withoutUscita(line: unknown): unknown {
+  if (!line || typeof line !== "object") return line;
+  const { uscita: _uscita, ...rest } = line as Record<string, unknown>;
+  return rest;
+}
+
+function downReply(reply: Record<string, unknown>): Record<string, unknown> {
+  const r = { ...reply };
+  if ("line" in r) r.line = withoutUscita(r.line);
+  if (Array.isArray(r.lines)) r.lines = r.lines.map(withoutUscita);
+  delete r.held;
+  return r;
+}
+
+function downStored<T extends Record<string, unknown>>(stored: T): T {
+  if (stored.status === "applied") {
+    return { ...stored, reply: downReply(stored.reply as Record<string, unknown>) };
+  }
+  if (stored.status === "conflict") {
+    const c = { ...(stored.conflict as Record<string, unknown>) };
+    if (V1_STALE.has(String(c.reason))) c.reason = "stale";
+    delete c.uscita;
+    delete c.calledAt;
+    if ("line" in c) c.line = withoutUscita(c.line);
+    return { ...stored, conflict: c };
+  }
+  return stored;
+}
+
+/**
+ * Comanda per uscita (plan §3.12 "Versions"): today's results in the shape a version-1 bundle parses (src/server/sync/output-v1.ts): lines
+ * lose uscita, a fire reply loses held, and the conflict reasons it does not know become stale.
+ */
+export function downShape(output: SyncOutput): SyncOutputV1 {
+  return syncOutputV1.parse({
+    ...output,
+    results: output.results.map((r) =>
+      r.status === "duplicate"
+        ? { ...r, stored: downStored(r.stored as Record<string, unknown>) }
+        : downStored(r as unknown as Record<string, unknown>),
+    ),
+  });
+}
+
+/**
+ * Applies 1 to 20 ops in order. Throws a 503 when the very first op could not be tried at all. A version-1 request (an old bundle) gets
+ * its results down-shaped, and cannot send call_uscita (400 before any RPC).
+ */
 export async function applyOps(
   supabase: SupabaseClient,
   ops: readonly OpEnvelope[],
-): Promise<SyncOutput> {
+  version: SyncVersion = 2,
+): Promise<SyncOutput | SyncOutputV1> {
+  if (version === 1 && ops.some((op) => op.kind === "call_uscita")) {
+    throw new ApiError(400, "invalid_request", t("syncError.invalid_request"));
+  }
   const results: OpResult[] = [];
   let stopped: SyncOutput["stopped"] = null;
 
@@ -105,5 +160,6 @@ export async function applyOps(
     }
   }
 
-  return syncOutput.parse({ results, stopped, serverTime: new Date().toISOString() });
+  const output = syncOutput.parse({ results, stopped, serverTime: new Date().toISOString() });
+  return version === 1 ? downShape(output) : output;
 }

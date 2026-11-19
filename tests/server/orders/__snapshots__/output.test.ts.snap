@@ -135,6 +135,18 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
           ],
           "type": "object",
         },
+        "uscita": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
         "weightG": {
           "anyOf": [
             {
@@ -154,6 +166,7 @@ exports[`waiter order payloads > addLineOutput matches the committed JSON Schema
         "name",
         "course",
         "qty",
+        "uscita",
         "segue",
         "note",
         "isShared",
@@ -264,6 +277,18 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
           ],
           "type": "object",
         },
+        "uscita": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
         "weightG": {
           "anyOf": [
             {
@@ -283,6 +308,7 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
         "name",
         "course",
         "qty",
+        "uscita",
         "segue",
         "note",
         "isShared",
@@ -302,6 +328,8 @@ exports[`waiter order payloads > conflictDetails matches the committed JSON Sche
         "fired",
         "voided",
         "session_closed",
+        "held",
+        "uscita_called",
       ],
       "type": "string",
     },
@@ -320,6 +348,14 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
   "additionalProperties": false,
   "properties": {
     "fired": {
+      "items": {
+        "format": "uuid",
+        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+        "type": "string",
+      },
+      "type": "array",
+    },
+    "held": {
       "items": {
         "format": "uuid",
         "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
@@ -410,6 +446,18 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
             ],
             "type": "object",
           },
+          "uscita": {
+            "anyOf": [
+              {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "weightG": {
             "anyOf": [
               {
@@ -429,6 +477,7 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
           "name",
           "course",
           "qty",
+          "uscita",
           "segue",
           "note",
           "isShared",
@@ -474,6 +523,7 @@ exports[`waiter order payloads > fireOutput matches the committed JSON Schema (a
     "lines",
     "fired",
     "skipped",
+    "held",
   ],
   "type": "object",
 }
@@ -603,6 +653,18 @@ exports[`waiter order payloads > lineWriteOutput matches the committed JSON Sche
           ],
           "type": "object",
         },
+        "uscita": {
+          "anyOf": [
+            {
+              "maximum": 9,
+              "minimum": 0,
+              "type": "integer",
+            },
+            {
+              "type": "null",
+            },
+          ],
+        },
         "weightG": {
           "anyOf": [
             {
@@ -622,6 +684,7 @@ exports[`waiter order payloads > lineWriteOutput matches the committed JSON Sche
         "name",
         "course",
         "qty",
+        "uscita",
         "segue",
         "note",
         "isShared",
@@ -732,6 +795,18 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
             ],
             "type": "object",
           },
+          "uscita": {
+            "anyOf": [
+              {
+                "maximum": 9,
+                "minimum": 0,
+                "type": "integer",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
           "weightG": {
             "anyOf": [
               {
@@ -751,6 +826,7 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
           "name",
           "course",
           "qty",
+          "uscita",
           "segue",
           "note",
           "isShared",

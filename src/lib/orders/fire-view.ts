@@ -131,9 +131,15 @@ export function voidReasonLabel(reason: VoidReason, locale: Locale = DEFAULT_LOC
   return t(`orders.void.reason.${reason}`, {}, locale);
 }
 
-/** The six reasons of the void dialog, in the order of the database list; none is preselected. */
+/**
+ * The six reasons of the void dialog, in the order of the database list; none is preselected. not_prepared (comanda per uscita) is
+ * left out: only a held line takes it, and the dialog that offers it for held lines is PR4's (plan step 21).
+ */
 export function voidReasonOptions(
   locale: Locale = DEFAULT_LOCALE,
 ): { value: VoidReason; label: string }[] {
-  return VOID_REASONS.map((value) => ({ value, label: voidReasonLabel(value, locale) }));
+  return VOID_REASONS.filter((value) => value !== "not_prepared").map((value) => ({
+    value,
+    label: voidReasonLabel(value, locale),
+  }));
 }

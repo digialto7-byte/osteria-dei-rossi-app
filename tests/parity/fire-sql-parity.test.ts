@@ -8,6 +8,8 @@ import { MAX_FIRE_LINES, VOID_REASONS } from "@/server/orders/constants";
 const read = (name: string) =>
   readFileSync(new URL(`../../supabase/migrations/${name}`, import.meta.url), "utf8");
 const helpers = read("20261106100100_fire_helpers.sql");
+// Comanda per uscita M4 re-creates app.order_void_reason_codes with not_prepared last (re-pinned on purpose by comanda-uscite, step 9).
+const usciteVoid = read("20261206220300_uscita_void.sql");
 const fire = read("20261106100200_fire_course.sql");
 const kitchen = read("20261106100400_kitchen_tickets.sql");
 const found = (name: string, text: string, pattern: RegExp) => {
@@ -25,14 +27,17 @@ describe("limits match the migrations", () => {
   it("VOID_REASONS are the codes of app.order_void_reason_codes(), in order", () => {
     const m = found(
       "reasons",
-      helpers,
+      usciteVoid,
       /order_void_reason_codes\(\) returns text\[\][\s\S]*?select array\[([^\]]*)\]/,
     );
     expect([...m[1]!.matchAll(/'(\w+)'/g)].map((x) => x[1])).toEqual([...VOID_REASONS]);
   });
 
-  it("every void reason has a waste code in void_waste_reason", () => {
-    for (const reason of VOID_REASONS) expect(helpers).toContain(`when '${reason}' then`);
+  it("every void reason but not_prepared has a waste code in void_waste_reason; not_prepared has none (it is a reversal)", () => {
+    for (const reason of VOID_REASONS.filter((r) => r !== "not_prepared")) {
+      expect(helpers).toContain(`when '${reason}' then`);
+    }
+    expect(helpers).not.toContain("when 'not_prepared' then");
   });
 
   it("KITCHEN_MAX_TICKETS is the cap of the ticket list", () => {

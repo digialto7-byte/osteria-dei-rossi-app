@@ -53,6 +53,15 @@ function conflictText(o: OutcomeRecord, locale: Locale): string {
   const conflict = o.conflict!;
   const dish = dishOf(o) ?? tableOf(o);
   if (conflict.reason === "fired") return t("sync.notice.fired", { dish }, locale);
+  // Comanda per uscita: a queued call that lost (another waiter called first) or found nothing waiting. The wording is PR4's (plan step 21).
+  if (conflict.reason === "already_called" || conflict.reason === "nothing_waiting") {
+    const key =
+      conflict.reason === "already_called"
+        ? "orderError.call_already_called"
+        : "orderError.call_nothing_waiting";
+    const message = t(key, { n: conflict.uscita ?? "" }, locale);
+    return t("sync.notice.table", { table: tableOf(o), message }, locale);
+  }
   const message = conflict.line
     ? conflictMessage(
         conflict.reason === "table_already_open" ? "session_closed" : conflict.reason,

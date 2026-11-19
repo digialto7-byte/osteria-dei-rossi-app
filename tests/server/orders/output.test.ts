@@ -142,7 +142,8 @@ describe("waiter order payloads", () => {
 });
 
 describe("orderLine", () => {
-  it("has exactly the fifteen keys of the plan (the thirteen of M18 + weightG and pricePer100g, P2-0b)", () => {
+  // uscita added on purpose by comanda-uscite (step 9).
+  it("has exactly the sixteen keys of the plan (the thirteen of M18 + weightG and pricePer100g, P2-0b, + uscita)", () => {
     expect(Object.keys(orderLine.shape).sort()).toEqual(
       [
         "clientUpdatedAt",
@@ -159,6 +160,7 @@ describe("orderLine", () => {
         "unitPrice",
         "updatedAt",
         "updatedBy",
+        "uscita",
         "weightG",
       ].sort(),
     );
@@ -339,11 +341,16 @@ describe("fireOutput (M19)", () => {
     lines: [LINE_STEW, LINE_SOUP],
     fired: [LINE_STEW.id],
     skipped: [{ lineId: LINE_SOUP.id, reason: "already_fired" }],
+    held: [],
   };
 
   it("parses the database reply", () => {
     expect(fireOutput.parse(reply)).toEqual(reply);
-    expect(fireOutput.safeParse({ lines: [], fired: [], skipped: [] }).success).toBe(true);
+    expect(fireOutput.safeParse({ lines: [], fired: [], skipped: [], held: [] }).success).toBe(
+      true,
+    );
+    // Comanda per uscita: held is required (the database always answers it; a stored pre-deploy reply is upgraded in sync).
+    expect(fireOutput.safeParse({ lines: [], fired: [], skipped: [] }).success).toBe(false);
   });
 
   it("knows the two skip reasons", () => {

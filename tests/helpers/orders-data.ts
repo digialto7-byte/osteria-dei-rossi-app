@@ -22,6 +22,7 @@ export const LINE_STEW: OrderLine = {
   name: STEW,
   course: "secondi",
   qty: 2,
+  uscita: 1,
   segue: false,
   note: null,
   isShared: false,

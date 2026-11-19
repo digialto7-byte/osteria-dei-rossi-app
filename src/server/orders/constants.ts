@@ -29,6 +29,9 @@ export const VOID_REASONS = [
   "returned",
   "comp",
   "breakage",
+  // Comanda per uscita (M4): a held dish voided before its call. It is accepted only on a held line (the database says held / uscita_called
+  // otherwise); the void dialog of PR2 still offers the six reasons of today (src/lib/orders/fire-view.ts).
+  "not_prepared",
 ] as const;
 export type VoidReason = (typeof VOID_REASONS)[number];
 
@@ -57,6 +60,12 @@ export const USCITA_MIN = 0;
 export const USCITA_MAX = 9;
 /** A sent line of this uscita or later is held until its uscita is called. */
 export const HELD_FROM = 2;
+/** Mirrors app.uscita_default: drinks go at once (0, "Subito"), everything else with the 1st (1). */
+export function uscitaDefault(course: Course): number {
+  return course === "bevande" ? 0 : 1;
+}
 /** Why a call row exists: "Via la n", a fire without hold (every op of an old bundle), the M5 placement of open sessions. */
 export const USCITA_CALL_CAUSES = ["call", "fire_now", "migration"] as const;
 export type UscitaCallCause = (typeof USCITA_CALL_CAUSES)[number];
+/** The largest call body: {"uscita": 9}. */
+export const MAX_CALL_BODY_BYTES = 1024;

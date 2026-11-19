@@ -1,10 +1,13 @@
 import { z } from "zod";
 import {
   COURSES,
+  HELD_FROM,
   MAX_FIRE_LINES,
   MAX_QTY,
   MIN_QTY,
   NOTE_MAX,
+  USCITA_MAX,
+  USCITA_MIN,
   VOID_REASONS,
   WEIGHT_MIN_G,
   WEIGHT_STEP_G,
@@ -48,6 +51,13 @@ export const note = z
 
 const course = z.enum(COURSES);
 
+/** Comanda per uscita: 0 ("Subito") to 9, an integer (app.order_uscita). */
+export const uscita = z.number().int().min(USCITA_MIN).max(USCITA_MAX);
+/** uscita replaces the legacy segue: a body names one or the other, never both (the database answers 22023). */
+const uscitaOrSegue = (body: { uscita?: number | undefined; segue?: boolean | undefined }) =>
+  body.uscita === undefined || body.segue === undefined;
+const USCITA_OR_SEGUE = { message: "uscita and segue are exclusive" };
+
 /** The fields of an add, before the weight/qty rule: the offline payload reuses them without the stamp. */
 export const addLineObject = z.strictObject({
   lineId: z.uuid(),
@@ -56,6 +66,7 @@ export const addLineObject = z.strictObject({
   qty: qty.optional(),
   weightG: weightG.optional(),
   course: course.optional(),
+  uscita: uscita.optional(),
   segue: z.boolean().optional(),
   note: note.optional(),
   isShared: z.boolean().optional(),
@@ -66,9 +77,11 @@ export const weightOrQty = (body: { weightG?: number | undefined; qty?: number |
   body.weightG === undefined || body.qty === undefined;
 const WEIGHT_OR_QTY = { message: "weight and qty are exclusive" };
 
-export const addLineBody = addLineObject.refine(weightOrQty, WEIGHT_OR_QTY);
+export const addLineBody = addLineObject
+  .refine(weightOrQty, WEIGHT_OR_QTY)
+  .refine(uscitaOrSegue, USCITA_OR_SEGUE);
 
-const EDITABLE = ["qty", "weightG", "course", "segue", "note", "isShared"] as const;
+const EDITABLE = ["qty", "weightG", "course", "uscita", "segue", "note", "isShared"] as const;
 
 export const updateLineBody = z
   .strictObject({
@@ -76,6 +89,7 @@ export const updateLineBody = z
     qty: qty.optional(),
     weightG: weightG.optional(),
     course: course.optional(),
+    uscita: uscita.optional(),
     segue: z.boolean().optional(),
     note: note.optional(),
     isShared: z.boolean().optional(),
@@ -83,7 +97,8 @@ export const updateLineBody = z
   .refine((body) => EDITABLE.some((key) => body[key] !== undefined), {
     message: "nothing to change",
   })
-  .refine(weightOrQty, WEIGHT_OR_QTY);
+  .refine(weightOrQty, WEIGHT_OR_QTY)
+  .refine(uscitaOrSegue, USCITA_OR_SEGUE);
 
 export const removeLineBody = z.strictObject({ clientUpdatedAt });
 
@@ -98,10 +113,16 @@ export const fireBody = z.strictObject({
     .min(1)
     .max(MAX_FIRE_LINES)
     .refine((ids) => new Set(ids).size === ids.length, { message: "duplicate ids" }),
+  /** Comanda per uscita: keep the later uscite of this send waiting for their call (absent = false: fire and call, as an old bundle). */
+  hold: z.boolean().optional(),
 });
+
+/** POST /api/table-sessions/:id/call: "Via la n", an uscita from 2 to 9 (the 1st and the drinks are never held). */
+export const callBody = z.strictObject({ uscita: z.number().int().min(HELD_FROM).max(USCITA_MAX) });
 
 /** `entry_removed` is M18's internal reason for "Rimuovi" and is not accepted here. */
 export const voidBody = z.strictObject({ reason: z.enum(VOID_REASONS), clientUpdatedAt });
 
 export type FireBody = z.infer<typeof fireBody>;
 export type VoidBody = z.infer<typeof voidBody>;
+export type CallBody = z.infer<typeof callBody>;

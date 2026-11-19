@@ -1,6 +1,8 @@
 import { z } from "zod";
 import {
   addLineOutput,
+  CALL_CONFLICT_REASONS,
+  callOutput,
   CONFLICT_REASONS,
   fireOutput,
   lineWriteOutput,
@@ -20,15 +22,30 @@ const opError = z.strictObject({
   details: z.unknown().optional(),
 });
 
-export const SYNC_CONFLICT_REASONS = [...CONFLICT_REASONS, "table_already_open"] as const;
+export const SYNC_CONFLICT_REASONS = [
+  ...CONFLICT_REASONS,
+  "table_already_open",
+  ...CALL_CONFLICT_REASONS,
+] as const;
 
 const syncConflict = z.strictObject({
   reason: z.enum(SYNC_CONFLICT_REASONS),
   line: orderLine.optional(),
   sessionId: z.uuid().optional(),
+  /** Comanda per uscita: a call conflict names its uscita, and already_called its instant. */
+  uscita: z.number().int().optional(),
+  calledAt: z.string().optional(),
 });
 
-const appliedReply = z.union([openTableOutput, addLineOutput, lineWriteOutput, fireOutput]);
+// Version 2 (comanda per uscita): lines carry uscita, a fire reply carries held, a call reply is its own shape. Version 1 is
+// src/server/sync/output-v1.ts, frozen from main.
+const appliedReply = z.union([
+  openTableOutput,
+  addLineOutput,
+  lineWriteOutput,
+  fireOutput,
+  callOutput,
+]);
 
 const applied = z.strictObject({
   status: z.literal("applied"),

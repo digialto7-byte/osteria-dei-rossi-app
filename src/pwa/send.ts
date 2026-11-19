@@ -1,7 +1,11 @@
 import { apiJson } from "@/lib/api/client";
 import type { SendResult } from "@/lib/sync/replay";
 import { syncOutput } from "@/server/sync/output";
-import { SYNC_REQUEST_TIMEOUT_MS } from "@/server/sync/constants";
+import {
+  SYNC_REQUEST_TIMEOUT_MS,
+  SYNC_VERSION,
+  SYNC_VERSION_HEADER,
+} from "@/server/sync/constants";
 import type { OpEnvelope } from "@/server/sync/schemas";
 
 /**
@@ -21,7 +25,13 @@ export async function sendOps(
   try {
     result = await apiJson<unknown>(
       "/api/sync",
-      { method: "POST", body: { ops }, signal: controller.signal },
+      {
+        method: "POST",
+        body: { ops },
+        signal: controller.signal,
+        // Comanda per uscita: this bundle parses version 2 (uscita, held, the call); an old bundle sends no header and gets version 1.
+        headers: { [SYNC_VERSION_HEADER]: String(SYNC_VERSION) },
+      },
       fetchImpl,
     );
   } finally {

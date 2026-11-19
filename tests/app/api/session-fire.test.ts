@@ -30,6 +30,7 @@ const REPLY = {
   ],
   fired: [OIDS.line1, OIDS.line2],
   skipped: [],
+  held: [],
 };
 
 function as(role: string, rpc: Record<string, FakeResult[]> = {}) {
@@ -65,6 +66,7 @@ describe("POST /api/table-sessions/:id/fire", () => {
     const replay = {
       lines: REPLY.lines,
       fired: [],
+      held: [],
       skipped: [
         { lineId: OIDS.line1, reason: "already_fired" },
         { lineId: OIDS.line2, reason: "voided" },

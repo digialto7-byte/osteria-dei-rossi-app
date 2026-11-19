@@ -9,6 +9,8 @@ export const SYNC_KINDS = [
   "remove_line",
   "fire",
   "void_line",
+  // Comanda per uscita (M3): "Via la n". Never sent by a version-1 bundle.
+  "call_uscita",
 ] as const;
 export type SyncKind = (typeof SYNC_KINDS)[number];
 
@@ -37,3 +39,19 @@ export const CLOCK_SKEW_WARN_MS = 60_000;
 export const OUTCOME_KEEP_MS = 24 * 60 * 60 * 1_000;
 /** The service worker waits this long for the network before it falls back to its cache (mirrored in public/sw.js). */
 export const SW_TIMEOUT_MS = 3_000;
+
+/**
+ * Comanda per uscita (plan §3.12 "Versions"): the bundle names the shape it parses. A request without the header is version 1 (an old
+ * bundle that cached today's strict schema): its results are down-shaped to today's shape (src/server/sync/output-v1.ts).
+ */
+export const SYNC_VERSION_HEADER = "x-sync-version";
+export const SYNC_VERSION = 2;
+export type SyncVersion = 1 | 2;
+
+/** The version a request names: absent is 1; "1" or "2"; anything else is null (a 400). */
+export function syncVersionOf(header: string | null): SyncVersion | null {
+  if (header === null) return 1;
+  if (header === "1") return 1;
+  if (header === "2") return 2;
+  return null;
+}
