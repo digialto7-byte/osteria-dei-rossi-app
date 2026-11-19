@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HELD_FROM, USCITA_MAX } from "@/server/orders/constants";
 
 // Strict output schemas of the table endpoints (M17 plan §3.4). The services parse every database reply here, so a
 // column that is not declared (a cost that slipped into an RPC reply) makes the parse throw: a 500, never a leak.
@@ -46,6 +47,13 @@ export const sessionResponse = z.strictObject({
   session: sessionOutput.extend({ status: sessionStatus }),
 });
 
+/** Comanda per uscita: what the tile says about the uscite (app.session_uscite). */
+const tileUscite = z.strictObject({
+  cooking: z.number().int().min(1).max(USCITA_MAX).nullable(),
+  waiting: z.number().int().min(HELD_FROM).max(USCITA_MAX).nullable(),
+  cookingDone: z.boolean(),
+});
+
 const tileSession = z.strictObject({
   id: z.uuid(),
   covers: z.number().int(),
@@ -55,6 +63,9 @@ const tileSession = z.strictObject({
   billRequested: z.boolean(),
   // BQ-1: drafts that are not fired, not voided and not "a seguire" (server half of unsentLines). Required: a reply without it is refused, never defaulted.
   unsentCount: z.number().int().nonnegative(),
+  // Comanda per uscita (plan 2026-11-18 §3.10): the highest uscita in the kitchen, the lowest held one, and whether every dish of the first is
+  // done; null when nothing of uscita >= 1 is sent. Required: a reply without it is refused, never defaulted.
+  uscite: tileUscite.nullable(),
   coperto: coperto.nullable(),
 });
 

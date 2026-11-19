@@ -2287,6 +2287,8 @@ export const it = {
   "billError.bill_changed": "Il conto è cambiato: controlla il nuovo totale.",
   "billError.unsent_lines":
     "Ci sono piatti non inviati in cucina: inviali o rimuovili prima di chiudere.",
+  "billError.uscita_waiting":
+    "C'è un'uscita ancora in attesa: chiamala o annulla i suoi piatti come «Non preparato», poi chiudi.",
   "billError.split_invalid": "La divisione non è valida: assegna ogni piatto a un conto.",
   "billError.split_line_missing": "Assegna ogni piatto a un conto",
   "billError.split_line_twice": "Un piatto è in due conti: assegnalo a uno solo",

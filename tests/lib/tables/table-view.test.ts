@@ -155,6 +155,7 @@ describe("sessionMetaLine (the opener line of a tile or panel, by where the sess
     waiter: { id: "a0000000-0000-4000-8000-000000000001", displayName: "Giulia" },
     billRequested: false,
     unsentCount: 0,
+    uscite: null,
   };
   it("a server session: the server's open time and day", () => {
     expect(
@@ -282,6 +283,7 @@ describe("tileLabel (the tile's accessible name)", () => {
         waiter: { id: IDS.waiterA, displayName: "Giulia" },
         billRequested: false,
         unsentCount: 3,
+        uscite: null,
         queuedAt: "2026-11-02T19:14:00Z",
       },
     };

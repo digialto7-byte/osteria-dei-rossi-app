@@ -8,6 +8,7 @@ type Coded = Extract<
   | "session_closed"
   | "bill_changed"
   | "unsent_lines"
+  | "uscita_waiting"
   | "split_invalid"
   | "receipt_number_invalid"
   | "receipt_type_invalid"
@@ -19,6 +20,8 @@ const PROCEDURE_ERRORS: Record<Coded, number> = {
   session_closed: 409,
   bill_changed: 409,
   unsent_lines: 409,
+  // Comanda per uscita (M8): an uscita still waits; the person can fix it (call it, or void its dishes not_prepared).
+  uscita_waiting: 422,
   split_invalid: 422,
   receipt_number_invalid: 422,
   receipt_type_invalid: 422,
@@ -37,7 +40,7 @@ function parseDetail(raw: string | null | undefined): unknown {
 
 /**
  * Turns a database error from session_bill / close_table into an ApiError with a safe Italian message; the database message is never
- * sent. `unsent_lines` carries its line ids and `split_invalid` its reason as `details`, but only when the DETAIL is exactly the public
+ * sent. `unsent_lines` and `uscita_waiting` carry their line ids and `split_invalid` its reason as `details`, but only when the DETAIL is exactly the public
  * shape (strict schemas): an extra key drops the whole detail. Anything unexpected is a plain Error that names only the SQLSTATE.
  */
 export function mapBillDbError(error: DbError): ApiError | Error {
@@ -56,9 +59,14 @@ export function mapBillDbError(error: DbError): ApiError | Error {
       if (!Object.hasOwn(PROCEDURE_ERRORS, error.message)) break;
       const code = error.message as Coded;
       const message = t(`billError.${code}` as MessageKey);
-      if (code === "unsent_lines") {
+      if (code === "unsent_lines" || code === "uscita_waiting") {
         const detail = unsentLinesDetails.safeParse(parseDetail(error.details));
-        return new ApiError(409, code, message, detail.success ? detail.data : undefined);
+        return new ApiError(
+          PROCEDURE_ERRORS[code],
+          code,
+          message,
+          detail.success ? detail.data : undefined,
+        );
       }
       if (code === "split_invalid") {
         const detail = splitInvalidDetails.safeParse(parseDetail(error.details));

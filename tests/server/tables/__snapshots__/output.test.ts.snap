@@ -415,6 +415,51 @@ exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
                     "minimum": 0,
                     "type": "integer",
                   },
+                  "uscite": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "cooking": {
+                            "anyOf": [
+                              {
+                                "maximum": 9,
+                                "minimum": 1,
+                                "type": "integer",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                          "cookingDone": {
+                            "type": "boolean",
+                          },
+                          "waiting": {
+                            "anyOf": [
+                              {
+                                "maximum": 9,
+                                "minimum": 2,
+                                "type": "integer",
+                              },
+                              {
+                                "type": "null",
+                              },
+                            ],
+                          },
+                        },
+                        "required": [
+                          "cooking",
+                          "waiting",
+                          "cookingDone",
+                        ],
+                        "type": "object",
+                      },
+                      {
+                        "type": "null",
+                      },
+                    ],
+                  },
                   "waiter": {
                     "additionalProperties": false,
                     "properties": {
@@ -442,6 +487,7 @@ exports[`tablesListOutput > matches the committed JSON Schema 1`] = `
                   "waiter",
                   "billRequested",
                   "unsentCount",
+                  "uscite",
                   "coperto",
                 ],
                 "type": "object",

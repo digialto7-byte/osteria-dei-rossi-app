@@ -132,6 +132,7 @@ describe("TableTile", () => {
         waiter: { id: IDS.waiterA, displayName: "Giulia" },
         billRequested: false,
         unsentCount: 0,
+        uscite: null,
         queuedAt: at,
       },
     });
@@ -198,6 +199,7 @@ describe("TableTile", () => {
           waiter: { id: IDS.waiterA, displayName: "Giulia" },
           billRequested: false,
           unsentCount: 3,
+          uscite: null,
           queuedAt: "2026-11-02T19:14:00Z",
         },
       };

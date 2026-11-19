@@ -9,7 +9,8 @@ import { describe, expect, it } from "vitest";
 //   - each creates or replaces exactly the objects of its step, and only objects of the plan;
 //   - they never re-create the objects the plan keeps unchanged (section 3.15 "Must stay unchanged"; pgTAP 424 pins their md5);
 //   - no `delete from`, `truncate`, `drop ... cascade` or `disable trigger`; no UPDATE statement except M5's one statement on
-//     public.order_line with the `closed_at is null and l.uscita is null` predicate;
+//     public.order_line with the `closed_at is null and l.uscita is null` predicate, today's order_line writes of the re-created writers, and
+//     M8's verbatim close write of public.table_session inside app.close_session_at;
 //   - no uuid literal outside comments, no `cron.schedule`, no new public function or table named like cost|margin|price|service.
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 const BEFORE = "20261207100000_organisation.sql";
@@ -81,6 +82,23 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  // Step 17 (M7): the waiter reads; uscite on the tile and the order, every draft unsent.
+  "20261206220600_uscita_tables_order_view.sql": {
+    functions: [
+      "app.session_uscite",
+      "app.session_unsent_lines",
+      "public.tables_list",
+      "public.order_view",
+    ],
+    tables: [],
+    triggers: [],
+  },
+  // Step 18 (M8): the close guard.
+  "20261206220700_uscita_close.sql": {
+    functions: ["app.close_session_at"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -121,6 +139,13 @@ const PLAN_FUNCTIONS = [
   "public.kitchen_mark_line",
   "public.kitchen_set_ticket",
   "app.uscite_kitchen_remap_open_sessions",
+  // M7
+  "app.session_uscite",
+  "app.session_unsent_lines",
+  "public.tables_list",
+  "public.order_view",
+  // M8
+  "app.close_session_at",
 ];
 /** Never re-created (plan section 3.15 "Must stay unchanged"). */
 const KEPT = [
@@ -191,6 +216,8 @@ const M5_UPDATE =
 const ORDER_LINE_WRITERS = ["public.update_order_line", "public.fire_course", "public.void_line"];
 /** M5's function: its body holds the one sanctioned backfill UPDATE. */
 const M5_FUNCTION = "app.uscite_backfill_open_sessions";
+/** M8 re-creates the close verbatim: its one UPDATE is today's close write of public.table_session, and nothing else may be updated there. */
+const CLOSE_FUNCTION = "app.close_session_at";
 
 /** The function blocks of a migration (`create [or replace] function name ... $$ ... $$`), by name. */
 function functionBlocks(sql: string): { name: string; text: string }[] {
@@ -209,6 +236,11 @@ function unsanctionedUpdates(sql: string): string[] {
     const updates = [...block.text.matchAll(UPDATE_STATEMENT)].map((m) => m[0]);
     if (ORDER_LINE_WRITERS.includes(block.name)) {
       bad.push(...updates.filter((u) => !/^update\s+public\.order_line\s+set$/i.test(u)));
+      rest = rest.replace(block.text, "");
+    } else if (block.name === CLOSE_FUNCTION) {
+      if (updates.length !== 1 || !/^update\s+public\.table_session\s+set$/i.test(updates[0]!)) {
+        bad.push(...updates, "close shape");
+      }
       rest = rest.replace(block.text, "");
     } else if (block.name === M5_FUNCTION) {
       if (updates.length !== 1 || !M5_UPDATE.test(block.text)) bad.push(...updates, "M5 shape");
@@ -321,6 +353,20 @@ describe("comanda per uscita migrations: the scanners", () => {
       unsanctionedUpdates(fn("public.add_order_line", "update public.order_line set qty = 1")),
     ).not.toEqual([]);
     expect(unsanctionedUpdates("update public.order_line set qty = 1;")).not.toEqual([]);
+    expect(
+      unsanctionedUpdates(fn("app.close_session_at", "update public.table_session set total = 1")),
+    ).toEqual([]);
+    expect(
+      unsanctionedUpdates(fn("app.close_session_at", "update public.order_line set qty = 1")),
+    ).not.toEqual([]);
+    expect(
+      unsanctionedUpdates(
+        fn(
+          "app.close_session_at",
+          "update public.table_session set total = 1; update public.table_session set total = 2",
+        ),
+      ),
+    ).not.toEqual([]);
     const m5 =
       "update public.order_line l set uscita = 1 from public.table_session s where s.closed_at is null and l.uscita is null";
     expect(unsanctionedUpdates(fn("app.uscite_backfill_open_sessions", m5))).toEqual([]);
