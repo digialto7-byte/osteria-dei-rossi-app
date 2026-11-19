@@ -20,6 +20,9 @@ const show = (over: Record<string, unknown> = {}) =>
   );
 const toggle = () => screen.getByRole("button", { name: "Chiuse oggi (2)" });
 
+// Re-pinned on purpose by comanda-uscite (step 13; was the course label, "A seguire" and the five-field body): the heading names the
+// uscita ("1ª uscita", "Subito"), an addition carries the badge, and the close body is {sessionId, firedAt, uscita, closed}. Only the
+// expected texts moved; the card layout is unchanged (B2 redesigns it in plan step 15).
 describe("ClosedSection", () => {
   it("is collapsed by default: a toggle with aria-expanded false and no card", () => {
     const { container } = show();
@@ -84,11 +87,13 @@ describe("ClosedSection", () => {
     const onReopen = vi.fn();
     show({ onReopen });
     fireEvent.click(toggle());
-    fireEvent.click(screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), Primi" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), Subito" }),
+    );
     expect(onReopen).toHaveBeenCalledTimes(1);
     expect(onReopen.mock.calls[0]![0]).toBe(tap);
     expect(
-      screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), Primi" }).className,
+      screen.getByRole("button", { name: "Riapri comanda: Tavolo 3 (demo), Subito" }).className,
     ).toContain("min-h-tap");
   });
 

@@ -23,6 +23,72 @@ function propertyNames(schema: z.ZodType): string[] {
 // pgTAP 059's chef regex: the chef sees no euro value, so no key of the kitchen list may look like one.
 const CHEF_FORBIDDEN = /cost|margin|price|prezz|gp_pct|_eur$|amount|total|importo/i;
 
+describe("kitchenTicketsOutput (comanda per uscita, plan 2026-11-18 §3.9)", () => {
+  const ticket = KITCHEN_TICKETS.tickets[1]!;
+
+  it("refuses a ticket with course or segue and accepts uscita, addition, calledAt", () => {
+    const withTicket = (t: object) => ({ ...KITCHEN_TICKETS, tickets: [t] });
+    expect(kitchenTicketsOutput.safeParse(withTicket(ticket)).success).toBe(true);
+    expect(ticket).toMatchObject({ uscita: 2, addition: false, calledAt: ticket.firedAt });
+    expect(kitchenTicketsOutput.safeParse(withTicket({ ...ticket, course: "primi" })).success).toBe(
+      false,
+    );
+    expect(kitchenTicketsOutput.safeParse(withTicket({ ...ticket, segue: true })).success).toBe(
+      false,
+    );
+    for (const key of ["uscita", "addition", "calledAt"] as const) {
+      const { [key]: _drop, ...without } = ticket;
+      expect(kitchenTicketsOutput.safeParse(withTicket(without)).success, key).toBe(false);
+    }
+  });
+
+  it("refuses an uscita outside 0..9 or not an integer, and a calledAt that is not the six-decimal UTC text", () => {
+    const withTicket = (t: object) => ({ ...KITCHEN_TICKETS, tickets: [t] });
+    for (const uscita of [-1, 10, 1.5, "2"]) {
+      expect(
+        kitchenTicketsOutput.safeParse(withTicket({ ...ticket, uscita })).success,
+        String(uscita),
+      ).toBe(false);
+    }
+    expect(
+      kitchenTicketsOutput.safeParse(
+        withTicket({ ...ticket, calledAt: "2026-11-04T19:40:00+00:00" }),
+      ).success,
+    ).toBe(false);
+  });
+
+  it("each line carries its course; a waiting item has no done and no mark target", () => {
+    const line = ticket.lines[0]!;
+    const { course: _c, ...noCourse } = line;
+    expect(
+      kitchenTicketsOutput.safeParse({
+        ...KITCHEN_TICKETS,
+        tickets: [{ ...ticket, lines: [noCourse] }],
+      }).success,
+    ).toBe(false);
+    const waiting = KITCHEN_TICKETS.waiting[0]!;
+    const withWaiting = (w: object) => ({ ...KITCHEN_TICKETS, waiting: [w] });
+    expect(
+      kitchenTicketsOutput.safeParse(
+        withWaiting({ ...waiting, lines: [{ ...waiting.lines[0]!, done: false }] }),
+      ).success,
+    ).toBe(false);
+    expect(kitchenTicketsOutput.safeParse(withWaiting({ ...waiting, key: "x" })).success).toBe(
+      false,
+    );
+    expect(kitchenTicketsOutput.safeParse(withWaiting({ ...waiting, uscita: 1 })).success).toBe(
+      false,
+    );
+  });
+
+  it("refuses a reply without waiting or waitingCount", () => {
+    const { waiting: _w, ...noWaiting } = KITCHEN_TICKETS;
+    expect(kitchenTicketsOutput.safeParse(noWaiting).success).toBe(false);
+    const { waitingCount: _n, ...noCount } = KITCHEN_TICKETS;
+    expect(kitchenTicketsOutput.safeParse(noCount).success).toBe(false);
+  });
+});
+
 describe("kitchenTicketsOutput (M19)", () => {
   it("parses the database reply", () => {
     expect(kitchenTicketsOutput.parse(KITCHEN_TICKETS)).toEqual(KITCHEN_TICKETS);
@@ -100,6 +166,8 @@ describe("kitchenTicketsOutput (M19)", () => {
         asOf: "2026-11-04T20:31:00+00:00",
         truncated: false,
         remaining: 0,
+        waitingCount: 0,
+        waiting: [],
         tickets: [],
         closedTickets: [],
       }).success,

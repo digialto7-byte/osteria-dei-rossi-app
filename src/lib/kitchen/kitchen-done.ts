@@ -1,11 +1,10 @@
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatTime } from "@/lib/time/format";
-import { courseLabel } from "@/lib/orders/order-view";
 import { KITCHEN_TAP_GUARD_MS } from "@/server/kitchen/constants";
 import type { KitchenLine, KitchenTicket } from "@/server/kitchen/output";
 import type { MarkTicketBody } from "@/server/kitchen/schemas";
-import { firedLine } from "./kitchen-view";
+import { firedLine, uscitaLabel } from "./kitchen-view";
 
 // Words and request bodies for the kitchen done marks (M19b plan §3.6). Pure. The numbers (counts, remaining) come from the API; these
 // helpers only word them, so no arithmetic over ticket data happens in React.
@@ -33,13 +32,12 @@ export function markIntent(
   return { done: !line.done };
 }
 
-/** The body of POST /api/kitchen/tickets/mark for a comanda, from its own fields. */
+/** The body of POST /api/kitchen/tickets/mark for a comanda, from its own fields: the uscita key {sessionId, firedAt, uscita}. */
 export function ticketMarkBody(ticket: KitchenTicket, closed: boolean): MarkTicketBody {
   return {
     sessionId: ticket.sessionId,
     firedAt: ticket.firedAt,
-    course: ticket.course,
-    segue: ticket.segue,
+    uscita: ticket.uscita,
     closed,
   };
 }
@@ -106,7 +104,7 @@ export function undoFor(
 ): Undo | null {
   const text = t(
     "kitchen.undo.notice",
-    { table: ticket.tableName, course: courseLabel(ticket.course, locale) },
+    { table: ticket.tableName, course: uscitaLabel(ticket.uscita, locale) },
     locale,
   );
   if (lineId !== null) {

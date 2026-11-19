@@ -20,22 +20,25 @@ const show = (ticket = stew!, over: Record<string, unknown> = {}) =>
   );
 const line = (id: string) => document.querySelector(`[data-line-id="${id}"]`) as HTMLElement;
 
+// Re-pinned on purpose by comanda-uscite (step 13; was the course label, "A seguire" and the five-field body): the heading names the
+// uscita ("1ª uscita", "Subito"), an addition carries the badge, and the close body is {sessionId, firedAt, uscita, closed}. Only the
+// expected texts moved; the card layout is unchanged (B2 redesigns it in plan step 15).
 describe("TicketCard", () => {
-  it("is an article carrying the ticket key, with the table, covers, course and who sent it when", () => {
+  it("is an article carrying the ticket key, with the table, covers, uscita and who sent it when", () => {
     const { container } = show();
     const article = container.querySelector("article")!;
     expect(article.getAttribute("data-ticket-key")).toBe(stew!.key);
     expect(within(article).getByText("Tavolo 1 (demo)")).toBeTruthy();
     expect(within(article).getByText("4 coperti")).toBeTruthy();
-    expect(within(article).getByText("Secondi")).toBeTruthy();
+    expect(within(article).getByText("1ª uscita")).toBeTruthy();
     expect(within(article).getByText("20:31 · Cameriere Demo")).toBeTruthy();
-    expect(within(article).queryByText("A seguire")).toBeNull();
+    expect(within(article).queryByText("Aggiunta")).toBeNull();
   });
 
-  it("marks a segue ticket with a badge", () => {
-    show(soup!);
-    expect(screen.getByText("A seguire")).toBeTruthy();
-    expect(screen.getByText("Primi")).toBeTruthy();
+  it("marks an addition with a badge", () => {
+    show({ ...soup!, addition: true });
+    expect(screen.getByText("Aggiunta")).toBeTruthy();
+    expect(screen.getByText("2ª uscita")).toBeTruthy();
   });
 
   it("lists the lines by id: quantity and name, the note, the sharing", () => {
@@ -106,7 +109,9 @@ describe("TicketCard, done marks (M19b)", () => {
 
   it("has a Chiudi comanda button with its accessible name and a 44 px target", () => {
     show();
-    const close = screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), Secondi" });
+    const close = screen.getByRole("button", {
+      name: "Chiudi comanda: Tavolo 1 (demo), 1ª uscita",
+    });
     expect(close.className).toContain("min-h-tap");
     expect(close.textContent).toBe("Chiudi comanda");
   });
@@ -116,7 +121,7 @@ describe("TicketCard, done marks (M19b)", () => {
     const onTapLine = vi.fn();
     show(stew!, { onClose, onTapLine });
     fireEvent.click(
-      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), Secondi" }),
+      screen.getByRole("button", { name: "Chiudi comanda: Tavolo 1 (demo), 1ª uscita" }),
     );
     fireEvent.click(screen.getByRole("button", { name: /^Segna fatto: 2 × Spezzatino/ }));
     expect(onClose).toHaveBeenCalledTimes(1);

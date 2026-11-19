@@ -2094,6 +2094,9 @@ export const it = {
   "kitchen.covers.one": "{count} coperto",
   "kitchen.covers.other": "{count} coperti",
   "kitchen.segue": "A seguire",
+  "kitchen.uscita.now": "Subito",
+  "kitchen.uscita.n": "{n}ª uscita",
+  "kitchen.addition": "Aggiunta",
   "kitchen.sent": "{time} \u00b7 {name}",
   "kitchen.line": "{qty} \u00d7 {name}",
   "kitchen.lineWeighted": "{name} {weight}",
@@ -2116,6 +2119,7 @@ export const it = {
   "kitchen.offline": "Serve la connessione per segnare i piatti.",
   "kitchen.error.notSaved": "Non salvato: controlla la connessione e riprova.",
   "kitchen.error.session_closed": "Il tavolo è stato chiuso: la comanda non è più in cucina.",
+  "kitchen.error.line_held": "Questo piatto aspetta la sua uscita: non è ancora in cucina.",
   "kitchen.error.not_found": "Questa comanda non c'è più: aggiorno la lista.",
 
   "demoError.not_demo_tenant": "Questo locale non contiene dati di prova.",

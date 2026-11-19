@@ -1,6 +1,11 @@
 -- M19b step 8 (docs/plans/2026-10-31-m19b-kitchen-done.md §3.11, §5 step 8): performance net. A regression net, not a latency claim: under statement_timeout = 5 s, on a
 -- fixture of 300 lines fired today on 30 sessions and 5 000 older, with 3 000 kitchen events today and 50 000 older, kitchen_tickets(), kitchen_mark_line and kitchen_set_ticket
 -- answer, and the line-state and ticket-state lookups read through kitchen_event_line_idx and kitchen_event_ticket_idx. Fake data only.
+-- Re-pinned on purpose by comanda-uscite (step 13; was the (course, segue) ticket key): M6 keys a ticket by (session, instant, uscita). Only the
+-- key fields moved. Here several comande of one table share an instant and differ by course, so each legacy (course, segue) comanda is given
+-- its own uscita (antipasti 1, primi 2, secondi 3, dolci 4, bevande 5; +4 for segue), with a 'migration' call at the line's fired_at for an
+-- uscita >= 2 (as M5 does), so every comanda of this file is still one ticket; ticket events and bodies carry uscita instead of course and
+-- segue; the key sets gain uscita, addition, calledAt (ticket), course (line), waiting, waitingCount.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(8);
@@ -60,23 +65,31 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- An order line fired at p_fired (null = draft). Item 1 secondi, 2 antipasti, 3 primi; the waiter who sent it is p_by.
+-- The uscita of a legacy (course, segue) comanda (comanda-uscite step 13).
+create function pg_temp.uscita_of(p_course text, p_segue boolean) returns smallint language sql immutable as $$
+  select (array_position(array['antipasti', 'primi', 'secondi', 'dolci', 'bevande'], p_course) + case when p_segue then 4 else 0 end)::smallint $$;
 create function pg_temp.mkl(p_k text, p_session text, p_course text, p_item int, p_fired timestamptz, p_segue boolean default false,
     p_qty numeric default 1, p_note text default null, p_shared boolean default false, p_void text default null, p_by text default 'd1000000-0000-4000-8000-00000000000d',
     p_tenant text default '11111111-1111-4111-8111-111111111111', p_created timestamptz default null) returns void language plpgsql as $$
 begin
   insert into reg values (p_k, gen_random_uuid());
-  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, note, is_shared, unit_price, vat_rate, price_source,
+  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, uscita, note, is_shared, unit_price, vat_rate, price_source,
       client_updated_at, created_at, created_by, updated_by, fired_at, fired_by, voided_at, voided_by, void_reason)
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
+      p_course::public.course, p_qty, p_segue, pg_temp.uscita_of(p_course, p_segue), p_note, p_shared, 14, 10, 'menu', '1998-11-04 18:00+00',
       coalesce(p_created, '1998-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
       case when p_void is null then null else p_fired + interval '1 minute' end,
       case when p_void is null then null else p_by::uuid end, p_void);
+  if pg_temp.uscita_of(p_course, p_segue) >= 2 and p_fired is not null then
+    insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+      values (p_tenant::uuid, pg_temp.id(p_session), pg_temp.uscita_of(p_course, p_segue), p_fired, p_by::uuid, 'migration')
+      on conflict on constraint uscita_call_once_uq do nothing;
+  end if;
 end
 $$;
 
@@ -93,10 +106,10 @@ create function pg_temp.claims(p_who text) returns void language sql as $$
     else '' end, true) $$;
 create function pg_temp.mark(p_line text, p_done boolean) returns jsonb language sql as $$
   select public.kitchen_mark_line(pg_temp.id(p_line), jsonb_build_object('done', p_done)) $$;
--- The five-field body of the comanda a line belongs to.
+-- The four-field body {sessionId, firedAt, uscita, closed} of the comanda a line belongs to.
 create function pg_temp.kbody(p_line text, p_closed boolean) returns jsonb language sql as $$
-  select jsonb_build_object('sessionId', l.table_session_id, 'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
-                            'course', l.course::text, 'segue', l.segue, 'closed', p_closed)
+  select jsonb_build_object('sessionId', l.table_session_id, 'firedAt', to_char(app.line_ticket_at(l.tenant_id, l) at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
+                            'uscita', l.uscita, 'closed', p_closed)
     from public.order_line l where l.id = pg_temp.id(p_line) $$;
 create function pg_temp.setk(p_line text, p_closed boolean) returns jsonb language sql as $$
   select public.kitchen_set_ticket(pg_temp.kbody(p_line, p_closed)) $$;
@@ -106,7 +119,7 @@ create function pg_temp.lev(p_line text) returns text language sql as $$
 create function pg_temp.tev(p_line text) returns text language sql as $$
   select coalesce(string_agg(e.subject || ':' || e.action || ':' || e.cause, ',' order by e.seq), '-')
     from public.kitchen_event e join public.order_line l on l.id = pg_temp.id(p_line)
-   where e.subject = 'ticket' and e.table_session_id = l.table_session_id and e.fired_at = l.fired_at and e.course = l.course and e.segue = l.segue $$;
+   where e.subject = 'ticket' and e.table_session_id = l.table_session_id and e.fired_at = app.line_ticket_at(l.tenant_id, l) and e.uscita = l.uscita $$;
 create function pg_temp.nev() returns integer language sql as $$ select count(*)::int from public.kitchen_event $$;
 -- A comanda of a board (from a reply), found by one of its line ids; list = tickets / closedTickets. Null when absent.
 create function pg_temp.bt(p_board jsonb, p_list text, p_line text) returns jsonb language sql as $$
@@ -163,7 +176,7 @@ select is((select jsonb_array_length(j -> 'tickets') > 0 from res where k = 'boa
 insert into res select 'mark', public.kitchen_mark_line((select id from pl where n = 1), '{"done": true}');
 select is((select j ->> 'changed' from res where k = 'mark'), 'true', 'kitchen_mark_line answers under the limit (line 1 had ten events, the last one undone, so done changes it)');
 insert into res select 'set', public.kitchen_set_ticket((select jsonb_build_object('sessionId', l.table_session_id, 'firedAt', to_char(l.fired_at at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
-    'course', l.course::text, 'segue', l.segue, 'closed', true) from public.order_line l where l.id = (select id from pl where n = 2)));
+    'uscita', l.uscita, 'closed', true) from public.order_line l where l.id = (select id from pl where n = 2)));
 select is((select j ->> 'changed' from res where k = 'set'), 'true', 'kitchen_set_ticket answers under the limit');
 reset statement_timeout;
 
@@ -179,8 +192,8 @@ $$;
 select ok(pg_temp.plan_of(format($q$ select e.action from public.kitchen_event e where e.tenant_id = '11111111-1111-4111-8111-111111111111' and e.subject = 'line'
     and e.order_line_id = %L order by e.seq desc limit 1 $q$, (select id from pl where n = 3))) like '%kitchen_event_line_idx%', 'the line-state lookup reads through kitchen_event_line_idx');
 select ok(pg_temp.plan_of(format($q$ select e.action from public.kitchen_event e where e.tenant_id = '11111111-1111-4111-8111-111111111111' and e.subject = 'ticket'
-    and e.table_session_id = %L and e.fired_at = now() and e.course = 'secondi' and e.segue = false order by e.seq desc limit 1 $q$, pg_temp.id('t1'))) like '%kitchen_event_ticket_idx%',
-  'the ticket-state lookup reads through kitchen_event_ticket_idx');
+    and e.table_session_id = %L and e.fired_at = now() and e.uscita = 1 order by e.seq desc limit 1 $q$, pg_temp.id('t1'))) like '%kitchen_event_uscita_ticket_idx%',
+  'the ticket-state lookup reads through kitchen_event_uscita_ticket_idx');
 select ok(pg_temp.plan_of($q$ select l.id from public.order_line l where l.tenant_id = '11111111-1111-4111-8111-111111111111' and l.fired_at is not null
       and l.fired_at > now() - interval '30 hours' and l.fired_at <= now() $q$) like '%order_line_fired_idx%', 'the comanda window still reads through order_line_fired_idx');
 

@@ -2342,9 +2342,11 @@ check "open-twice: no deadlock" "$(fr_no_deadlock)" yes
 kt_mark() { # kt_mark <label> <line> <true|false>: stores the reply
   echo "insert into race.result select '$1', public.kitchen_mark_line('$2', '{\"done\": $3}'::jsonb)::text;"
 }
-kt_fired_at() { query "select to_char(fired_at at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') from public.order_line where id = '$OE_L1'"; }
+# Comanda per uscita (step 13): the comanda key is {sessionId, firedAt = the ticket instant, uscita}; it was {course, segue} until M6.
+kt_fired_at() { query "select to_char(app.line_ticket_at(l.tenant_id, l) at time zone 'utc', 'YYYY-MM-DD\"T\"HH24:MI:SS.US\"Z\"') from public.order_line l where l.id = '$OE_L1'"; }
+kt_uscita() { query "select uscita from public.order_line where id = '$OE_L1'"; }
 kt_set() { # kt_set <label> <true|false>: close or reopen the comanda of L1 and L2, stores the reply
-  echo "insert into race.result select '$1', public.kitchen_set_ticket('{\"sessionId\":\"$OE_S1\",\"firedAt\":\"$(kt_fired_at)\",\"course\":\"secondi\",\"segue\":false,\"closed\":$2}'::jsonb)::text;"
+  echo "insert into race.result select '$1', public.kitchen_set_ticket('{\"sessionId\":\"$OE_S1\",\"firedAt\":\"$(kt_fired_at)\",\"uscita\":$(kt_uscita),\"closed\":$2}'::jsonb)::text;"
 }
 kt_events() { query "select coalesce(string_agg(subject || ':' || action || ':' || cause, ',' order by seq), '-') from public.kitchen_event"; }
 kt_reply() { query "select value::jsonb ->> '$2' from race.result where label = '$1'"; }

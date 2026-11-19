@@ -515,6 +515,12 @@ design is in `docs/adr/adr-049-comanda-per-uscita.md`.
   run with the room closed. Afterwards **every phone and the kitchen screen close the app and reopen it**, so they load the new version;
   until then an old phone keeps working with today's buttons, and its queued dishes keep their meaning ("Invia a seguire" still calls the
   2ª at once). (test: supabase/tests/database/423_uscita_open_sessions.test.sql)
+- **Reload the kitchen screens after the kitchen deploy (M6).** From this deploy a kitchen comanda is one uscita, not one course. The
+  migration and the new app go out together outside service: between the migration and the new app going live the kitchen list answers an
+  error, and a kitchen screen still on the old version shows the error page at its next refresh (its comande have no course any more), and
+  its "Chiudi comanda" is refused ("Richiesta non valida.", nothing saved). Nothing is lost: close and reopen the app on every kitchen
+  device, online, right after the deploy. The open tables' closed comande are carried over to the new key by the migration.
+  (test: tests/app/api/kitchen-ticket-mark.test.ts)
 - **Reading the calls.** Every "Via la n" is one row of `uscita_call` (session, uscita, when, who, cause): `call` is a waiter's tap,
   `fire_now` a send from an old phone, `migration` the deploy. Rows are never changed or deleted.
   (test: supabase/tests/database/421_uscita_fire_call.test.sql)

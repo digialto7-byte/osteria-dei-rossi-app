@@ -103,6 +103,8 @@ describe("POST /api/kitchen/lines/:id/mark", () => {
   it.each([
     ["P0002", "line_not_found", 404, "line_not_found"],
     ["P0001", "session_closed", 409, "session_closed"],
+    // Comanda per uscita: a held dish (its uscita not called) is not in the kitchen yet.
+    ["P0001", "line_held", 409, "line_held"],
     ["22023", "invalid_request", 400, "invalid_request"],
     ["42501", "permission denied", 403, "forbidden"],
   ])("%s %s from the database is %i %s", async (code, message, status, apiCode) => {

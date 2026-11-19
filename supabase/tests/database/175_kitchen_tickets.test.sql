@@ -1,7 +1,12 @@
 -- M19 step 6: the kitchen ticket list (M19 plan §3.1.8, §3.1.12, §3.2; ADR-019). app.kitchen_ticket_rows is called with a fixed
--- instant, public.kitchen_tickets() as chef, owner, admin and waiter. Tickets are found by key (session, firedAt, course, segue),
+-- instant, public.kitchen_tickets() as chef, owner, admin and waiter. Tickets are found by key (session, firedAt, uscita),
 -- lines by id, never by position. Two tables, two courses in one call, a segue ticket, a closed table, yesterday, drafts and a
 -- second tenant. No euro value anywhere. Fake data only.
+-- Re-pinned on purpose by comanda-uscite (step 13; was the (course, segue) ticket key): M6 keys a ticket by (session, instant, uscita). Only the
+-- key fields moved. Two courses are sent in one call here, so each legacy (course, segue) comanda is given its own uscita (antipasti 1, primi 2,
+-- secondi 3, dolci 4, bevande 5; +4 for segue); an uscita >= 2 gets a 'migration' call on 1997-11-01, before every fixture line, so each ticket
+-- instant is the line's fired_at and every comanda of this file is still one ticket. The course of a ticket is read from its first line; the
+-- key text is <sessionId>|<instant>|u<uscita>; the key sets gain uscita, addition, calledAt (ticket), course (line), waiting, waitingCount.
 begin;
 create extension if not exists pgtap with schema extensions;
 select plan(36);
@@ -61,29 +66,37 @@ create function pg_temp.act_as(auth_id uuid, tenant uuid, app_role text) returns
     'sub', auth_id, 'role', 'authenticated', 'tenant_id', tenant, 'app_role', app_role, 'aal', case when app_role = 'admin' then 'aal2' else 'aal1' end)::text, true)
 $$;
 -- An order line fired at p_fired (null = draft). Item 1 secondi, 2 antipasti, 3 primi; the waiter who sent it is p_by.
+-- The uscita of a legacy (course, segue) comanda (comanda-uscite step 13).
+create function pg_temp.uscita_of(p_course text, p_segue boolean) returns smallint language sql immutable as $$
+  select (array_position(array['antipasti', 'primi', 'secondi', 'dolci', 'bevande'], p_course) + case when p_segue then 4 else 0 end)::smallint $$;
 create function pg_temp.mkl(p_k text, p_session text, p_course text, p_item int, p_fired timestamptz, p_segue boolean default false,
     p_qty numeric default 1, p_note text default null, p_shared boolean default false, p_void text default null, p_by text default 'd1000000-0000-4000-8000-00000000000d',
     p_tenant text default '11111111-1111-4111-8111-111111111111', p_created timestamptz default null) returns void language plpgsql as $$
 begin
   insert into reg values (p_k, gen_random_uuid());
-  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, note, is_shared, unit_price, vat_rate, price_source,
+  insert into public.order_line (id, tenant_id, table_session_id, menu_item_id, course, qty, segue, uscita, note, is_shared, unit_price, vat_rate, price_source,
       client_updated_at, created_at, created_by, updated_by, fired_at, fired_by, voided_at, voided_by, void_reason)
     values (pg_temp.id(p_k), p_tenant::uuid, pg_temp.id(p_session),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then '11000000-0000-4000-8000-0000000000b1'::uuid
            else ('11000000-0000-4000-8000-00000000000' || p_item)::uuid end,
-      p_course::public.course, p_qty, p_segue, p_note, p_shared, 14, 10, 'menu', '1997-11-04 18:00+00',
+      p_course::public.course, p_qty, p_segue, pg_temp.uscita_of(p_course, p_segue), p_note, p_shared, 14, 10, 'menu', '1997-11-04 18:00+00',
       coalesce(p_created, '1997-11-04 18:00+00'),
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       case when p_tenant = '22222222-2222-4222-8222-222222222222' then 'b1000000-0000-4000-8000-00000000000b'::uuid else 'd1000000-0000-4000-8000-00000000000d'::uuid end,
       p_fired, case when p_fired is null then null else p_by::uuid end,
       case when p_void is null then null else p_fired + interval '1 minute' end,
       case when p_void is null then null else p_by::uuid end, p_void);
+  if pg_temp.uscita_of(p_course, p_segue) >= 2 and p_fired is not null then
+    insert into public.uscita_call (tenant_id, table_session_id, uscita, called_at, called_by, cause)
+      values (p_tenant::uuid, pg_temp.id(p_session), pg_temp.uscita_of(p_course, p_segue), '1997-11-01 00:00+00', p_by::uuid, 'migration')
+      on conflict on constraint uscita_call_once_uq do nothing;
+  end if;
 end
 $$;
 -- The tickets as 'table course HH:MM segue' (UTC clock) in the order returned.
 create function pg_temp.tk(j jsonb) returns text language sql as $$
-  select coalesce(string_agg(replace(replace(t ->> 'tableName', 'Tavolo ', 'T'), ' (demo)', '') || ' ' || (t ->> 'course') || ' '
-           || to_char(((t ->> 'firedAt')::timestamptz) at time zone 'utc', 'HH24:MI') || case when (t ->> 'segue')::boolean then ' segue' else '' end,
+  select coalesce(string_agg(replace(replace(t ->> 'tableName', 'Tavolo ', 'T'), ' (demo)', '') || ' ' || (t -> 'lines' -> 0 ->> 'course') || ' '
+           || to_char(((t ->> 'firedAt')::timestamptz) at time zone 'utc', 'HH24:MI') || case when (t ->> 'uscita')::int > 5 then ' segue' else '' end,
            ', ' order by o), 'none')
     from jsonb_array_elements(j -> 'tickets') with ordinality x (t, o) $$;
 create function pg_temp.rows(p_at timestamptz) returns jsonb language sql as $$ select app.kitchen_ticket_rows('11111111-1111-4111-8111-111111111111', p_at) $$;
@@ -124,20 +137,20 @@ select is(pg_temp.tk(pg_temp.rows('1997-11-04 20:30:00+00')),
 select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('1997-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('t3')::text), 0, 'the closed table has no ticket');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('1997-11-04 20:30:00+00') -> 'tickets') t where t ->> 'sessionId' = pg_temp.id('tb')::text), 0, 'tenant B has no ticket in A''s list');
 select is(pg_temp.rows('1997-11-04 20:30:00+00') ->> 'truncated', 'false', 'not truncated');
-select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('1997-11-04 20:30:00+00')) k), array['closedTickets', 'remaining', 'tickets', 'truncated'],
-  'the rows function returns {closedTickets, remaining, tickets, truncated} (keys updated by M19b step 3)');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.rows('1997-11-04 20:30:00+00')) k), array['closedTickets', 'remaining', 'tickets', 'truncated', 'waiting', 'waitingCount'],
+  'the rows function returns {closedTickets, remaining, tickets, truncated, waiting, waitingCount} (keys updated by M19b step 3 and comanda-uscite step 13)');
 
 -- Ticket shape, found by key
 create temporary table tj as select t from jsonb_array_elements(pg_temp.rows('1997-11-04 20:30:00+00') -> 'tickets') t;
-select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
-  array['autoClosed', 'closedAt', 'closedBy', 'course', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'segue', 'sessionId', 'tableName'], 'a ticket has exactly the fourteen documented keys (updated by M19b step 3)');
-select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t -> 'lines' -> 0) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'),
-  array['done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'a line has exactly the nine documented keys (updated by M19b step 3; weightG extended on purpose by P2-0b A5)');
+select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'antipasti'),
+  array['addition', 'autoClosed', 'calledAt', 'closedAt', 'closedBy', 'covers', 'doneCount', 'firedAt', 'firedBy', 'key', 'lineCount', 'lines', 'sessionId', 'tableName', 'uscita'], 'a ticket has exactly the fifteen documented keys (updated by M19b step 3 and comanda-uscite step 13)');
+select is((select array_agg(k order by k collate "C") from tj, jsonb_object_keys(t -> 'lines' -> 0) k where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'antipasti'),
+  array['course', 'done', 'id', 'isShared', 'name', 'note', 'qty', 'voidReason', 'voided', 'weightG'], 'a line has exactly the ten documented keys (updated by M19b step 3; weightG extended on purpose by P2-0b A5; course by comanda-uscite step 13)');
 select is((select t ->> 'tableName' || '/' || (t ->> 'covers') || '/' || (t -> 'firedBy' ->> 'displayName') || '/' || (t -> 'firedBy' ->> 'id')
              from tj where t ->> 'sessionId' = pg_temp.id('t2')::text),
   'Tavolo 2 (demo)/2/Cameriere Demo/d1000000-0000-4000-8000-00000000000d', 'table name, covers and who sent it');
-select is((select t ->> 'key' from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'primi' and (t ->> 'segue')::boolean),
-  pg_temp.id('t1')::text || '|1997-11-04T20:10:00.000000Z|primi|true', 'the key is sessionId|firedAt|course|segue');
+select is((select t ->> 'key' from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'primi' and (t ->> 'uscita')::int > 5),
+  pg_temp.id('t1')::text || '|1997-11-04T20:10:00.000000Z|u6', 'the key is sessionId|firedAt|u<uscita>');
 -- lines, by id
 select is((select e ->> 'name' || '/' || (e ->> 'qty') || '/' || (e ->> 'note') || '/' || (e ->> 'isShared') || '/' || (e ->> 'voided')
              from tj, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.id('a1')::text),
@@ -147,13 +160,13 @@ select is((select e ->> 'qty' || '/' || (e ->> 'isShared') || '/' || (e ->> 'voi
   '0.5/true/true/kitchen_error', 'a half portion, shared, fired then voided: voided with its reason');
 select is((select jsonb_typeof(e -> 'voidReason') from tj, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.id('a1')::text), 'null', 'a live line has voidReason null');
 select is((select jsonb_typeof(e -> 'note') from tj, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.id('a2')::text), 'null', 'and a missing note is null');
-select is((select count(*)::int from tj, jsonb_array_elements(t -> 'lines') e where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'antipasti'), 2,
+select is((select count(*)::int from tj, jsonb_array_elements(t -> 'lines') e where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'antipasti'), 2,
   'the voided line stays on its ticket');
 select is((select e ->> 'note' from tj, jsonb_array_elements(t -> 'lines') e where e ->> 'id' = pg_temp.id('d2')::text), '<script>alert(1)</script>',
   'a note is data and is returned as is (rendered as text by the screen)');
-select is((select count(*)::int from tj, jsonb_array_elements(t -> 'lines') e where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'primi'
+select is((select count(*)::int from tj, jsonb_array_elements(t -> 'lines') e where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'primi'
              and e ->> 'id' in (pg_temp.id('d1')::text, pg_temp.id('c1')::text)), 2, 'the segue and the normal primi lines are on separate tickets, one line each');
-select is((select count(*)::int from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t ->> 'course' = 'primi'), 2, 'two primi tickets for T1');
+select is((select count(*)::int from tj where t ->> 'sessionId' = pg_temp.id('t1')::text and t -> 'lines' -> 0 ->> 'course' = 'primi'), 2, 'two primi tickets for T1');
 
 -- Lines of one ticket are ordered by creation, then id
 select pg_temp.mkl('o1', 't2', 'primi', 3, '1997-11-04 20:25:00+00', false, 1, null, false, null, 'd1000000-0000-4000-8000-00000000000d', '11111111-1111-4111-8111-111111111111', '1997-11-04 18:02:00+00');
@@ -165,7 +178,7 @@ select is((select string_agg(e ->> 'id', ',' order by o) from jsonb_array_elemen
 -- Business day, cut-off 02:00 Rome: 00:30Z = 01:30 Rome belongs to the previous day, 01:30Z = 02:30 Rome to the new one
 select pg_temp.mkl('n1', 't1', 'dolci', 1, '1997-11-05 00:30:00+00');
 select pg_temp.mkl('n2', 't1', 'dolci', 1, '1997-11-05 01:30:00+00');
-select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('1997-11-05 00:50:00+00') -> 'tickets') t where t ->> 'course' = 'dolci'), 1,
+select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('1997-11-05 00:50:00+00') -> 'tickets') t where t -> 'lines' -> 0 ->> 'course' = 'dolci'), 1,
   'at 01:50 Rome (still 4 November) the 01:30 line is on the list');
 select is((select count(*)::int from jsonb_array_elements(pg_temp.rows('1997-11-05 00:50:00+00') -> 'tickets') t where t ->> 'firedAt' like '1997-11-05T01:30%'), 0, 'and the 02:30 line is not (it has not happened yet)');
 select is(pg_temp.tk(pg_temp.rows('1997-11-05 02:00:00+00')), 'T1 dolci 01:30', 'at 03:00 Rome (5 November) only the 02:30 line is on the list: the 01:30 one and the evening belong to yesterday');
@@ -207,7 +220,7 @@ select is(pg_temp.err($$ select public.kitchen_tickets() $$), '42501 permission 
 select set_config('request.jwt.claims', '', true);
 select is(pg_temp.err($$ select public.kitchen_tickets() $$), '42501 permission denied: the kitchen list needs owner, admin or chef', 'no claims: refused');
 reset role;
-select is((select array_agg(k order by k collate "C") from kt, jsonb_object_keys(j) k where nm = 'chef'), array['asOf', 'closedTickets', 'remaining', 'tickets', 'truncated'], 'kitchen_tickets returns the whole board (keys updated by M19b step 3)');
+select is((select array_agg(k order by k collate "C") from kt, jsonb_object_keys(j) k where nm = 'chef'), array['asOf', 'closedTickets', 'remaining', 'tickets', 'truncated', 'waiting', 'waitingCount'], 'kitchen_tickets returns the whole board (keys updated by M19b step 3 and comanda-uscite step 13)');
 select is((select (j -> 'tickets' -> 0 ->> 'sessionId') || '/' || jsonb_array_length(j -> 'tickets') from kt where nm = 'chef'), pg_temp.id('t1')::text || '/1', 'the chef sees the ticket fired now (and not the old evenings)');
 select is((select j - 'asOf' from kt where nm = 'owner'), (select j - 'asOf' from kt where nm = 'chef'), 'the owner gets the same payload as the chef');
 select is((select j - 'asOf' from kt where nm = 'admin'), (select j - 'asOf' from kt where nm = 'chef'), 'and so does the admin');

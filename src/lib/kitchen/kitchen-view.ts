@@ -2,7 +2,7 @@ import { formatWeight } from "@/lib/format/weight";
 import { t } from "@/lib/i18n";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/locale";
 import { formatTime } from "@/lib/time/format";
-import { courseLabel, qtyText } from "@/lib/orders/order-view";
+import { qtyText } from "@/lib/orders/order-view";
 import { voidReasonLabel } from "@/lib/orders/fire-view";
 import { KITCHEN_STALE_MS } from "@/server/kitchen/constants";
 import type { KitchenLine, KitchenTicket } from "@/server/kitchen/output";
@@ -34,10 +34,21 @@ export function voidLabel(reason: VoidReason, locale: Locale = DEFAULT_LOCALE): 
   return t("kitchen.voided", { reason: voidReasonLabel(reason, locale) }, locale);
 }
 
+/** "Subito" for uscita 0 (drinks), "2ª uscita" for 1..9 (comanda per uscita, plan 2026-11-18 §3.9). */
+export function uscitaLabel(uscita: number, locale: Locale = DEFAULT_LOCALE): string {
+  return uscita === 0
+    ? t("kitchen.uscita.now", {}, locale)
+    : t("kitchen.uscita.n", { n: uscita }, locale);
+}
+
+// Comanda per uscita: a ticket has no course and no segue any more. Until the card is redesigned (B2, plan step 15) the heading keeps
+// its two field names: `course` carries the uscita label and `segueBadge` the "Aggiunta" badge of a later ticket of the same uscita.
 export interface TicketHeading {
   table: string;
   covers: string;
+  /** The uscita label: "1ª uscita", or "Subito" for drinks. */
   course: string;
+  /** "Aggiunta" when the ticket is an addition to an uscita already in the kitchen; null otherwise. */
   segueBadge: string | null;
   /** "20:31 · Cameriere Demo". */
   sent: string;
@@ -54,8 +65,8 @@ export function ticketHeading(
       { count: ticket.covers },
       locale,
     ),
-    course: courseLabel(ticket.course, locale),
-    segueBadge: ticket.segue ? t("kitchen.segue", {}, locale) : null,
+    course: uscitaLabel(ticket.uscita, locale),
+    segueBadge: ticket.addition ? t("kitchen.addition", {}, locale) : null,
     sent: t(
       "kitchen.sent",
       { time: formatTime(new Date(ticket.firedAt), locale), name: ticket.firedBy.displayName },

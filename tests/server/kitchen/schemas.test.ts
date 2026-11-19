@@ -5,8 +5,7 @@ import { KIDS } from "../../helpers/kitchen-data";
 const ticketBody = {
   sessionId: KIDS.session,
   firedAt: "2026-11-04T19:31:00.000000Z",
-  course: "secondi",
-  segue: false,
+  uscita: 2,
   closed: true,
 };
 
@@ -25,7 +24,7 @@ describe("markLineBody (M19b)", () => {
 });
 
 describe("markTicketBody (M19b)", () => {
-  it("accepts the five fields of a comanda", () => {
+  it("accepts the four fields of an uscita ticket", () => {
     expect(markTicketBody.parse(ticketBody)).toEqual(ticketBody);
   });
 
@@ -40,12 +39,25 @@ describe("markTicketBody (M19b)", () => {
     }
   });
 
-  it("rejects an unknown course, a missing segue and a bad session id", () => {
-    expect(markTicketBody.safeParse({ ...ticketBody, course: "pizze" }).success).toBe(false);
-    const { segue: _segue, ...withoutSegue } = ticketBody;
-    expect(markTicketBody.safeParse(withoutSegue).success).toBe(false);
+  it("requires uscita and refuses course or segue (comanda per uscita, plan 2026-11-18 §3.9)", () => {
+    const { uscita: _u, ...withoutUscita } = ticketBody;
+    expect(markTicketBody.safeParse(withoutUscita).success).toBe(false);
+    expect(markTicketBody.safeParse({ ...ticketBody, course: "secondi" }).success).toBe(false);
+    expect(markTicketBody.safeParse({ ...ticketBody, segue: false }).success).toBe(false);
+    expect(
+      markTicketBody.safeParse({ ...withoutUscita, course: "secondi", segue: false }).success,
+    ).toBe(false);
+  });
+
+  it("refuses an uscita outside 0..9, not an integer or a string, a bad session id and an extra key", () => {
+    for (const uscita of [-1, 10, 1.5, "2", null]) {
+      expect(markTicketBody.safeParse({ ...ticketBody, uscita }).success, String(uscita)).toBe(
+        false,
+      );
+    }
+    expect(markTicketBody.safeParse({ ...ticketBody, uscita: 0 }).success).toBe(true);
     expect(markTicketBody.safeParse({ ...ticketBody, sessionId: "nope" }).success).toBe(false);
-    expect(markTicketBody.safeParse({ ...ticketBody, segue: "false" }).success).toBe(false);
+    expect(markTicketBody.safeParse({ ...ticketBody, closed: "true" }).success).toBe(false);
     expect(markTicketBody.safeParse({ ...ticketBody, extra: 1 }).success).toBe(false);
   });
 });

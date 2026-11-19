@@ -188,6 +188,7 @@ export type ErrorCode =
   | "session_closed"
   | "line_not_found"
   | "ticket_not_found"
+  | "line_held"
   | "table_inactive"
   | "covers_invalid"
   | "coperto_invalid"

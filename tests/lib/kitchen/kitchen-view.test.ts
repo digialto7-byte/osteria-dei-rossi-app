@@ -5,6 +5,7 @@ import {
   firedLine,
   isStale,
   ticketHeading,
+  uscitaLabel,
   voidLabel,
 } from "@/lib/kitchen/kitchen-view";
 import { KITCHEN_STALE_MS } from "@/server/kitchen/constants";
@@ -55,23 +56,32 @@ describe("canReadKitchen", () => {
 });
 
 describe("ticketHeading", () => {
-  it("gives the table, covers, course and who sent it when", () => {
+  // Re-pinned on purpose by comanda-uscite (step 13; was the course label and the "A seguire" badge): the heading names the uscita.
+  it("gives the table, covers, uscita and who sent it when", () => {
     expect(ticketHeading(stewTicket!)).toEqual({
       table: "Tavolo 1 (demo)",
       covers: "4 coperti",
-      course: "Secondi",
+      course: "1ª uscita",
       segueBadge: null,
       sent: "20:31 · Cameriere Demo",
     });
   });
 
-  it("marks a segue ticket and uses the singular for one cover", () => {
-    expect(ticketHeading({ ...soupTicket!, covers: 1 })).toMatchObject({
+  it("marks an addition with a badge and uses the singular for one cover", () => {
+    expect(ticketHeading({ ...soupTicket!, covers: 1, addition: true })).toMatchObject({
       covers: "1 coperto",
-      course: "Primi",
-      segueBadge: "A seguire",
+      course: "2ª uscita",
+      segueBadge: "Aggiunta",
       sent: "20:40 · Cameriere Due Demo",
     });
+    expect(ticketHeading(soupTicket!).segueBadge).toBeNull();
+  });
+
+  it("names uscita 0 Subito, in both languages", () => {
+    expect(uscitaLabel(0)).toBe("Subito");
+    expect(uscitaLabel(3)).toBe("3ª uscita");
+    expect(uscitaLabel(0, "en")).toBe("Right away");
+    expect(uscitaLabel(3, "en")).toBe("Course 3");
   });
 });
 

@@ -65,6 +65,22 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  // Step 13 (M6): the kitchen board by uscita; kitchen_event.uscita, the keyed helpers on the new key, the two writes, the remap.
+  "20261206220500_uscita_kitchen.sql": {
+    functions: [
+      "app.line_ticket_at",
+      "app.kitchen_ticket_key",
+      "app.kitchen_ticket_lock",
+      "app.kitchen_ticket_state",
+      "app.kitchen_ticket_open_lines",
+      "app.kitchen_ticket_rows",
+      "public.kitchen_mark_line",
+      "public.kitchen_set_ticket",
+      "app.uscite_kitchen_remap_open_sessions",
+    ],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -95,6 +111,16 @@ const PLAN_FUNCTIONS = [
   "app.void_waste_reason",
   // M5
   "app.uscite_backfill_open_sessions",
+  // M6
+  "app.line_ticket_at",
+  "app.kitchen_ticket_key",
+  "app.kitchen_ticket_lock",
+  "app.kitchen_ticket_state",
+  "app.kitchen_ticket_open_lines",
+  "app.kitchen_ticket_rows",
+  "public.kitchen_mark_line",
+  "public.kitchen_set_ticket",
+  "app.uscite_kitchen_remap_open_sessions",
 ];
 /** Never re-created (plan section 3.15 "Must stay unchanged"). */
 const KEPT = [

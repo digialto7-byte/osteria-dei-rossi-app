@@ -2067,6 +2067,9 @@ export const en: Record<MessageKey, string> = {
   "kitchen.covers.one": "{count} cover",
   "kitchen.covers.other": "{count} covers",
   "kitchen.segue": "To follow",
+  "kitchen.uscita.now": "Right away",
+  "kitchen.uscita.n": "Course {n}",
+  "kitchen.addition": "Addition",
   "kitchen.sent": "{time} \u00b7 {name}",
   "kitchen.line": "{qty} \u00d7 {name}",
   "kitchen.lineWeighted": "{name} {weight}",
@@ -2089,6 +2092,7 @@ export const en: Record<MessageKey, string> = {
   "kitchen.offline": "A connection is needed to mark dishes.",
   "kitchen.error.notSaved": "Not saved: check the connection and try again.",
   "kitchen.error.session_closed": "The table was closed: the order is no longer in the kitchen.",
+  "kitchen.error.line_held": "This dish is waiting for its course: it is not in the kitchen yet.",
   "kitchen.error.not_found": "This order is gone: refreshing the list.",
 
   "demoError.not_demo_tenant": "This venue holds no demo data.",
