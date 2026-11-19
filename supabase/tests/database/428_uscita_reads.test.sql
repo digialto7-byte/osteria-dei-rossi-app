@@ -6,7 +6,7 @@
 begin;
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -34,7 +34,7 @@ insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, va
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   select ('13000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111', 'Tavolo ' || n || ' (demo)', n,
          'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 3) n;
--- S1 the founder's table, S2 another table, S3 an open table from before M6 (legacy kitchen events).
+-- S1, S2 and S3: three open tables of tenant A (each block below says what it puts on them).
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   select ('14000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111', ('13000000-0000-4000-8000-00000000000' || n)::uuid,
          'Tavolo ' || n || ' (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
@@ -146,6 +146,11 @@ select is((select count(*)::int from jsonb_array_elements(pg_temp.j('o1') -> 'us
 select count(*) from (select pg_temp.tables('tb', 'waiterb')) x;
 select is((select count(*)::int from jsonb_array_elements(pg_temp.j('tb') -> 'tables') t where t ->> 'id' like '13000000-%'), 0, 'X: B''s tiles hold none of A''s tables');
 select is(pg_temp.ov('ob', 1, 'waiterb'), 'P0002 session_not_found', 'X: order_view of A''s session as B''s waiter is P0002 session_not_found');
+
+-- 13: the helper is closed to the API roles (as app.session_unsent_lines in pgTAP 367).
+reset role;
+select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r
+            where has_function_privilege(r, 'app.session_uscite(uuid, uuid[])', 'execute')), 0, 'no API role can execute app.session_uscite');
 
 select * from finish();
 rollback;

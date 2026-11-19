@@ -31,7 +31,7 @@ insert into public.menu_item_price (tenant_id, menu_item_id, price, vat_rate, va
 insert into public.dining_table (id, tenant_id, name, position, created_by, updated_by)
   select ('13000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111', 'Tavolo ' || n || ' (demo)', n,
          'a1000000-0000-4000-8000-00000000000a', 'a1000000-0000-4000-8000-00000000000a' from generate_series(1, 3) n;
--- S1 the founder's table, S2 another table, S3 an open table from before M6 (legacy kitchen events).
+-- S1, S2 and S3: three open tables of tenant A (each block below says what it puts on them).
 insert into public.table_session (id, tenant_id, dining_table_id, table_name, covers, opened_by, business_date, created_by, updated_by)
   select ('14000000-0000-4000-8000-00000000000' || n)::uuid, '11111111-1111-4111-8111-111111111111', ('13000000-0000-4000-8000-00000000000' || n)::uuid,
          'Tavolo ' || n || ' (demo)', 2, 'd1000000-0000-4000-8000-00000000000d', '1998-10-24', 'd1000000-0000-4000-8000-00000000000d', 'd1000000-0000-4000-8000-00000000000d'
