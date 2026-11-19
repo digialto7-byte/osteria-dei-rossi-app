@@ -59,6 +59,9 @@ insert into p27_objs values
   ('column', 'order_line.uscita'), ('constraint', 'order_line.order_line_uscita_ck'), ('index', 'order_line_uscita_held_idx'),
   ('table', 'uscita_call'),
   ('app_fn', 'uscita_default'), ('app_fn', 'order_uscita'), ('app_fn', 'held_lines'), ('app_fn', 'line_held');
+-- Step 5 (20261206220200_uscita_fire_call.sql): the call and its two JSON helpers.
+insert into p27_objs values
+  ('public_fn', 'call_uscita'), ('app_fn', 'uscita_call_json'), ('app_fn', 'uscita_lines_json');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -97,8 +100,8 @@ insert into unchanged values
   ('public.split_batch(uuid, integer, integer, uuid)', '2b6b097d7e6089bf47f871e08af7e120'),
   ('public.discard_batch(uuid, numeric, text)', 'ca7a329aa1cc3e74f04d2afebe740c21'),
   ('public.adjust_batch(uuid, numeric)', '183b24bb94f35ce98cab78be9d266f93'),
-  ('public.fire_course(uuid, jsonb)', 'd31530c375e143f5b7813c5ffa49e7ee'),
-  ('public.void_line(uuid, jsonb)', 'd1c3cfff8a2b7a38baad22ef5fa1260d'),
+  ('public.fire_course(uuid, jsonb)', '13a4f9d5d90a3ed9cff409a4a5a40b36' /* re-pinned on purpose by comanda-uscite (step 5; was d31530c3) */),
+  ('public.void_line(uuid, jsonb)', '4b2c9df7d910b054edb208f621f10305' /* re-pinned on purpose by comanda-uscite (step 7; was d1c3cfff) */),
   ('public.push_menu_item(uuid, jsonb)', 'b6893d6fefa09c2f856212813b31d9da'),
   ('app.push_list_json(uuid, text, timestamp with time zone)', 'c72146f85b64c299cc45052812d9a2d4'),
   ('app.menu_push_periods(uuid, timestamp with time zone, timestamp with time zone)', '9a8ca48215fb1935bf1f208b8eb1feb6'),

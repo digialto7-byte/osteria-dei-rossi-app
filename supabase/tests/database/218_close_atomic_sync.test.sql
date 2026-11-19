@@ -142,7 +142,7 @@ select is((select closed_at is not null from public.table_session where id = pg_
 -- Close is not an op kind ------------------------------------------------------------------------------------------------------------
 select is(pg_temp.err(format($f$select public.apply_op(%L::jsonb)$f$, pg_temp.op(6, 'close_table', jsonb_build_object('sessionId', pg_temp.sid(1)), 'e1000000-0000-4000-8000-00000000000e')::text)),
           '22023 invalid_request', 'a close_table op is not a kind: 22023 invalid_request');
-select is(app.sync_op_kinds(), array['open_table', 'add_line', 'edit_line', 'remove_line', 'fire', 'void_line'], 'app.sync_op_kinds() is still M20''s six');
+select is(app.sync_op_kinds(), array['open_table', 'add_line', 'edit_line', 'remove_line', 'fire', 'void_line', 'call_uscita' /* added on purpose by comanda-uscite (step 5) */], 'app.sync_op_kinds() is still M20''s six');
 select is((select count(*)::int from public.applied_op where op_id = '0a000000-0000-4000-8000-000000000006'), 0, 'and the refused op stored nothing');
 
 select * from finish();

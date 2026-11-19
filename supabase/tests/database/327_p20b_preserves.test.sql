@@ -12,7 +12,7 @@ select p.sch, p.name, p.want,
        (select count(*)::int || ',' || coalesce(md5(string_agg(pg_get_functiondef(x.oid), E'\n' order by x.oid::regprocedure::text collate "C")), '-')
           from pg_proc x where x.proname = p.name and x.pronamespace = p.sch::regnamespace) as got
   from (values
-  ('public', 'void_line', '1,d1c3cfff8a2b7a38baad22ef5fa1260d'),
+  ('public', 'void_line', '1,4b2c9df7d910b054edb208f621f10305' /* re-pinned on purpose by comanda-uscite (step 7; was 1,d1c3cfff8a2b7a38baad22ef5fa1260d) */),
   ('public', 'remove_order_line', '1,d6c44c8d39bb757783ee8d0fd6077a9f'),
   ('public', 'order_view', '1,3cf6534d35ec04025a649aa668449686'), -- re-pinned on purpose by DS-BQ-2 (was 5678c095d50f989c42357f86c34793a6)
   ('public', 'open_table', '1,db9f3287a1a7a398338cbd793355041a'),
@@ -28,7 +28,7 @@ select p.sch, p.name, p.want,
   ('app', 'plates_sold', '1,4f62ee6ef0587aea89bf0c629cbeb971'),
   ('app', 'menu_item_price_at', '1,63df8053c16d94a740cfca40cce504bc'),
   ('app', 'menu_item_availability', '1,5c7553402717dac9b2ac976aab094ec7'),
-  ('app', 'apply_op_dispatch', '1,7ab161507bd2ead75981540dc0890cd2'),
+  ('app', 'apply_op_dispatch', '1,0b9c07bd7464cfd7f76b83028a4fddce' /* re-pinned on purpose by comanda-uscite (step 5; was 1,7ab161507bd2ead75981540dc0890cd2) */),
   ('public', 'apply_op', '1,ab16069b7caaebb82efcac073614dd4d'),
   ('app', 'deplete_line_batches', '1,0c07b8f712c23d6f7c8a742d33ac1807'),
   ('app', 'post_plate_raw_outflow', '1,db726fcfc59579fa2f327a040601de5b'),
@@ -54,8 +54,8 @@ select p.sch, p.name, p.want,
   ('app', 'order_line_json', '1,1cf62f04bdd8b4ce06e9bd0eece321c6' /* re-pinned on purpose by comanda-uscite (step 4; was 1,8e00a06b826ee7d086f6c66cf97aea06) */),
   ('public', 'add_order_line', '1,d0d0c30103e73895afa45a534dc90d81' /* re-pinned on purpose by comanda-uscite (step 4; was 1,73bdd6e8fd97544bc7dfc060ab3f8616) */),
   ('public', 'update_order_line', '1,630504589c28cda2966614913a86f52d' /* re-pinned on purpose by comanda-uscite (step 4; was 1,007bba16ae1289cea9be012aa50a74cf) */),
-  ('app', 'apply_op_check_payload', '1,e92000c954b0c1895e49054c492a3264' /* re-pinned on purpose by comanda-uscite (step 4; was 1,166ed4f0fda5a6c809b3f46be1100561) */),
-  ('public', 'fire_course', '1,d31530c375e143f5b7813c5ffa49e7ee'),
+  ('app', 'apply_op_check_payload', '1,480e9261a13df0b70c4eb3e12c3eee9d' /* re-pinned on purpose by comanda-uscite (step 5; was 1,e92000c954b0c1895e49054c492a3264) */ /* re-pinned on purpose by comanda-uscite (step 4; was 1,166ed4f0fda5a6c809b3f46be1100561) */),
+  ('public', 'fire_course', '1,13a4f9d5d90a3ed9cff409a4a5a40b36' /* re-pinned on purpose by comanda-uscite (step 5; was 1,d31530c375e143f5b7813c5ffa49e7ee) */),
   ('app', 'freeze_line_cost', '1,c9aeaf8590e82fdc46869f360469fc85'),
   ('app', 'ledger_checks_body', '1,44bec28a5f61b440cb3eabf0416fea39'),
   ('app', 'forecast_portion_lines', '1,e3fe7129b872f2ee059e77b55a089914'),
@@ -113,7 +113,7 @@ select is((select count(*)::int from fn_new where want like '0,%'), 0, 'no funct
 
 -- Registry, purge list, audit checks, jobs, op kinds -----------------------------------------------------------------------------------------------
 select is((select md5(pg_get_functiondef('app.demo_purge_tables()'::regprocedure))), '184b7f9825ba4b3c658d4c2e903cfe15' /* re-pinned on purpose by comanda-uscite (step 3; was 7921893e) */ /* re-pinned on purpose by opening stock (step 5; was 5a0d9d6e) */, 'app.demo_purge_tables is main''s plus invoice_vat_summary (re-pinned on purpose by P2-7 S3; was 244dbb02cefe9a6ea25146717a2bcbb4)');
-select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), 'e5dc43795b439b56a1a17c5d59a9d564', 'app.sync_op_kinds is unchanged (no new op kind)');
+select is((select md5(pg_get_functiondef('app.sync_op_kinds()'::regprocedure))), '36c1317c54179f6c65cd7dab8e8120e0' /* re-pinned on purpose by comanda-uscite (step 5; was e5dc4379) */, 'app.sync_op_kinds is unchanged (no new op kind)');
 select is((select count(*)::int from app.alert_kind), 15, 'the alert registry still has 15 kinds');
 select is((select md5(string_agg(k::text, '|' order by k.kind collate "C")) from app.alert_kind k), '09b9c6302f3c9c7c4265a70f73212d40', 'and every row is unchanged');
 select is((select string_agg(conname || ':' || md5(pg_get_constraintdef(oid)), ',' order by conname collate "C") from pg_constraint where conrelid = 'public.audit_event'::regclass and contype = 'c'),
@@ -128,7 +128,8 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'tenant_settings', 'set_tenant_settings',
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
-              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
+              'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')

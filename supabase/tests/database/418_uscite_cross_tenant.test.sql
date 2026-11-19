@@ -15,7 +15,7 @@ begin;
 -- The pins render timestamptz as text: a session time zone other than UTC (a non-UTC PGTZ) would move the pins, so it is fixed here.
 set local timezone = 'UTC';
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(24);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -169,6 +169,21 @@ end
 $$;
 select is(pg_temp.sees_a_calls('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111', 'owner'), 1::bigint, 'control: A''s owner reads A''s call');
 select is(pg_temp.sees_a_calls('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222', 'owner'), 0::bigint, 'X: B''s owner reads 0 of A''s calls');
+
+-- Step 5 (M3, on purpose): call_uscita and the hold fire. A's fired line is placed in uscita 3 (the guard's null -> value), so A has a held
+-- uscita that B must not be able to call.
+update public.order_line set uscita = 3 where id = '35000000-0000-4000-8000-000000000001';
+select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
+  $$ select public.call_uscita('34000000-0000-4000-8000-000000000001', '{"uscita": 3}'::jsonb) $$),
+  'P0002 session_not_found', 'X: call_uscita as B''s waiter on A''s session is P0002 session_not_found');
+select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
+  $$ select public.fire_course('34000000-0000-4000-8000-000000000001', '{"lineIds": ["35000000-0000-4000-8000-000000000002"], "hold": true}'::jsonb) $$),
+  'P0002 session_not_found', 'X: a hold fire as B''s waiter on A''s session is P0002 session_not_found');
+select is((select count(*)::int from public.uscita_call where tenant_id = '11111111-1111-4111-8111-111111111111' and uscita = 3), 0, 'X: no call row was written for A');
+-- Step 7 (M4, on purpose): not_prepared on A's held line by B.
+select is(pg_temp.as_err('b3000000-0000-4000-8000-0000000000d3', '22222222-2222-4222-8222-222222222222', 'waiter',
+  $$ select public.void_line('35000000-0000-4000-8000-000000000001', '{"reason": "not_prepared", "clientUpdatedAt": "1998-01-01T00:00:00Z"}'::jsonb) $$),
+  'P0002 line_not_found', 'X: void_line not_prepared as B''s waiter on A''s held line is P0002 line_not_found');
 
 -- Mutation: a temporary policy lets any authenticated user read order lines. B's waiter then reads A's lines, so the check that said 0 can fail.
 create policy x_mutation_read_all on public.order_line for select to authenticated using (true);

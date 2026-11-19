@@ -205,6 +205,10 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206220000_uscita_core.sql",
   // Comanda per uscita step 4 (20261206220100_uscita_order_entry.sql), re-pinned on purpose by comanda-uscite (step 4; was the list ending at 20261206220000_uscita_core.sql): order entry with an uscita.
   "20261206220100_uscita_order_entry.sql",
+  // Comanda per uscita step 5 (20261206220200_uscita_fire_call.sql), re-pinned on purpose by comanda-uscite (step 5; was the list ending at 20261206220100_uscita_order_entry.sql): one send with hold and the call.
+  "20261206220200_uscita_fire_call.sql",
+  // Comanda per uscita step 7 (20261206220300_uscita_void.sql), re-pinned on purpose by comanda-uscite (step 7; was the list ending at 20261206220200_uscita_fire_call.sql): not_prepared.
+  "20261206220300_uscita_void.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

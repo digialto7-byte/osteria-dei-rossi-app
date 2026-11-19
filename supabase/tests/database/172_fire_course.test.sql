@@ -305,7 +305,7 @@ select is(pg_temp.j('f1') -> 'lines' -> 0 ->> 'state', 'fired', 'the reply line 
 select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1') -> 'lines' -> 0) k),
   array['clientUpdatedAt', 'course', 'id', 'isShared', 'menuItemId', 'name', 'note', 'pricePer100g', 'qty', 'segue', 'state', 'unitPrice', 'updatedAt', 'updatedBy', 'uscita', 'weightG'] /* uscita added on purpose by comanda-uscite (step 4) */,
   'a reply line has exactly the fifteen M18 keys (the M18 thirteen plus weightG and pricePer100g, extended on purpose by P2-0b A3)');
-select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1')) k), array['fired', 'lines', 'skipped'], 'the reply is {lines, fired, skipped}');
+select is((select array_agg(k order by k collate "C") from jsonb_object_keys(pg_temp.j('f1')) k), array['fired', 'held', 'lines', 'skipped'] /* held added on purpose by comanda-uscite (step 5) */, 'the reply is {lines, fired, skipped}');
 select is((select count(*)::int from pg_temp.all_keys(pg_temp.j('f1')) k where k ~* 'cost|margin|gp|food|eur$|recipe|vat'), 0,
   'a recursive key scan of the reply finds no cost, margin, GP, food, eur, recipe or VAT key');
 

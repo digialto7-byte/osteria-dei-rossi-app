@@ -40,6 +40,26 @@ const EXPECTED: Record<string, { functions: string[]; tables: string[]; triggers
     tables: [],
     triggers: [],
   },
+  // Step 5 (M3): one send (fire_course with hold) and the call; the sync kind, payload check and dispatcher.
+  "20261206220200_uscita_fire_call.sql": {
+    functions: [
+      "public.fire_course",
+      "public.call_uscita",
+      "app.uscita_call_json",
+      "app.uscita_lines_json",
+      "app.sync_op_kinds",
+      "app.apply_op_check_payload",
+      "app.apply_op_dispatch",
+    ],
+    tables: [],
+    triggers: [],
+  },
+  // Step 7 (M4): not_prepared; the reason list and void_line.
+  "20261206220300_uscita_void.sql": {
+    functions: ["app.order_void_reason_codes", "public.void_line"],
+    tables: [],
+    triggers: [],
+  },
 };
 const FILES = Object.keys(EXPECTED);
 
@@ -60,6 +80,8 @@ const PLAN_FUNCTIONS = [
   // M3
   "public.fire_course",
   "public.call_uscita",
+  "app.uscita_call_json",
+  "app.uscita_lines_json",
   "app.sync_op_kinds",
   "app.apply_op_dispatch",
   // M4
