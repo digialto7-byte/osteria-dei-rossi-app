@@ -28,6 +28,12 @@ const STEPS: Step[] = [
       "app.custom_access_token_hook",
     ],
   },
+  {
+    // S4: the session's choice and the login's own venues.
+    file: "20261207100200_select_tenant.sql",
+    tables: [],
+    functions: ["app.tenant_switch_min_interval", "public.select_tenant", "public.my_memberships"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

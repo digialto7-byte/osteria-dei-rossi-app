@@ -89,6 +89,9 @@ insert into p27_objs values
   ('trigger', 'app_user.app_user_pin_single_membership'),
   ('app_fn', 'app_user_pin_single_membership'), ('app_fn', 'auth_member_elsewhere'),
   ('app_table', 'session_tenant');
+-- Step S4 (20261207100200_select_tenant.sql): the switch interval, the session's choice and the login's own venues.
+insert into p27_objs values
+  ('app_fn', 'tenant_switch_min_interval'), ('public_fn', 'select_tenant'), ('public_fn', 'my_memberships');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

@@ -221,6 +221,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261207100000_organisation.sql",
   // SP2 step S3 (20261207100100_memberships.sql), re-pinned on purpose by SP2 (step S3; was the list ending at 20261207100000_organisation.sql): the key, app.session_tenant and the hook.
   "20261207100100_memberships.sql",
+  // SP2 step S4 (20261207100200_select_tenant.sql), re-pinned on purpose by SP2 (step S4; was the list ending at 20261207100100_memberships.sql): select_tenant, my_memberships and the switch interval.
+  "20261207100200_select_tenant.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

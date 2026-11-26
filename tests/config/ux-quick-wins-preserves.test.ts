@@ -33,7 +33,8 @@ import { COLOR_TOKENS } from "@/lib/design/tokens";
 // Comanda per uscita step 18 (20261206220700_uscita_close.sql), re-pinned on purpose by comanda-uscite (step 18; was 20261206220600_uscita_tables_order_view.sql): the close guard (M8)
 // SP2 step S1 (20261207100000_organisation.sql), re-pinned on purpose by SP2 (step S1; was 20261206220700_uscita_close.sql): platform.organisation and the tenant VAT unique dropped (H1).
 // SP2 step S3 (20261207100100_memberships.sql), re-pinned on purpose by SP2 (step S3; was 20261207100000_organisation.sql): the key (tenant_id, auth_id), app.session_tenant and the hook.
-const NEWEST_MIGRATION = "20261207100100_memberships.sql";
+// SP2 step S4 (20261207100200_select_tenant.sql), re-pinned on purpose by SP2 (step S4; was 20261207100100_memberships.sql): select_tenant, my_memberships and the switch interval.
+const NEWEST_MIGRATION = "20261207100200_select_tenant.sql";
 
 describe("UX quick wins add no migration and no token", () => {
   it("keeps the newest migration", () => {
