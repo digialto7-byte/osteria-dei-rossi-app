@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ApiResult } from "@/lib/api/client";
 import { switchTenant, tabId, TENANT_SWITCH_CHANNEL, type SwitchDeps } from "@/lib/tenancy/switch";
 
-// SP2 S8 (docs/plans/2026-11-14-sp2-memberships.md §3.5): the one way to change venue. The server is mocked: every dependency is injected.
+// SP2 S8 (docs/plans/2026-11-26-sp02-memberships.md §3.5): the one way to change venue. The server is mocked: every dependency is injected.
 const TENANT = "22222222-2222-4222-8222-222222222222";
 
 const fail = (status: number, code: string): ApiResult<unknown> => ({

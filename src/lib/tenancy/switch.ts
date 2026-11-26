@@ -3,7 +3,7 @@ import { apiJson, type ApiResult } from "@/lib/api/client";
 import { safeNextPath } from "@/lib/api/safe-next";
 
 /**
- * Changing venue (SP2, docs/plans/2026-11-14-sp2-memberships.md §3.5). The UI never re-implements this; it calls `switchTenant`.
+ * Changing venue (SP2, docs/plans/2026-11-26-sp02-memberships.md §3.5). The UI never re-implements this; it calls `switchTenant`.
  *
  * 1. Offline: refuse, nothing else happens.
  * 2. `forgetUser()`: the worker deletes the read cache, the cached user and the queue user are forgotten. The outbox is NOT touched: operations

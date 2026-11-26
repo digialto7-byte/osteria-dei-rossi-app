@@ -80,7 +80,12 @@ function goToMfaPage(page: string) {
  */
 function goToVenueChooser() {
   const location = typeof window === "undefined" ? undefined : window.location;
-  if (!location || location.pathname.startsWith(LOGIN_PAGE)) return;
+  if (
+    !location ||
+    location.pathname === LOGIN_PAGE ||
+    location.pathname.startsWith(`${LOGIN_PAGE}/`)
+  )
+    return;
   const back = `${location.pathname}${location.search ?? ""}`;
   location.assign(`${VENUE_CHOOSER_PAGE}?next=${encodeURIComponent(back)}`);
 }

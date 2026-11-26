@@ -39,7 +39,7 @@ revoke all on function app.ensure_organisation(text, text) from public, anon, au
 alter table public.tenant add column organisation_id uuid references platform.organisation (id);
 
 -- One organisation per existing VAT number, named after the oldest tenant that holds it; then every tenant points at its organisation.
--- pgTAP cannot express "before this migration", so the backfill was proven by hand (#131: docs/plans/2026-11-14-sp2-memberships.md §11, Build notes).
+-- pgTAP cannot express "before this migration", so the backfill was proven by hand (on a scratch database built from every earlier migration; recorded in PR #131, branch feat/sp2-memberships, docs/plans/2026-11-14-sp2-memberships.md §11).
 insert into platform.organisation (name, vat_number)
   select distinct on (t.vat_number) t.name, t.vat_number
     from public.tenant t

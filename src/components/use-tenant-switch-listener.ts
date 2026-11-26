@@ -13,8 +13,9 @@ export interface ListenerDeps {
   open: ((name: string) => ChannelLike) | null;
   /** A full document load of `path`. */
   load: (path: string) => void;
-  /** This tab's id: its own message is not obeyed. */
-  selfId: string;
+  /** This tab's id, asked for only when a message arrives (never on mount: a page without crypto.randomUUID keeps its shell). Its own
+   *  message is not obeyed. */
+  selfId: () => string;
 }
 
 function defaultDeps(): ListenerDeps {
@@ -24,15 +25,15 @@ function defaultDeps(): ListenerDeps {
         ? null
         : (name) => new BroadcastChannel(name) as ChannelLike,
     load: (path) => window.location.assign(path),
-    selfId: tabId(),
+    selfId: tabId,
   };
 }
 
 /** True for `{ type: "switched", from: <string> }` sent by another tab. */
-function isSwitchedFromElsewhere(data: unknown, selfId: string): boolean {
+function isSwitchedFromElsewhere(data: unknown, selfId: () => string): boolean {
   if (data === null || typeof data !== "object") return false;
   const { type, from } = data as { type?: unknown; from?: unknown };
-  return type === "switched" && typeof from === "string" && from !== selfId;
+  return type === "switched" && typeof from === "string" && from !== selfId();
 }
 
 /**

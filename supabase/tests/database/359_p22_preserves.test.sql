@@ -171,7 +171,7 @@ select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regname
               and c.relname not in (select o.name from p27_objs o where o.kind = 'table')
               and c.relname || '.' || a.attname not in (select o.name from p27_objs o where o.kind = 'column')),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
--- The constraints of the schemas our migrations own (public, and app, the only schema they create) are pinned by structure, not by
+-- The constraints of the schemas our migrations own (public, and app; SP2 S1 also creates platform, which these pins do not cover: pgTAP 430 does) are pinned by structure, not by
 -- pg_get_constraintdef text or ::regclass text, both of which depend on the server version or the session's search_path: schema, table, name,
 -- type, our key columns in order, the referenced table and columns when they are ours (a reference into a Supabase-managed or shim schema such
 -- as auth.users counts as 'external', our side only), FK update/delete/match actions and the deferrable/deferred/validated flags. Supabase and
@@ -200,7 +200,7 @@ select is((select count(*)::int || ',' || md5(string_agg(
             where n.nspname in ('public', 'app')
               and t.relname not in (select o.name from p27_objs o where o.kind = 'table')
               and t.relname || '.' || c.conname not in (select o.name from p27_objs o where o.kind = 'constraint')),
-          '613,e99102142829f573e86af7c2bcfa2d4d' /* re-pinned on purpose by SP2 (step S1; was 614,0a0ad4954ee4c9d060eef6cae44a6a98: tenant_vat_number_key removed, H1; an exclusion cannot hide a removal) */ /* earlier: re-pinned on purpose by comanda-uscite (step 13; was 614,46cfcd4ce5b529bb3557d02974fd813f: kitchen_event_shape_ck gains the uscita ticket branch) */, 'the constraints of public and app are main''s by structure (614): none added, removed, renamed or re-keyed');
+          '613,e99102142829f573e86af7c2bcfa2d4d' /* re-pinned on purpose by SP2 (step S1; was 614,0a0ad4954ee4c9d060eef6cae44a6a98: tenant_vat_number_key removed, H1; an exclusion cannot hide a removal) */ /* earlier: re-pinned on purpose by comanda-uscite (step 13; was 614,46cfcd4ce5b529bb3557d02974fd813f: kitchen_event_shape_ck gains the uscita ticket branch) */, 'the constraints of public and app are main''s by structure (613 since SP2 S1 dropped tenant_vat_number_key): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
                and tc.relname not in (select o.name from p27_objs o where o.kind = 'table')
@@ -219,7 +219,7 @@ select is((select count(*)::int || ',' || md5(string_agg(i.indexname, ',' order 
             where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')
               and i.tablename not in (select o.name from p27_objs o where o.kind = 'table')
               and i.indexname not in (select o.name from p27_objs o where o.kind = 'index')),
-          '204,ce37649de2f44ccc7974d12ecade4822' /* re-pinned on purpose by SP2 (step S1; was 205,3526abba8c1553df5a2fda0c5db9ff70: the unique index of tenant_vat_number_key removed, H1) */, 'the indexes other than the four P2-2 adds are main''s (205)');
+          '204,ce37649de2f44ccc7974d12ecade4822' /* re-pinned on purpose by SP2 (step S1; was 205,3526abba8c1553df5a2fda0c5db9ff70: the unique index of tenant_vat_number_key removed, H1) */, 'the indexes other than the four P2-2 adds are main''s (204 since SP2 S1 dropped the VAT unique index)');
 select is((select count(*)::int from pg_indexes i where i.indexname in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')), 4, 'and the four are there');
 
 -- 4. The cron jobs and the alert registry --------------------------------------------------------------------------------------------------------
