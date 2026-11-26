@@ -219,6 +219,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206220700_uscita_close.sql",
   // SP2 step S1 (20261207100000_organisation.sql), re-pinned on purpose by SP2 (step S1; was the list ending at 20261206220700_uscita_close.sql): platform.organisation and H1.
   "20261207100000_organisation.sql",
+  // SP2 step S3 (20261207100100_memberships.sql), re-pinned on purpose by SP2 (step S3; was the list ending at 20261207100000_organisation.sql): the key, app.session_tenant and the hook.
+  "20261207100100_memberships.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

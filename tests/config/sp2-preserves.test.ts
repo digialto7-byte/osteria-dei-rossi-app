@@ -18,6 +18,16 @@ const STEPS: Step[] = [
     tables: ["platform.organisation"],
     functions: ["app.ensure_organisation", "app.tenant_set_organisation"],
   },
+  {
+    // S3: the key, the PIN single-membership trigger, the member-elsewhere guard, the selection table and the hook (one migration).
+    file: "20261207100100_memberships.sql",
+    tables: ["app.session_tenant"],
+    functions: [
+      "app.app_user_pin_single_membership",
+      "app.auth_member_elsewhere",
+      "app.custom_access_token_hook",
+    ],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

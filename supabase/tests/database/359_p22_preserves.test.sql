@@ -80,6 +80,15 @@ insert into p27_objs values
 insert into p27_objs values
   ('column', 'tenant.organisation_id'), ('constraint', 'tenant.tenant_organisation_id_fkey'), ('trigger', 'tenant.tenant_set_organisation'),
   ('app_fn', 'ensure_organisation'), ('app_fn', 'tenant_set_organisation');
+-- Step S3 (20261207100100_memberships.sql): the key (tenant_id, auth_id) and the plain auth_id index, the PIN single-membership trigger, the
+-- member-elsewhere guard (app_user_insert is re-created under its own name, which is all the policy pin hashes, so it is not listed) and the selection table
+-- app.session_tenant under the new kind app_table (its columns, constraints, policy and index go with the table name; the hook keeps its name and its
+-- new text is pinned by 346).
+insert into p27_objs values
+  ('constraint', 'app_user.app_user_tenant_auth_key'), ('index', 'app_user_auth_id_idx'), ('index', 'app_user_tenant_auth_key'),
+  ('trigger', 'app_user.app_user_pin_single_membership'),
+  ('app_fn', 'app_user_pin_single_membership'), ('app_fn', 'auth_member_elsewhere'),
+  ('app_table', 'session_tenant');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
@@ -99,6 +108,8 @@ select is((select count(*)::int from p27_objs o where case o.kind
               when 'app_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'app'::regnamespace and p.proname = o.name)
               when 'public_fn' then exists (select 1 from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = o.name)
               when 'table' then exists (select 1 from pg_class c where c.relnamespace = 'public'::regnamespace and c.relname = o.name and c.relkind = 'r')
+              -- Added on purpose by SP2 (step S3): a table SP2 creates in schema app (the pins below exclude it like a public table).
+              when 'app_table' then exists (select 1 from pg_class c where c.relnamespace = 'app'::regnamespace and c.relname = o.name and c.relkind = 'r')
               when 'column' then exists (select 1 from pg_attribute a join pg_class c on c.oid = a.attrelid
                                           where c.relnamespace = 'public'::regnamespace and c.relname || '.' || a.attname = o.name and a.attnum > 0 and not a.attisdropped)
               when 'constraint' then exists (select 1 from pg_constraint k join pg_class t on t.oid = k.conrelid
@@ -162,13 +173,13 @@ select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::reg
 -- 3. No new table, column, constraint, trigger, policy or enum value (D-P1) ---------------------------------------------------------------------------
 select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regnamespace::text || '.' || c.relname, ',' order by c.relnamespace::regnamespace::text, c.relname collate "C"))
              from pg_class c where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p', 'v', 'm')
-               and c.relname not in (select o.name from p27_objs o where o.kind = 'table')),
+               and c.relname not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))),
           '70,540ac1ec44f4ed942101410e45ba09f1', 'the tables and views of public and app are main''s (70): no new table');
 select is((select count(*)::int || ',' || md5(string_agg(c.relnamespace::regnamespace::text || '.' || c.relname || '.' || a.attname || ':' || format_type(a.atttypid, a.atttypmod) || ':' || a.attnotnull::text || ':' || a.attgenerated::text,
                                                           ',' order by c.relnamespace::regnamespace::text, c.relname, a.attname collate "C"))
              from pg_class c join pg_attribute a on a.attrelid = c.oid
             where c.relnamespace in ('public'::regnamespace, 'app'::regnamespace) and c.relkind in ('r', 'p') and a.attnum > 0 and not a.attisdropped
-              and c.relname not in (select o.name from p27_objs o where o.kind = 'table')
+              and c.relname not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))
               and c.relname || '.' || a.attname not in (select o.name from p27_objs o where o.kind = 'column')),
           '749,9ed80b28c7e8a568a80ffd7c460ca1d9', 'the columns of those tables, with type, nullability and generation, are main''s (749): no origin column, no new column');
 -- The constraints of the schemas our migrations own (public, and app; SP2 S1 also creates platform, which these pins do not cover: pgTAP 430 does) are pinned by structure, not by
@@ -198,17 +209,17 @@ select is((select count(*)::int || ',' || md5(string_agg(
              left join pg_class rt on rt.oid = c.confrelid
              left join pg_namespace rn on rn.oid = rt.relnamespace
             where n.nspname in ('public', 'app')
-              and t.relname not in (select o.name from p27_objs o where o.kind = 'table')
+              and t.relname not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))
               and t.relname || '.' || c.conname not in (select o.name from p27_objs o where o.kind = 'constraint')),
-          '613,e99102142829f573e86af7c2bcfa2d4d' /* re-pinned on purpose by SP2 (step S1; was 614,0a0ad4954ee4c9d060eef6cae44a6a98: tenant_vat_number_key removed, H1; an exclusion cannot hide a removal) */ /* earlier: re-pinned on purpose by comanda-uscite (step 13; was 614,46cfcd4ce5b529bb3557d02974fd813f: kitchen_event_shape_ck gains the uscita ticket branch) */, 'the constraints of public and app are main''s by structure (613 since SP2 S1 dropped tenant_vat_number_key): none added, removed, renamed or re-keyed');
+          '612,bc47c5af6639c13773911053a19c39e6' /* re-pinned on purpose by SP2 (step S3; was 613,e99102142829f573e86af7c2bcfa2d4d: app_user_auth_id_key removed, H5) */ /* re-pinned on purpose by SP2 (step S1; was 614,0a0ad4954ee4c9d060eef6cae44a6a98: tenant_vat_number_key removed, H1; an exclusion cannot hide a removal) */ /* earlier: re-pinned on purpose by comanda-uscite (step 13; was 614,46cfcd4ce5b529bb3557d02974fd813f: kitchen_event_shape_ck gains the uscita ticket branch) */, 'the constraints of public and app are main''s by structure (612 since SP2 S1 and S3 dropped tenant_vat_number_key and app_user_auth_id_key): none added, removed, renamed or re-keyed');
 select is((select count(*)::int || ',' || md5(string_agg(t.tgrelid::regclass::text || '.' || t.tgname, ',' order by t.tgrelid::regclass::text, t.tgname collate "C"))
              from pg_trigger t join pg_class tc on tc.oid = t.tgrelid where not t.tgisinternal and tc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
-               and tc.relname not in (select o.name from p27_objs o where o.kind = 'table')
+               and tc.relname not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))
                and tc.relname || '.' || t.tgname not in (select o.name from p27_objs o where o.kind = 'trigger')),
           '124,9ca96081df348da6fa79feafb8f45e5d', 'the triggers are main''s (124): no new trigger');
 select is((select count(*)::int || ',' || md5(string_agg(pol.polrelid::regclass::text || '.' || pol.polname, ',' order by pol.polrelid::regclass::text, pol.polname collate "C"))
              from pg_policy pol join pg_class pc on pc.oid = pol.polrelid where pc.relnamespace in ('public'::regnamespace, 'app'::regnamespace)
-               and pc.relname not in (select o.name from p27_objs o where o.kind = 'table')
+               and pc.relname not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))
                and pc.relname || '.' || pol.polname not in (select o.name from p27_objs o where o.kind = 'policy')),
           '71,c246f155f708cebe2d69133c8f1e1ae9', 'the row-level security policies are main''s (71)');
 select is((select count(*)::int || ',' || md5(string_agg(e.enumtypid::regtype::text || '.' || e.enumlabel, ',' order by e.enumtypid::regtype::text, e.enumsortorder))
@@ -217,9 +228,9 @@ select is((select count(*)::int || ',' || md5(string_agg(e.enumtypid::regtype::t
           '93,9b1ca14d6e57cf2c1d5b16bc4ecc4554', 'the enum values are main''s plus stock_movement_type.opening (93)');
 select is((select count(*)::int || ',' || md5(string_agg(i.indexname, ',' order by i.indexname collate "C")) from pg_indexes i
             where i.schemaname in ('public', 'app') and i.indexname not in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')
-              and i.tablename not in (select o.name from p27_objs o where o.kind = 'table')
+              and i.tablename not in (select o.name from p27_objs o where o.kind in ('table', 'app_table'))
               and i.indexname not in (select o.name from p27_objs o where o.kind = 'index')),
-          '204,ce37649de2f44ccc7974d12ecade4822' /* re-pinned on purpose by SP2 (step S1; was 205,3526abba8c1553df5a2fda0c5db9ff70: the unique index of tenant_vat_number_key removed, H1) */, 'the indexes other than the four P2-2 adds are main''s (204 since SP2 S1 dropped the VAT unique index)');
+          '203,0696d2d2a5a7dabe69c3df89a9df7038' /* re-pinned on purpose by SP2 (step S3; was 204,ce37649de2f44ccc7974d12ecade4822: the unique index of app_user_auth_id_key removed, H5) */ /* re-pinned on purpose by SP2 (step S1; was 205,3526abba8c1553df5a2fda0c5db9ff70: the unique index of tenant_vat_number_key removed, H1) */, 'the indexes other than the four P2-2 adds are main''s (203 since SP2 S1 and S3 dropped the VAT and auth_id unique indexes)');
 select is((select count(*)::int from pg_indexes i where i.indexname in ('raw_lot_lot_code_norm_idx', 'raw_lot_received_idx', 'raw_lot_supplier_idx', 'batch_split_from_idx')), 4, 'and the four are there');
 
 -- 4. The cron jobs and the alert registry --------------------------------------------------------------------------------------------------------
