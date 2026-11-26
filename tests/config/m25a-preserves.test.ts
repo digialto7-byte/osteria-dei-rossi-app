@@ -47,7 +47,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // Comanda per uscita step 13 (20261206220500_uscita_kitchen.sql), re-pinned on purpose by comanda-uscite (step 13; was 20261206220400_uscita_open_sessions.sql): the kitchen board by uscita (M6)
 // Comanda per uscita step 17 (20261206220600_uscita_tables_order_view.sql), re-pinned on purpose by comanda-uscite (step 17; was 20261206220500_uscita_kitchen.sql): the waiter reads by uscita (M7)
 // Comanda per uscita step 18 (20261206220700_uscita_close.sql), re-pinned on purpose by comanda-uscite (step 18; was 20261206220600_uscita_tables_order_view.sql): the close guard (M8)
-const LAST_MIGRATION = "20261206220700_uscita_close.sql";
+// SP2 step S1 (20261207100000_organisation.sql), re-pinned on purpose by SP2 (step S1; was 20261206220700_uscita_close.sql): platform.organisation and the tenant VAT unique dropped (H1).
+const LAST_MIGRATION = "20261207100000_organisation.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 
