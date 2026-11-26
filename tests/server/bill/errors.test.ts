@@ -40,6 +40,29 @@ describe("mapBillDbError", () => {
     expect(map("P0001", "parts_invalid")).toMatchObject({ status: 400, code: "invalid_request" });
   });
 
+  it("uscita_waiting is a 422 with the waiting line ids and the Italian text (comanda per uscita)", () => {
+    const mapped = map(
+      "P0001",
+      "uscita_waiting",
+      JSON.stringify({ lineIds: [BIDS.line1] }),
+    ) as ApiError;
+    expect([mapped.status, mapped.code]).toEqual([422, "uscita_waiting"]);
+    expect(mapped.details).toEqual({ lineIds: [BIDS.line1] });
+    expect(mapped.message).toBe(
+      "C'è un'uscita ancora in attesa: chiamala o annulla i suoi piatti come «Non preparato», poi chiudi.",
+    );
+  });
+
+  it("an uscita_waiting DETAIL with any other key is dropped whole", () => {
+    const mapped = map(
+      "P0001",
+      "uscita_waiting",
+      JSON.stringify({ lineIds: [BIDS.line1], name: "Mario" }),
+    ) as ApiError;
+    expect(mapped.code).toBe("uscita_waiting");
+    expect(mapped.details).toBeUndefined();
+  });
+
   it("unsent_lines carries the line ids from the DETAIL", () => {
     const mapped = map(
       "P0001",

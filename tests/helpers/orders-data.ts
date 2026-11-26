@@ -76,6 +76,7 @@ export const ORDER_VIEW: OrderView = {
     coperto: { perPerson: 2.5, vatRate: 10, total: 10 },
   },
   lines: [LINE_SOUP, LINE_STEW],
+  uscite: [{ uscita: 1, state: "cooking", calledAt: null, lineCount: 1 }],
 };
 
 /** The same session when the venue charges no coperto. */

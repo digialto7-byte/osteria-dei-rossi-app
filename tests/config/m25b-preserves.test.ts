@@ -213,6 +213,10 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206220400_uscita_open_sessions.sql",
   // Comanda per uscita step 13 (20261206220500_uscita_kitchen.sql), re-pinned on purpose by comanda-uscite (step 13; was the list ending at 20261206220400_uscita_open_sessions.sql): the kitchen board by uscita (M6)
   "20261206220500_uscita_kitchen.sql",
+  // Comanda per uscita step 17 (20261206220600_uscita_tables_order_view.sql), re-pinned on purpose by comanda-uscite (step 17; was the list ending at 20261206220500_uscita_kitchen.sql): the waiter reads by uscita (M7)
+  "20261206220600_uscita_tables_order_view.sql",
+  // Comanda per uscita step 18 (20261206220700_uscita_close.sql), re-pinned on purpose by comanda-uscite (step 18; was the list ending at 20261206220600_uscita_tables_order_view.sql): the close guard (M8)
+  "20261206220700_uscita_close.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

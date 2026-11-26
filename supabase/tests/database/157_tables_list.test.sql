@@ -114,8 +114,8 @@ select is((select j ->> 'businessDate' from lst), app.business_date('11111111-11
 select is((select array_agg(x order by x collate "C") from lst, jsonb_object_keys(pg_temp.tbl(j, pg_temp.tid(2))) x), array['id', 'name', 'position', 'session', 'status'],
   'a table has exactly {id, name, position, status, session}');
 select is((select array_agg(x order by x collate "C") from lst, jsonb_object_keys(pg_temp.tbl(j, pg_temp.tid(2)) -> 'session') x),
-  array['billRequested', 'coperto', 'covers', 'id', 'openedAt', 'openedToday', 'unsentCount', 'waiter'],
-  'a session has exactly the eight documented keys (BQ-1 added unsentCount; pgTAP 367 proves its value)');
+  array['billRequested', 'coperto', 'covers', 'id', 'openedAt', 'openedToday', 'unsentCount', 'uscite', 'waiter'] /* re-pinned on purpose by comanda-uscite (step 17; was the eight keys without uscite) */,
+  'a session has exactly the nine documented keys (BQ-1 added unsentCount, pgTAP 367 proves its value; comanda-uscite added uscite, pgTAP 428 proves it)');
 
 -- AT1 end to end.
 select is((select pg_temp.tbl(j, pg_temp.tid(1)) ->> 'status' from lst), 'free', 'T1 with no session: free');

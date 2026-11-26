@@ -940,10 +940,55 @@ exports[`waiter order payloads > orderViewOutput matches the committed JSON Sche
       ],
       "type": "object",
     },
+    "uscite": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "calledAt": {
+            "anyOf": [
+              {
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\\.[0-9]{6}Z$",
+                "type": "string",
+              },
+              {
+                "type": "null",
+              },
+            ],
+          },
+          "lineCount": {
+            "maximum": 9007199254740991,
+            "minimum": 1,
+            "type": "integer",
+          },
+          "state": {
+            "enum": [
+              "waiting",
+              "cooking",
+              "done",
+            ],
+            "type": "string",
+          },
+          "uscita": {
+            "maximum": 9,
+            "minimum": 1,
+            "type": "integer",
+          },
+        },
+        "required": [
+          "uscita",
+          "state",
+          "calledAt",
+          "lineCount",
+        ],
+        "type": "object",
+      },
+      "type": "array",
+    },
   },
   "required": [
     "session",
     "lines",
+    "uscite",
   ],
   "type": "object",
 }

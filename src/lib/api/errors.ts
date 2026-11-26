@@ -216,6 +216,7 @@ export type ErrorCode =
   | "sync_unavailable"
   | "rejected_unknown"
   | "unsent_lines"
+  | "uscita_waiting"
   | "bill_changed"
   | "split_invalid"
   | "receipt_number_invalid"
@@ -284,7 +285,7 @@ export type ErrorDetail = Record<string, string | number>;
 /**
  * What an error may carry: per-item problems, or an object the screen needs to act on: `{ session }` for
  * table_already_open (who opened the table), `{ reason, line }` for an order conflict (the line as it is now) and
- * `{ menuItemId, reason, portionsLeft }` for item_unavailable, `{ lineIds }` for unsent_lines and `{ reason }` for split_invalid. Objects are parsed strictly before they get here.
+ * `{ menuItemId, reason, portionsLeft }` for item_unavailable, `{ lineIds }` for unsent_lines and uscita_waiting and `{ reason }` for split_invalid. Objects are parsed strictly before they get here.
  */
 export type ErrorDetails = ErrorDetail[] | Record<string, unknown>;
 
