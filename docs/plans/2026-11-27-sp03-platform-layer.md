@@ -321,3 +321,39 @@ before #218.
 10. **Per PR:** draft PR from `feat/sp03-platform-<n>`; body: what changed, the SP0 verdicts relied on, the pins moved (old → new), open
     questions; one `code-reviewer` round; fill §9 here in the same PR.
 
+
+### 11a. Hand-off for PR 2–4 (PR 1 builder, 2026-11-27, after #221 merged as `6c7b8706`)
+
+- **State on `main`:** steps 1–5, 7 and 9, migrations `20261208100000`–`100550`, pgTAP 435–440, and `scripts/add-owner.ts` (audit code
+  `script.add_owner`; there are now **eleven** audit codes). The newest-migration pins name `20261208100550_platform_mfa_enrol_check.sql`. In 229,
+  327, 346 and 359, SP3 has its own lines and insert block: follow those formats (one name per line with "SP3 step N: re-pinned on purpose by
+  SP3"). `sp3-preserves` `STEPS` and its pgTAP pattern `4[34][0-9]_sp3_` are ready for 441–447.
+- **Next migration:** `20261208100600_platform_staff_role`. PR 2 is gated on **T2.H** (the lead decides how T2 is verified). Build and review it on
+  the local T2.L evidence, mark it ready, and stop before it merges. PR 3 needs only #217, which is on `main`. PR 4 needs #218, also on `main`.
+- **Local database:** Supabase images could not be pulled from a cloud session (registry data limit, Docker Hub 429, blob hosts not allowed).
+  What works:
+  1. `apt-get install -y postgresql-16-pgtap libtap-parser-sourcehandler-pgtap-perl`, then `pg_ctlcluster 16 main start`;
+  2. set the `postgres` password to `postgres`;
+  3. run `PGHOST=127.0.0.1 PGPORT=5432 PGUSER=postgres PGPASSWORD=postgres scripts/test-db-native.sh` (about 100 s, all 336 files), and
+     `scripts/test-db-races.sh` with the same variables.
+
+  CI's `supabase test db` remains the gate.
+- **Traps found in PR 1:**
+  - A BEFORE trigger on `public.app_user` runs before RLS: anything that can fail inside it changes pgTAP 390's 42501. The staff guard
+    therefore returns early on a null `auth_id`.
+  - `sp00-scratch-isolated` bans the word `platform_staff` in every file outside the allowed paths, comments included (365's comment had to
+    avoid it).
+  - #150's `platform-ops-workflow.test.ts` hunks predate #144 (every job now sets `package-manager-cache: false`).
+  - `tests/config/workflow-actions-pinned.test.ts` lists every secret-holding job, so PR 2's `notice-add` job adds a row there (outside §4;
+    list it).
+  - A new audit or notice code moves the console's "N codes" pins (`codes.test.ts`, `audit-view.test.ts`, `registro.test.ts`); ask the lead
+    first.
+  - `.env.example` is denied to this session's tools; the fake `PLATFORM_ADMIN_EMAIL` line is still to be added (lead).
+- **Open review notes on add-owner (not defects; the lead's call):**
+  - the "member nowhere" check is not atomic with the insert (an RPC under the `platform.auth_lock` row would close it);
+  - a reused login's confirmed or banned state is not checked;
+  - the script prints prefixes without `createIdDisplay` (it is not a workflow job).
+
+  On step 9: a `platform_support` enrolment is logged as `platform_admin.factor_enrolled`.
+- **Unchanged rules:** nobody dispatches `platform-ops` (FS-1 first); `CONSOLE_HOST` stays unset until PR 4 is merged and the account is enrolled; no
+  real address anywhere.
