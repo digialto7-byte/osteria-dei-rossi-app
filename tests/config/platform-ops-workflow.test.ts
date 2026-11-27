@@ -1078,11 +1078,6 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
       ["uses"],
     ],
     [
-      "another job with package-manager-cache (only bootstrap carries it until PR #144 lands)",
-      (w) => void ((stepsOfJob(w, "mfa-reset")[2]!.with as Obj)["package-manager-cache"] = false),
-      ["uses"],
-    ],
-    [
       "bootstrap: npm ci without --ignore-scripts",
       (w) => void (stepsOfJob(w, "bootstrap")[3]!.run = "npm ci"),
       ["line", "steps"],
@@ -1478,13 +1473,12 @@ describe("platform-ops workflow: the bootstrap job", () => {
     expect(runOf(doc, "bootstrap", 4)).toBe(EXPECTED_SCRIPTS.bootstrap);
   });
 
-  it("is the only job whose setup-node sets package-manager-cache: false, with no cache: key anywhere", () => {
-    expect(stepsOfJob(doc, "bootstrap")[2]!.with).toEqual({
-      "node-version-file": ".nvmrc",
-      "package-manager-cache": false,
-    });
-    for (const other of ["mfa-reset", "set-mfa-enforcement", "create-tenant"])
-      expect(stepsOfJob(doc, other)[2]!.with).toEqual({ "node-version-file": ".nvmrc" });
+  it("sets package-manager-cache: false in setup-node, as every other job does", () => {
+    for (const job of ["bootstrap", "mfa-reset", "set-mfa-enforcement", "create-tenant"])
+      expect(stepsOfJob(doc, job)[2]!.with).toEqual({
+        "node-version-file": ".nvmrc",
+        "package-manager-cache": false,
+      });
   });
 
   it("the summary prints only an 8-character prefix of the auth id and never the address or its secret name's value", () => {
@@ -1572,7 +1566,8 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
     }
     // No npm cache key (package-manager-cache: false is required, so match the bare key only).
     expect(workflowText).not.toMatch(/^\s*cache:/m);
-    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(3);
+    // re-pinned on purpose by SP3 (step 7; was 3): the bootstrap job's setup-node.
+    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(4);
   });
 
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {
