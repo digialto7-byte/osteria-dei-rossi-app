@@ -19,12 +19,22 @@ export interface TenantSession {
   role: AppRole;
 }
 
+/**
+ * A signed-in login on an `{ authenticated: true }` route. `tenantId` is the token's tenant claim, null when the session has not chosen one (SP2);
+ * `pinLogin` is true for a staff PIN session (ADR-010), which is bound to one tenant and never switches.
+ */
+export interface LoginSession {
+  authId: string;
+  tenantId: string | null;
+  pinLogin: boolean;
+}
+
 /** Who may call a route: anyone, any signed-in user, or members of a tenant with these roles. */
 type Access = { public: true } | { authenticated: true } | { roles: readonly AppRole[] };
 type SessionFor<A extends Access> = A extends { roles: readonly AppRole[] }
   ? TenantSession
   : A extends { authenticated: true }
-    ? { authId: string }
+    ? LoginSession
     : null;
 
 type Options<
@@ -212,7 +222,13 @@ async function resolveSession(access: Access, supabase: SupabaseClient, mfaExemp
   }
   await enforceSessionAge(claims.data, supabase);
   await enforceStaffSession(claims.data, supabase);
-  if ("authenticated" in access) return { authId: claims.data.sub };
+  if ("authenticated" in access) {
+    return {
+      authId: claims.data.sub,
+      tenantId: claims.data.tenant_id ?? null,
+      pinLogin: claims.data.login === "pin",
+    } satisfies LoginSession;
+  }
 
   const { tenant_id: tenantId, app_role: role } = claims.data;
   if (!tenantId) return refuseWithoutTenant(supabase);

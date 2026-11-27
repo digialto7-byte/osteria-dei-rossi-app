@@ -152,6 +152,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
+      // SP2 S7: POST /api/me/tenant refreshes the session after select_tenant. Tests script getClaims for the claim after it.
+      refreshSession: vi.fn(async (): Promise<unknown> => ({ data: { session: {} }, error: null })),
       // P2-1: the Supabase Auth MFA client (enroll, challengeAndVerify, unenroll, listFactors, getAuthenticatorAssuranceLevel). Tests script what they use.
       mfa: {
         enroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({

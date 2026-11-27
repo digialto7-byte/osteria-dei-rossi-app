@@ -8,6 +8,7 @@ import {
   claimsFor,
   fakeSupabase,
   jsonRequest,
+  OWNER_CLAIMS,
   routeContext,
   type FakeResult,
   type FakeSupabase,
@@ -552,5 +553,59 @@ describe("POST /api/table-sessions/:id/call as a waiter", () => {
     const response = await postCall();
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain("3.2");
+  });
+});
+
+// SP2 S6 and S7 (docs/plans/2026-11-26-sp02-memberships.md §3.8): the venue list and the venue switch join the guard. Neither carries money; the
+// strict outputs refuse an injected cost key (500, not echoed).
+const meTenants = await import("@/app/api/me/tenants/route");
+const meTenant = await import("@/app/api/me/tenant/route");
+const OTHER_TENANT = "22222222-2222-4222-8222-222222222222";
+const MEMBERSHIPS = [
+  { tenantId: OWNER_CLAIMS.tenant_id, name: "Osteria Demo A", role: "waiter" },
+  { tenantId: OTHER_TENANT, name: "Osteria Demo B", role: "waiter" },
+];
+
+describe("GET /api/me/tenants and POST /api/me/tenant as a waiter", () => {
+  const list = () => meTenants.GET(new Request("http://localhost:3000/api/me/tenants"));
+
+  it("GET /api/me/tenants has no key naming a cost, at any depth", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("waiter"),
+      rpc: { my_memberships: [ok(MEMBERSHIPS)] },
+    });
+    const response = await list();
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/me/tenants", json)).toEqual([]);
+  });
+
+  it("GET /api/me/tenants: a cost injected into the reply is a 500 and never reaches the client", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("waiter"),
+      rpc: { my_memberships: [ok([{ ...MEMBERSHIPS[0], unitCost: 3.2 }])] },
+    });
+    const response = await list();
+    expect(response.status).toBe(500);
+    expect(await response.text()).not.toContain("3.2");
+  });
+
+  it("POST /api/me/tenant has no key naming a cost", async () => {
+    client = fakeSupabase({
+      claims: claimsFor("waiter"),
+      rpc: { select_tenant: [ok({ tenantId: OTHER_TENANT, changed: true })] },
+    });
+    const after = fakeSupabase({ claims: { ...claimsFor("waiter"), tenant_id: OTHER_TENANT } });
+    client.auth.getClaims
+      .mockImplementationOnce(client.auth.getClaims.getMockImplementation()!)
+      .mockImplementation(after.auth.getClaims.getMockImplementation()!);
+    const response = await meTenant.POST(
+      jsonRequest("http://localhost:3000/api/me/tenant", { tenantId: OTHER_TENANT }),
+    );
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(json).toEqual({ tenantId: OTHER_TENANT });
+    expect(flagged("/api/me/tenant", json)).toEqual([]);
   });
 });
