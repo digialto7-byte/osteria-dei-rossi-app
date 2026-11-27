@@ -101,8 +101,6 @@ export function fakeSupabase(options: FakeOptions = {}) {
   // unless the test supplies its own `tenant_settings` result (a tenant in another zone, an error).
   if (!rpcs.has("tenant_settings"))
     rpcs.set("tenant_settings", [{ data: ME_SETTINGS, error: null }]);
-  // SP2: a token without a tenant asks for the login's memberships; by default the login has none (today's 403 no_tenant).
-  if (!rpcs.has("my_memberships")) rpcs.set("my_memberships", [{ data: [], error: null }]);
   let currentTable = "";
   const uploads = [...(options.storage?.upload ?? [])];
   const signedUrls = [...(options.storage?.createSignedUrl ?? [])];
