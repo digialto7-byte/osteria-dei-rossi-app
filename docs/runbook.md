@@ -529,6 +529,39 @@ design is in `docs/adr/adr-049-comanda-per-uscita.md`.
 - **`uscita_waiting`.** A table cannot be closed while an uscita is still waiting: call it, or void its dishes "Non preparato", then close.
   The message lists the waiting dishes.
 
+## SP2 rollout (memberships)
+
+One login can belong to several venues (`app_user` keyed by `(tenant_id, auth_id)`), and the sign-in hook gives the tenant claim from the venue the
+person selected. The plan is `docs/plans/2026-11-26-sp02-memberships.md`. **Do not merge the hook migration (PR 2) before the hosted SP0 run has passed
+T1.H and T3.H**: a push to `main` migrates hosted staging.
+
+- **What changes at deploy.** The hook's e-mail branch. Every token issued or refreshed after the migration goes through it (tokens live 3600 s).
+  Nobody is signed out: until the first second membership exists, every login has one active row, and the hook gives exactly today's claims.
+  (tests: supabase/tests/database/003_access_token_hook.test.sql, supabase/tests/database/085_access_token_hook_pin.test.sql, supabase/tests/database/431_sp2_memberships_hook.test.sql)
+- **Order.** Staging first (`deploy-staging`), then the smoke list below. Then production **on a day the founder names with no service**:
+  `deploy-production` (migrations), promote the Vercel build, run `scripts/check-headers.ts`, run the smoke list again. The release order is the one
+  in "Releases".
+- **Smoke list.** Each on a phone: an owner signs in with the password and the second-factor code and lands on Oggi; a PIN sign-in on an enrolled
+  device; a waiter opens `/tavoli`; a token refresh (leave the app open for an hour, or sign in again) keeps the same venue. With a test login that
+  holds two venues (made with `create-tenant --existing-owner-id`): the sign-in goes to "Scegli il locale", a pick lands on the page it came from, the
+  header shows the venue switcher, and a switch shows the other venue's name and none of the first venue's data.
+  (tests: e2e/tenant-switch.spec.ts, tests/integration/memberships.int.ts)
+- **Adding a second venue to a login.** Only the founder, with the script: `create-tenant --existing-owner-id <uuid>` (a uuid only; no auth user is
+  created or deleted). A PIN login can never get a second venue. (test: tests/scripts/create-tenant.test.ts)
+- **Fix-forward, if the new hook misbehaves.** A migration that restores the M11 hook body (not committed; prepare it from the M11 migration). It is
+  valid only while no login has two active rows. Run this first, and apply it only if it returns 0:
+
+  ```sql
+  select count(*) from (
+    select auth_id from public.app_user where is_active group by auth_id having count(*) > 1
+  ) x;
+  ```
+
+  With a count above 0, do not restore the old body: a person with two venues would lose the second one. Fix the hook forward instead.
+  (test: tests/config/sp2-hook-pin-branch.test.ts)
+- **A person sees "Scegli il locale" and cannot continue.** The login has two or more venues and chose none, or the chosen venue was deactivated.
+  They pick one. If the list is empty, their account is enabled for no venue (an owner can enable it again).
+
 ## Go-live day
 
 The go-live gate is 12 January. Before it, with the founder:
