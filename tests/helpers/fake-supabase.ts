@@ -101,6 +101,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
   // unless the test supplies its own `tenant_settings` result (a tenant in another zone, an error).
   if (!rpcs.has("tenant_settings"))
     rpcs.set("tenant_settings", [{ data: ME_SETTINGS, error: null }]);
+  // SP2: a token without a tenant asks for the login's memberships; by default the login has none (today's 403 no_tenant).
+  if (!rpcs.has("my_memberships")) rpcs.set("my_memberships", [{ data: [], error: null }]);
   let currentTable = "";
   const uploads = [...(options.storage?.upload ?? [])];
   const signedUrls = [...(options.storage?.createSignedUrl ?? [])];
@@ -150,6 +152,8 @@ export function fakeSupabase(options: FakeOptions = {}) {
       verifyOtp: vi.fn().mockResolvedValue({ data: {}, error: null }),
       updateUser: vi.fn().mockResolvedValue({ data: {}, error: null }),
       signOut: vi.fn().mockResolvedValue({ error: null }),
+      // SP2 S7: POST /api/me/tenant refreshes the session after select_tenant. Tests script getClaims for the claim after it.
+      refreshSession: vi.fn(async (): Promise<unknown> => ({ data: { session: {} }, error: null })),
       // P2-1: the Supabase Auth MFA client (enroll, challengeAndVerify, unenroll, listFactors, getAuthenticatorAssuranceLevel). Tests script what they use.
       mfa: {
         enroll: vi.fn(async (..._args: unknown[]): Promise<unknown> => ({

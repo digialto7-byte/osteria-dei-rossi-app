@@ -9,7 +9,7 @@ select plan(28);
 -- 1. Unchanged on purpose: md5 on main.
 create temp table pins (fn regprocedure primary key, md5 text not null);
 insert into pins values
-  ('app.custom_access_token_hook(jsonb)', 'f748cfaaaa9fd22fb48a872745f1bbc5'),
+  ('app.custom_access_token_hook(jsonb)', '2926d3231eb6bcf843957755f1273899'), -- re-pinned on purpose by SP2 (step S3; was f748cfaaaa9fd22fb48a872745f1bbc5): the e-mail branch reads the session's selection (ADR-038); one pin over both branches, the PIN branch is M11's text (tests/config/sp2-hook-pin-branch.test.ts) and 003 and 085 pass unchanged
   ('app.staff_session_open(uuid, uuid, timestamptz)', '57542249aea3b728369c41daf47ea8ff'),
   ('app.pin_sign_in_allowed(uuid, timestamptz)', 'efc44d434d6ec09c0dec5fb4b46ca79d'),
   ('public.pin_login_begin(text, uuid)', 'ac47a9d282b10b025334d9070a133f07'),
@@ -63,7 +63,8 @@ select is((select count(*)::int from pg_proc p join newfn n on n.proname = p.pro
 select is((select count(*)::int from pg_proc where pronamespace = 'public'::regnamespace and proname in (select proname from newfn) and proowner <> 'postgres'::regrole), 0, 'all are owned by postgres');
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
-              and p.proname not in ('invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
+              and p.proname not in ('select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */,
+              'invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
               'tenant_settings', 'set_tenant_settings',
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
@@ -75,7 +76,8 @@ select is((select count(*)::int from pg_proc where pronamespace = 'public'::regn
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
               'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
-              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */,
+              'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace

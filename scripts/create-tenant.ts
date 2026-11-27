@@ -4,6 +4,8 @@
 // Prints the tenant id only: in full on a developer's machine, masked first and cut to 8 characters under GitHub Actions. Errors are codes, never values.
 // The one allowed argument is `--ids-out <path>`: the two full ids (tenant and owner) as JSON in a new file, mode 0600, created exclusively. Callers on a throwaway
 // stack (the backup self-test, the e2e helper) read the ids from it; platform-ops never passes it.
+// SP2 S9: `--existing-owner-id <uuid>` gives a new tenant to an existing login (a second membership). OWNER_EMAIL must then be unset; no auth user is
+// created, and none is deleted when the tenant cannot be made.
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { runCreateTenant } from "./lib/create-tenant";
 

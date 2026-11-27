@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(47);
+select plan(49); -- re-pinned on purpose by SP2 (step S4; was 47): the two exempt_session tests
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -40,6 +40,12 @@ insert into exempt_anon (sig, oid)
     'public.reservation_cancel_view(text, bigint, text, uuid, bigint)', 'public.reservation_page(text, bigint, text)',
     'public.reservation_slots(text, bigint, text, date, integer)'
   ]) as s;
+-- exempt_session (added on purpose by SP2, step S4; docs/plans/2026-11-26-sp02-memberships.md §3.3): the two functions a login calls while its
+-- session has no tenant claim yet. They answer for the caller's own identity only (its own memberships, its own session's choice) and read no
+-- tenant data, so they cannot and need not reach the gated helpers; neither reads app.membership_ungated.
+create temp table exempt_session (sig text primary key, oid oid not null);
+insert into exempt_session (sig, oid)
+  select s, s::regprocedure::oid from unnest(array['public.select_tenant(uuid)', 'public.my_memberships()']) as s;
 -- Security invoker functions: they read only RLS tables, so the gate reaches them through the policies (scan 3 below).
 create temp table invoker_ok (proname text primary key);
 insert into invoker_ok values ('extraction_quality'), ('recipe_allergen_summary'), ('set_preferred_supplier_item');
@@ -47,8 +53,12 @@ insert into invoker_ok values ('extraction_quality'), ('recipe_allergen_summary'
 select is((select string_agg(f.proname || '(' || f.args || ')', ', ' order by f.proname) from fn f
             where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE')
               and f.oid not in (select oid from reach)
-              and f.oid not in (select oid from exempt_auth) and f.proname not in (select proname from invoker_ok)), null,
-          'every public function executable by authenticated reaches a gated helper, or is one of the eight exempt MFA procedures, or is a named invoker function');
+              and f.oid not in (select oid from exempt_auth) and f.proname not in (select proname from invoker_ok)
+              and f.oid not in (select oid from exempt_session) /* re-pinned on purpose by SP2 (step S4; was no exempt_session list) */), null,
+          'every public function executable by authenticated reaches a gated helper, or is one of the eight exempt MFA procedures, or is a named invoker function, or is one of SP2''s two session functions');
+select is((select count(*)::int from exempt_session), 2, 'the session exempt list is exactly two signatures (SP2)');
+select is((select count(*)::int from fn f where f.oid in (select oid from exempt_session) and f.prosrc ~* 'membership_ungated'), 0,
+          'neither session function reads app.membership_ungated');
 select is((select count(*)::int from exempt_auth), 8, 'the authenticated exempt list is exactly eight signatures');
 select is((select count(*)::int from fn f where f.proname in (select proname from invoker_ok) and f.prosecdef), 0, 'the invoker-listed functions are security invoker');
 select cmp_ok((select count(*)::int from fn f where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE') and f.oid in (select oid from reach)), '>', 100,

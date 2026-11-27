@@ -75,7 +75,8 @@ select is((select md5(string_agg(proname::text, ',' order by proname::text colla
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
               'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
-              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), -- re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */,
+              'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */)), -- re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
           '88008d44fe26ffc8ca1de35dc7a1a74e',
           'and the other public functions are exactly those of M21 (md5 of the sorted names; the five M22 adds are left out: M22 merge; M23''s push_menu_item, push_list, forecast and discards_vs_push too, steps 2 to 5; A5''s business_date_of, the waste-costs default range; M25c''s five service functions, steps 3 to 5; the reservations feature''s public functions, A2 on; P2-0b A2''s weight_settings and set_weight_settings, added to the list on purpose; P2-2''s trace functions, added on purpose as each step lands)');
 select is((select string_agg(proname::text, ',' order by proname::text collate "C") from pg_proc

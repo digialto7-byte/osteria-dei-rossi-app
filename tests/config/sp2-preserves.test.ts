@@ -10,13 +10,54 @@ const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const AFTER_MAIN = "20261206220700_uscita_close.sql";
 
-type Step = { file: string; tables: string[]; functions: string[] };
+type Step = {
+  file: string;
+  tables: string[];
+  functions: string[];
+  /** The only tables the step may delete from (S5: the auth-purge job, whose earlier deletes are kept as they were). Default: none. */
+  deletesFrom?: string[];
+  /** The only `on delete cascade` lines the step may hold, exactly (review of PR 2, lead ruling 2026-11-27). Any other cascade fails. */
+  cascades?: string[];
+};
 const STEPS: Step[] = [
   {
     // S1: organisations and H1.
     file: "20261207100000_organisation.sql",
     tables: ["platform.organisation"],
     functions: ["app.ensure_organisation", "app.tenant_set_organisation"],
+  },
+  {
+    // S3: the key, the PIN single-membership trigger, the member-elsewhere guard, the selection table and the hook (one migration).
+    file: "20261207100100_memberships.sql",
+    // app.session_tenant is a per-session cache: it goes with its membership, so a demo reset (ADR-018) can delete the demo users (pgTAP 194, 434).
+    cascades: [
+      "foreign key (tenant_id, auth_id) references public.app_user (tenant_id, auth_id) on delete cascade",
+    ],
+    tables: ["app.session_tenant"],
+    functions: [
+      "app.app_user_pin_single_membership",
+      "app.auth_member_elsewhere",
+      "app.custom_access_token_hook",
+    ],
+  },
+  {
+    // S4: the session's choice and the login's own venues.
+    file: "20261207100200_select_tenant.sql",
+    tables: [],
+    functions: ["app.tenant_switch_min_interval", "public.select_tenant", "public.my_memberships"],
+  },
+  {
+    // S5: the auth-purge job removes old selections (the function is re-created with one more delete).
+    file: "20261207100300_session_tenant_purge.sql",
+    tables: [],
+    functions: ["app.purge_auth_data"],
+    deletesFrom: [
+      "public.auth_attempt",
+      "public.staff_session",
+      "public.device_enrolment",
+      "app.enrol_failure",
+      "app.session_tenant",
+    ],
   },
 ];
 
@@ -92,11 +133,18 @@ describe("SP2 migrations", () => {
         for (const name of FORBIDDEN_DEFINITIONS) expect(defined).not.toContain(name);
       });
 
-      it("never cascades or deletes", () => {
+      it("never cascades or truncates, and deletes only from the tables listed for it (no ledger)", () => {
         const sql = read(step.file);
-        expect(sql).not.toMatch(/\bcascade\b/i);
+        const cascading = sql
+          .split("\n")
+          .filter((line) => /\bcascade\b/i.test(line))
+          .map((line) => line.trim());
+        expect(cascading).toEqual(step.cascades ?? []);
         expect(sql).not.toMatch(/^\s*truncate\s/im);
-        expect(sql).not.toMatch(/^\s*delete\s+from\b/im);
+        const deleted = [...sql.matchAll(/^\s*delete\s+from\s+([a-z_]+\.[a-z_0-9]+)/gim)].map((m) =>
+          m[1]!.toLowerCase(),
+        );
+        expect(deleted).toEqual(step.deletesFrom ?? []);
       });
 
       it("never mentions the SP0 scratch names, comments included", () => {

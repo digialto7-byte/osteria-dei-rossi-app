@@ -129,7 +129,8 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
               'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
-              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
+              'call_uscita' /* left out on purpose by comanda-uscite (step 5) */,
+              'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4, lead-approved; was: not left out, so the catalogue read 184,aeba9dba…; with them left out the pinned 182,2f77… holds) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');
 select is_empty($$ select p.proname from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')

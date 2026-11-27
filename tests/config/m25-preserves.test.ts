@@ -42,7 +42,10 @@ const ROOT = new URL("../../", import.meta.url);
 // Comanda per uscita step 17 (20261206220600_uscita_tables_order_view.sql), re-pinned on purpose by comanda-uscite (step 17; was 20261206220500_uscita_kitchen.sql): the waiter reads by uscita (M7)
 // Comanda per uscita step 18 (20261206220700_uscita_close.sql), re-pinned on purpose by comanda-uscite (step 18; was 20261206220600_uscita_tables_order_view.sql): the close guard (M8)
 // SP2 step S1 (20261207100000_organisation.sql), re-pinned on purpose by SP2 (step S1; was 20261206220700_uscita_close.sql): platform.organisation and the tenant VAT unique dropped (H1).
-const LAST_MIGRATION = "20261207100000_organisation.sql";
+// SP2 step S3 (20261207100100_memberships.sql), re-pinned on purpose by SP2 (step S3; was 20261207100000_organisation.sql): the key (tenant_id, auth_id), app.session_tenant and the hook.
+// SP2 step S4 (20261207100200_select_tenant.sql), re-pinned on purpose by SP2 (step S4; was 20261207100100_memberships.sql): select_tenant, my_memberships and the switch interval.
+// SP2 step S5 (20261207100300_session_tenant_purge.sql), re-pinned on purpose by SP2 (step S5; was 20261207100200_select_tenant.sql): the auth-purge job removes old selections.
+const LAST_MIGRATION = "20261207100300_session_tenant_purge.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

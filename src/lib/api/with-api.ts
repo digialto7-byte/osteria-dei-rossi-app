@@ -19,12 +19,22 @@ export interface TenantSession {
   role: AppRole;
 }
 
+/**
+ * A signed-in login on an `{ authenticated: true }` route. `tenantId` is the token's tenant claim, null when the session has not chosen one (SP2);
+ * `pinLogin` is true for a staff PIN session (ADR-010), which is bound to one tenant and never switches.
+ */
+export interface LoginSession {
+  authId: string;
+  tenantId: string | null;
+  pinLogin: boolean;
+}
+
 /** Who may call a route: anyone, any signed-in user, or members of a tenant with these roles. */
 type Access = { public: true } | { authenticated: true } | { roles: readonly AppRole[] };
 type SessionFor<A extends Access> = A extends { roles: readonly AppRole[] }
   ? TenantSession
   : A extends { authenticated: true }
-    ? { authId: string }
+    ? LoginSession
     : null;
 
 type Options<
@@ -187,6 +197,21 @@ async function enforceSessionAge(
   throw new ApiError(401, "session_expired", t("authError.session_expired"));
 }
 
+/**
+ * A token without a tenant claim (SP2, docs/plans/2026-11-26-sp02-memberships.md §3.4). A login with memberships has not chosen a venue in this
+ * session yet: 409 tenant_selection_required, and the client goes to the chooser (Q-S4, Rule B: never a silent landing in some venue). A login
+ * with none keeps today's 403 no_tenant. A lookup error is a 500 with its code only, never a guess.
+ */
+async function refuseWithoutTenant(supabase: SupabaseClient): Promise<never> {
+  const { data, error } = await supabase.rpc("my_memberships");
+  if (error) throw new Error(`my_memberships failed: ${error.code ?? "no code"}`);
+  if (!Array.isArray(data)) throw new Error("my_memberships returned no list");
+  if (data.length > 0) {
+    throw new ApiError(409, "tenant_selection_required", "Scegli il locale in cui lavorare.");
+  }
+  throw new ApiError(403, "no_tenant", "Questo account non è abilitato per nessun locale.");
+}
+
 async function resolveSession(access: Access, supabase: SupabaseClient, mfaExempt: boolean) {
   if ("public" in access) return null;
 
@@ -197,12 +222,16 @@ async function resolveSession(access: Access, supabase: SupabaseClient, mfaExemp
   }
   await enforceSessionAge(claims.data, supabase);
   await enforceStaffSession(claims.data, supabase);
-  if ("authenticated" in access) return { authId: claims.data.sub };
+  if ("authenticated" in access) {
+    return {
+      authId: claims.data.sub,
+      tenantId: claims.data.tenant_id ?? null,
+      pinLogin: claims.data.login === "pin",
+    } satisfies LoginSession;
+  }
 
   const { tenant_id: tenantId, app_role: role } = claims.data;
-  if (!tenantId) {
-    throw new ApiError(403, "no_tenant", "Questo account non è abilitato per nessun locale.");
-  }
+  if (!tenantId) return refuseWithoutTenant(supabase);
   if (
     !(APP_ROLES as readonly string[]).includes(role ?? "") ||
     !access.roles.includes(role as AppRole)

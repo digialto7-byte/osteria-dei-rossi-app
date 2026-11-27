@@ -16,6 +16,8 @@ export const GET = withApi({ roles: APP_ROLES }, async ({ supabase, session }) =
     .from("app_user")
     .select("id, display_name, role, tenant:tenant_id (id, name, demo_data_since)")
     .eq("auth_id", session.authId)
+    // SP2 S6: a login can belong to several tenants; read the row of the token's tenant only (RLS already does, this keeps it so).
+    .eq("tenant_id", session.tenantId)
     .maybeSingle();
   if (error) throw error;
   // RLS hides a row deactivated after the token was issued; treat it like no membership.
