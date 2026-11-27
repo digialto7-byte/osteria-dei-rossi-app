@@ -182,6 +182,13 @@ const STEPS: Step[] = [
     functions: ["public.platform_mfa_enrol_check"],
     triggers: [],
   },
+  {
+    // Step 10: the platform_staff role and the console check.
+    file: "20261208100600_platform_staff_role.sql",
+    tables: [],
+    functions: ["app.require_console"],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

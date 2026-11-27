@@ -4,6 +4,8 @@ do $$ begin create role anon nologin noinherit; exception when duplicate_object 
 do $$ begin create role authenticated nologin noinherit; exception when duplicate_object then null; end $$;
 do $$ begin create role service_role nologin noinherit bypassrls; exception when duplicate_object then null; end $$;
 do $$ begin create role supabase_auth_admin nologin noinherit; exception when duplicate_object then null; end $$;
+-- PostgREST's login role (SP3 step 10 grants the console role to it).
+do $$ begin create role authenticator nologin noinherit; exception when duplicate_object then null; end $$;
 create schema extensions;
 create schema auth;
 create table auth.users (

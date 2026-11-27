@@ -109,6 +109,9 @@ insert into p27_objs values
 -- Step 9 (20261208100550_platform_mfa_enrol_check.sql; re-pinned on purpose by SP3, was: not listed):
 insert into p27_objs values
   ('public_fn', 'platform_mfa_enrol_check');
+-- Step 10 (20261208100600_platform_staff_role.sql; re-pinned on purpose by SP3, was: not listed): the console check.
+insert into p27_objs values
+  ('app_fn', 'require_console');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
