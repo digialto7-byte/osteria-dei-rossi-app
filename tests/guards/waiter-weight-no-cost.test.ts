@@ -32,6 +32,9 @@ const tables = await import("@/app/api/tables/route");
 const lines = await import("@/app/api/table-sessions/[id]/lines/route");
 const sync = await import("@/app/api/sync/route");
 const venue = await import("@/app/api/settings/venue/route");
+const mfaAccount = await import("@/app/api/auth/mfa/account/route");
+const mfaAccountFactors = await import("@/app/api/auth/mfa/account/factors/route");
+const mfaAccountVerify = await import("@/app/api/auth/mfa/account/factors/[id]/verify/route");
 
 const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
 // One path outside the plan's pattern predates P2-0b: the cover charge's VAT rate on /api/tables (M17), a sale fact and not a cost.
@@ -607,5 +610,95 @@ describe("GET /api/me/tenants and POST /api/me/tenant as a waiter", () => {
     const json = await response.json();
     expect(json).toEqual({ tenantId: OTHER_TENANT });
     expect(flagged("/api/me/tenant", json)).toEqual([]);
+  });
+});
+
+// SP3 step 9 (plan 3.11, last row): the three /api/auth/mfa/account routes. The READS list above is waiter-only (it fixes the waiter's claims), and these routes are for platform staff,
+// so they have their own describe here, using the same helpers: a reply may name no cost, margin, food cost, GP, VAT or recipe at any depth.
+describe("the platform staff account routes (SP3 step 9): no cost-like key at any depth", () => {
+  const STAFF = { sub: "a6000000-0000-4000-8000-000000000001", aal: "aal1" };
+  const F1 = "f0000000-0000-4000-8000-000000000001";
+  const SVG =
+    '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="5" height="5"/></svg>';
+  const FACTOR = {
+    id: F1,
+    friendly_name: "Principale",
+    factor_type: "totp",
+    status: "verified",
+    created_at: "2026-11-12T09:30:00.000Z",
+    updated_at: "2026-11-12T09:30:00.000Z",
+  };
+  const rpcs = {
+    platform_mfa_attempt_allowed: [ok({ allowed: true, retryAfterSeconds: 0 })],
+    platform_mfa_enrol_check: [ok({ issuer: "Costì", friendlyName: "Principale" })],
+    platform_mfa_record_enrolled: [ok(true)],
+  };
+  const ctx = (id: string) => routeContext({ id });
+
+  it("GET /api/auth/mfa/account", async () => {
+    client = fakeSupabase({ claims: STAFF, rpc: rpcs });
+    client.auth.mfa.listFactors.mockResolvedValue({
+      data: { all: [FACTOR], totp: [] },
+      error: null,
+    });
+    const response = await mfaAccount.GET(
+      new Request("http://127.0.0.1:3000/api/auth/mfa/account"),
+    );
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/auth/mfa/account", json)).toEqual([]);
+  });
+
+  it("POST /api/auth/mfa/account (the code)", async () => {
+    client = fakeSupabase({ claims: STAFF, rpc: rpcs });
+    client.auth.mfa.challengeAndVerify.mockResolvedValue({ data: {}, error: null });
+    const response = await mfaAccount.POST(
+      jsonRequest("http://127.0.0.1:3000/api/auth/mfa/account", { factorId: F1, code: "123456" }),
+    );
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/auth/mfa/account", json)).toEqual([]);
+  });
+
+  it("POST /api/auth/mfa/account/factors (the one-time setup key)", async () => {
+    client = fakeSupabase({ claims: STAFF, rpc: rpcs });
+    client.auth.mfa.enroll.mockResolvedValue({
+      data: { id: F1, totp: { qr_code: SVG, secret: "JBSWY3DPEHPK3PXP" } },
+      error: null,
+    });
+    const response = await mfaAccountFactors.POST(
+      jsonRequest("http://127.0.0.1:3000/api/auth/mfa/account/factors", { slot: "principale" }),
+    );
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/auth/mfa/account/factors", json)).toEqual([]);
+  });
+
+  it("POST /api/auth/mfa/account/factors/[id]/verify", async () => {
+    client = fakeSupabase({ claims: STAFF, rpc: rpcs });
+    client.auth.mfa.challengeAndVerify.mockResolvedValue({ data: {}, error: null });
+    client.auth.mfa.listFactors.mockResolvedValue({
+      data: { all: [FACTOR], totp: [] },
+      error: null,
+    });
+    const response = await mfaAccountVerify.POST(
+      jsonRequest(`http://127.0.0.1:3000/api/auth/mfa/account/factors/${F1}/verify`, {
+        code: "123456",
+      }),
+      ctx(F1),
+    );
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged("/api/auth/mfa/account/factors/[id]/verify", json)).toEqual([]);
+  });
+
+  it("the guard is not vacuous: an injected cost key in a reply is flagged", () => {
+    expect(flagged("/api/auth/mfa/account", { factors: [{ id: F1, unitCost: 3.2 }] })).toEqual([
+      "factors.unitCost",
+    ]);
   });
 });

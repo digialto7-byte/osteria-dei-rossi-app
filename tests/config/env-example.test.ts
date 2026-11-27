@@ -55,6 +55,8 @@ describe(".env.example", () => {
       // SP3 step 16: the console's host and the venue app's origin, the two loopback hosts of plan §3.5.
       ["CONSOLE_HOST", "127.0.0.1:3000"],
       ["APP_ORIGIN", "http://localhost:3000"],
+      // Re-pinned on purpose by SP3 (step 7; was: not listed): the platform admin's address is a fake on example.test, read only by scripts/platform-admin.ts.
+      ["PLATFORM_ADMIN_EMAIL", "platform-admin@example.test"],
     ]);
     for (const [name, value] of example) {
       if (CONFIG.has(name)) expect(value, name).toBe(CONFIG.get(name));

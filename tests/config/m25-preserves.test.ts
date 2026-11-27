@@ -45,7 +45,14 @@ const ROOT = new URL("../../", import.meta.url);
 // SP2 step S3 (20261207100100_memberships.sql), re-pinned on purpose by SP2 (step S3; was 20261207100000_organisation.sql): the key (tenant_id, auth_id), app.session_tenant and the hook.
 // SP2 step S4 (20261207100200_select_tenant.sql), re-pinned on purpose by SP2 (step S4; was 20261207100100_memberships.sql): select_tenant, my_memberships and the switch interval.
 // SP2 step S5 (20261207100300_session_tenant_purge.sql), re-pinned on purpose by SP2 (step S5; was 20261207100200_select_tenant.sql): the auth-purge job removes old selections.
-const LAST_MIGRATION = "20261207100300_session_tenant_purge.sql";
+// SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
+// SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
+// SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
+// SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
+// SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
+// SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
+// SP3 step 9 (20261208100550_platform_mfa_enrol_check.sql), re-pinned on purpose by SP3 (step 9; was 20261208100500_platform_mfa.sql): public.platform_mfa_enrol_check, the account enrolment's refusal of a venue owner or admin.
+const LAST_MIGRATION = "20261208100550_platform_mfa_enrol_check.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

@@ -4,7 +4,7 @@ import type { AuditRow } from "@/lib/platform/api";
 import { PLATFORM_AUDIT_ACTIONS, type AuditAction } from "@/lib/platform/codes";
 import { EM_DASH, defaultRange, formatInstant, rangeProblem } from "./console-dates";
 
-/** The ten audit codes of the console log, in the order of the code list, each with its sentence. */
+/** The eleven audit codes of the console log, in the order of the code list, each with its sentence. */
 export const AUDIT_SENTENCE_KEYS = {
   "platform_admin.bootstrapped": "console.audit.action.platform_admin.bootstrapped",
   "platform_admin.factor_enrolled": "console.audit.action.platform_admin.factor_enrolled",
@@ -16,6 +16,7 @@ export const AUDIT_SENTENCE_KEYS = {
   "script.create_tenant": "console.audit.action.script.create_tenant",
   "script.mfa_reset": "console.audit.action.script.mfa_reset",
   "script.set_mfa_enforcement": "console.audit.action.script.set_mfa_enforcement",
+  "script.add_owner": "console.audit.action.script.add_owner",
 } satisfies Record<AuditAction, MessageKey>;
 
 /** The sentence for a code, or null when the code is not known (the screen then shows the code itself). */

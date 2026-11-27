@@ -14,6 +14,7 @@ import {
   registroHref,
 } from "@/lib/console/audit-view";
 
+// re-pinned on purpose by SP3 (PR 1 add-owner, lead 2026-11-27; was ten codes): script.add_owner.
 const TEN = [
   "platform_admin.bootstrapped",
   "platform_admin.factor_enrolled",
@@ -25,6 +26,7 @@ const TEN = [
   "script.create_tenant",
   "script.mfa_reset",
   "script.set_mfa_enforcement",
+  "script.add_owner",
 ];
 const TODAY = "2026-11-15";
 const DEFAULTS = { dal: "2026-10-17", al: "2026-11-15" };
@@ -34,7 +36,7 @@ describe("auditSentence", () => {
   it("«console.entered» is «Accesso alla console»", () => {
     expect(auditSentence("console.entered")).toBe("Accesso alla console");
   });
-  it("has a sentence for each of the ten codes, in the order of the code list", () => {
+  it("has a sentence for each of the eleven codes, in the order of the code list", () => {
     expect(Object.keys(AUDIT_SENTENCE_KEYS)).toEqual(TEN);
     for (const code of TEN) expect(auditSentence(code), code).toBeTruthy();
   });

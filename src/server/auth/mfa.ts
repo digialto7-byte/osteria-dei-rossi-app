@@ -80,6 +80,24 @@ async function recordQuietly(
   if (error) reportError(new Error(`${name} failed: ${error.code ?? "no code"}`));
 }
 
+/**
+ * The three procedures a code check talks to: the lock, the wrong-code record and the enrolment record. Every caller passes its set explicitly: the owner's and the admin's are MEMBER_PROCEDURES; platform staff, who
+ * have no membership, use the platform_mfa_* twins (SP3 step 9, src/server/auth/account-mfa.ts).
+ */
+export interface MfaProcedures {
+  attempt: string;
+  failure: string;
+  enrolled: string;
+  /** The staff-or-member check that opens an enrolment (slot, limit, aal2) and names the issuer. */
+  enrolCheck: string;
+}
+export const MEMBER_PROCEDURES: MfaProcedures = {
+  attempt: "mfa_attempt_allowed",
+  failure: "mfa_record_failure",
+  enrolled: "mfa_record_enrolled",
+  enrolCheck: "mfa_enrol_check",
+};
+
 const upstream = () => new ApiError(502, "upstream_error", t("authError.upstream_error"));
 const rateLimited = () => new ApiError(429, "rate_limited", t("authError.rate_limited"));
 const notFound = () => new ApiError(404, "not_found", "Risorsa non trovata.");
@@ -92,7 +110,7 @@ function authFailure(operation: string, error: unknown): ApiError {
   return upstream();
 }
 
-interface FactorRow {
+export interface FactorRow {
   id: string;
   friendly_name?: string | null;
   factor_type: string;
@@ -101,13 +119,13 @@ interface FactorRow {
 }
 
 /** The caller's TOTP factors, verified and not. */
-async function totpFactors(supabase: SupabaseClient): Promise<FactorRow[]> {
+export async function totpFactors(supabase: SupabaseClient): Promise<FactorRow[]> {
   const { data, error } = await supabase.auth.mfa.listFactors();
   if (error) throw authFailure("mfa.listFactors", error);
   return (data?.all ?? []).filter((f) => f.factor_type === "totp") as FactorRow[];
 }
 
-const factorView = (f: FactorRow) => ({
+export const factorView = (f: FactorRow) => ({
   id: f.id,
   slot: slotOfFriendlyName(f.friendly_name),
   status: f.status === "verified" ? ("verified" as const) : ("unverified" as const),
@@ -151,8 +169,12 @@ function safeQrImage(image: unknown): string | null {
 }
 
 /** First step of the enrolment: check in Postgres, clear the account's own unverified factors, enrol a new one. */
-export async function startEnrolment(supabase: SupabaseClient, slot: MfaSlot) {
-  const check = dbEnrolCheck.parse(await rpc(supabase, "mfa_enrol_check", { p_slot: slot }));
+export async function startEnrolment(
+  supabase: SupabaseClient,
+  slot: MfaSlot,
+  procedures: MfaProcedures,
+) {
+  const check = dbEnrolCheck.parse(await rpc(supabase, procedures.enrolCheck, { p_slot: slot }));
   for (const old of (await totpFactors(supabase)).filter((f) => f.status !== "verified")) {
     const { error } = await supabase.auth.mfa.unenroll({ factorId: old.id });
     if (error) throw authFailure("mfa.unenroll", error);
@@ -174,8 +196,11 @@ export async function startEnrolment(supabase: SupabaseClient, slot: MfaSlot) {
 }
 
 /** The answer of Postgres for the lock: 429 before any Auth call. */
-async function assertAttemptAllowed(supabase: SupabaseClient): Promise<void> {
-  const attempt = dbAttempt.parse(await rpc(supabase, "mfa_attempt_allowed"));
+export async function assertAttemptAllowed(
+  supabase: SupabaseClient,
+  procedures: MfaProcedures,
+): Promise<void> {
+  const attempt = dbAttempt.parse(await rpc(supabase, procedures.attempt));
   if (!attempt.allowed) {
     throw new ApiError(429, "mfa_locked", t("authError.mfa_locked"), {
       retryAfterSeconds: attempt.retryAfterSeconds,
@@ -184,18 +209,19 @@ async function assertAttemptAllowed(supabase: SupabaseClient): Promise<void> {
 }
 
 /** Checks a code in one request; a wrong one is recorded for the lock and answered 422 (never 401: the client reads 401 as a lost session). */
-async function checkCode(
+export async function checkCode(
   supabase: SupabaseClient,
   factorId: string,
   code: string,
   stage: "login" | "enrol",
+  procedures: MfaProcedures,
 ): Promise<void> {
   const { error } = await supabase.auth.mfa.challengeAndVerify({ factorId, code });
   if (!error) return;
   const { status, code: authCode } = toLogSafe(error);
   if (status === TOO_MANY_REQUESTS || authCode === "over_request_rate_limit") throw rateLimited();
   if (authCode === "mfa_verification_failed") {
-    await recordQuietly(supabase, "mfa_record_failure", { p_stage: stage });
+    await recordQuietly(supabase, procedures.failure, { p_stage: stage });
     throw new ApiError(422, "mfa_code_invalid", t("authError.mfa_code_invalid"));
   }
   if (authCode === "mfa_challenge_expired") {
@@ -207,10 +233,15 @@ async function checkCode(
 }
 
 /** Last step of the enrolment: the code from the new authenticator. The session becomes aal2 (Supabase rewrites the cookies). */
-export async function verifyEnrolment(supabase: SupabaseClient, factorId: string, code: string) {
-  await assertAttemptAllowed(supabase);
-  await checkCode(supabase, factorId, code, "enrol");
-  await recordQuietly(supabase, "mfa_record_enrolled", { p_factor: factorId });
+export async function verifyEnrolment(
+  supabase: SupabaseClient,
+  factorId: string,
+  code: string,
+  procedures: MfaProcedures,
+) {
+  await assertAttemptAllowed(supabase, procedures);
+  await checkCode(supabase, factorId, code, "enrol", procedures);
+  await recordQuietly(supabase, procedures.enrolled, { p_factor: factorId });
   let factor = {
     id: factorId,
     slot: "altro" as MfaSlot | "altro",
@@ -232,8 +263,8 @@ export async function challengeSignIn(
   session: { tenantId: string; role: string },
   body: { factorId: string; code: string; next?: string },
 ) {
-  await assertAttemptAllowed(supabase);
-  await checkCode(supabase, body.factorId, body.code, "login");
+  await assertAttemptAllowed(supabase, MEMBER_PROCEDURES);
+  await checkCode(supabase, body.factorId, body.code, "login", MEMBER_PROCEDURES);
   return {
     redirect: redirectAfterSignIn(
       { tenant_id: session.tenantId, app_role: session.role },

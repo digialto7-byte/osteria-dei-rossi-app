@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(49); -- re-pinned on purpose by SP2 (step S4; was 47): the two exempt_session tests
+select plan(51); -- re-pinned on purpose by SP3 (step 9; was 49): the two exempt_platform tests; re-pinned on purpose by SP2 (step S4; was 47): the two exempt_session tests
 
 -- 1. Catalogue: every public function executable by authenticated reaches a gated helper (transitive closure over prosrc), is a security
 --    invoker function over RLS tables (the three named below), or is on the exempt list.
@@ -32,6 +32,13 @@ insert into exempt_auth (sig, oid)
     'public.mfa_status()', 'public.mfa_gate()', 'public.mfa_attempt_allowed()', 'public.mfa_enrol_check(text)',
     'public.mfa_record_enrolled(uuid)', 'public.mfa_unenrol_check(uuid)', 'public.mfa_record_unenrolled(uuid)', 'public.mfa_record_failure(text)'
   ]) as s;
+-- exempt_platform (re-pinned on purpose by SP3 step 9, docs/plans/2026-11-15-sp3-console.md §3.11): the account-level second-factor functions of platform staff. They answer
+-- for the caller's own staff row, with or without a tenant claim, so they never reach the gated helpers and never read app.membership_ungated. Step 13 adds select_console.
+create temp table exempt_platform (sig text primary key, oid oid not null);
+insert into exempt_platform (sig, oid)
+  select s, s::regprocedure::oid from unnest(array[
+    'public.platform_mfa_attempt_allowed()', 'public.platform_mfa_record_failure(text)', 'public.platform_mfa_record_enrolled(uuid)', 'public.platform_mfa_enrol_check(text)'
+  ]) as s;
 -- exempt_anon: the five anonymous booking functions found on main; used only by the anon check, never by the authenticated one.
 create temp table exempt_anon (sig text primary key, oid oid not null);
 insert into exempt_anon (sig, oid)
@@ -53,13 +60,16 @@ insert into invoker_ok values ('extraction_quality'), ('recipe_allergen_summary'
 select is((select string_agg(f.proname || '(' || f.args || ')', ', ' order by f.proname) from fn f
             where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE')
               and f.oid not in (select oid from reach)
-              and f.oid not in (select oid from exempt_auth) and f.proname not in (select proname from invoker_ok)
+              and f.oid not in (select oid from exempt_auth) and f.oid not in (select oid from exempt_platform) /* re-pinned on purpose by SP3 (step 9; was no exempt_platform list) */ and f.proname not in (select proname from invoker_ok)
               and f.oid not in (select oid from exempt_session) /* re-pinned on purpose by SP2 (step S4; was no exempt_session list) */), null,
-          'every public function executable by authenticated reaches a gated helper, or is one of the eight exempt MFA procedures, or is a named invoker function, or is one of SP2''s two session functions');
+          'every public function executable by authenticated reaches a gated helper, or is one of the eight exempt MFA procedures, or is a named invoker function, or is one of SP2''s two session functions, or is one of SP3''s platform MFA functions');
 select is((select count(*)::int from exempt_session), 2, 'the session exempt list is exactly two signatures (SP2)');
 select is((select count(*)::int from fn f where f.oid in (select oid from exempt_session) and f.prosrc ~* 'membership_ungated'), 0,
           'neither session function reads app.membership_ungated');
 select is((select count(*)::int from exempt_auth), 8, 'the authenticated exempt list is exactly eight signatures');
+select is((select count(*)::int from exempt_platform), 4, 'the platform exempt list is exactly the four signatures of step 9 and its follow-up (re-pinned on purpose by SP3)');
+select is((select string_agg(f.proname, ', ' order by f.proname) from fn f where f.oid in (select oid from exempt_platform) and f.prosrc ~* 'membership_ungated'), null,
+          'and none of them references app.membership_ungated');
 select is((select count(*)::int from fn f where f.proname in (select proname from invoker_ok) and f.prosecdef), 0, 'the invoker-listed functions are security invoker');
 select cmp_ok((select count(*)::int from fn f where f.nspname = 'public' and has_function_privilege('authenticated', f.oid, 'EXECUTE') and f.oid in (select oid from reach)), '>', 100,
               'the scan is not vacuous: over a hundred public functions reach the helpers');

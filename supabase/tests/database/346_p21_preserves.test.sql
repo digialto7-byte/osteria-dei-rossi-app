@@ -64,6 +64,12 @@ select is((select count(*)::int from pg_proc where pronamespace = 'public'::regn
 select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::text, ',' order by p.oid::regprocedure::text collate "C"))
              from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname not in (select proname from newfn)
               and p.proname not in ('select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */,
+              'platform_bootstrap_admin' /* SP3 step 4: re-pinned on purpose by SP3 (step 4; was: not left out, new in 20261208100300_platform_bootstrap.sql) */,
+              'platform_record_script_run' /* SP3 step 5: re-pinned on purpose by SP3 (step 5; was: not left out, new in 20261208100400_platform_script_audit.sql) */,
+              'platform_mfa_attempt_allowed' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_failure' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_enrolled' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_enrol_check' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100550_platform_mfa_enrol_check.sql) */,
               'invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
               'tenant_settings', 'set_tenant_settings',
               'reverse_opening_stock' /* left out on purpose by opening stock (step 9) */,
@@ -77,7 +83,13 @@ select is((select count(*)::int from pg_proc where pronamespace = 'public'::regn
               'post_opening_stock', 'opening_history', 'opening_stock_summary' /* left out on purpose by opening stock (step 7) */,
               'opening_draft', 'opening_draft_put', 'opening_draft_remove', 'opening_draft_clear' /* left out on purpose by opening stock (step 6) */,
               'call_uscita' /* left out on purpose by comanda-uscite (step 5) */,
-              'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
+              'select_tenant', 'my_memberships' /* re-pinned on purpose by SP2 (step S4; was: not left out, the two functions are new) */,
+              'platform_bootstrap_admin' /* SP3 step 4: re-pinned on purpose by SP3 (step 4; was: not left out, new in 20261208100300_platform_bootstrap.sql) */,
+              'platform_record_script_run' /* SP3 step 5: re-pinned on purpose by SP3 (step 5; was: not left out, new in 20261208100400_platform_script_audit.sql) */,
+              'platform_mfa_attempt_allowed' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_failure' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_record_enrolled' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100500_platform_mfa.sql) */,
+              'platform_mfa_enrol_check' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100550_platform_mfa_enrol_check.sql) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
 
 -- 3b. The new app functions are closed to every API role.
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'app'::regnamespace

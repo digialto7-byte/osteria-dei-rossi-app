@@ -253,6 +253,35 @@ written in any file or chat.
 
 (Filled by the builder per PR: pins moved with old and new values, any pin outside §4, the CI result, the review verdict.)
 
+**PR 1 (#221, `feat/sp03-platform-1`).**
+- **Built:** steps 1–5, 7 and 9, cherry-picked from #150 and renumbered to pgTAP 435–440. Plus the lead's `scripts/add-owner.ts`, with the new audit code `script.add_owner`.
+- **Pins moved:**
+  - newest migration (m25, m25a, ux-quick-wins): `20261207100300` → `20261208100550`;
+  - m25b: the eight SP3 files;
+  - 365 triggers: 136 → 137;
+  - 359: an SP3 `p27_objs` block;
+  - 229, 327 and 346: the SP3 public fns are left out, one per line;
+  - 341: `exempt_platform` = 4, plan 49 → 51;
+  - sp00: `4[34][0-9]_sp3_*`, 359 and `2026120810*` may name the role;
+  - platform-ops-workflow: `bootstrap`, `package-manager-cache` 3 → 4;
+  - the cost guard: the account routes;
+  - env tests: accept the fake;
+  - rate-limits: 440.
+- **Outside §4:**
+  - `workflow-actions-pinned` (the bootstrap job holds the secret key);
+  - the "ten codes" pins (codes, audit-view, registro), moved to eleven. The lead approved this on 2026-11-27, option A.
+- **Changes against #150:**
+  - no `api.ts` export;
+  - the staff/member guards pass a null `auth_id` through, so pgTAP 390 still sees RLS's 42501;
+  - a PIN-login case in 437;
+  - the create-tenant audit row on both owner paths.
+- **Not done here:** the `.env.example` fake line. This session's permissions deny the file; the lead will have it added.
+- **Verification:** local pgTAP ran natively on Postgres 16 (Supabase images unreachable from the session), and so did the race script. CI is the gate.
+- **Review:** `code-reviewer` PASS, notes only:
+  - add-owner's "member nowhere" check is not atomic with the insert (operator script; an RPC under the `auth_lock` row would close it);
+  - a reused login's confirmation is not checked;
+  - a `platform_support` enrolment is logged as `platform_admin.factor_enrolled`.
+
 ## 10. Sources
 
 Repository only: `main` `c78de05e`; branches `feat/sp02-memberships-2` (`676ab591`), `feat/sp02-memberships-3` (`e5c7e051`),

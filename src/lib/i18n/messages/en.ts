@@ -3234,6 +3234,7 @@ export const en: Record<MessageKey, string> = {
   "console.audit.action.script.mfa_reset": "Second factor reset (signed out of every venue)", // (da approvare)
   "console.audit.action.script.set_mfa_enforcement":
     "Verification requirement changed with the script", // (da approvare)
+  "console.audit.action.script.add_owner": "Owner added with the script", // (da approvare)
   "console.notices.title": "Notices",
   "console.notices.tab.unread": "To read",
   "console.notices.tab.read": "Read",

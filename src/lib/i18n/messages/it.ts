@@ -3274,6 +3274,7 @@ export const it = {
     "Reset del secondo fattore (disconnessione da tutti i locali)", // (da approvare)
   "console.audit.action.script.set_mfa_enforcement":
     "Obbligo della verifica cambiato con lo script", // (da approvare)
+  "console.audit.action.script.add_owner": "Titolare aggiunto con lo script", // (da approvare)
   "console.notices.title": "Avvisi", // (da approvare)
   "console.notices.tab.unread": "Da leggere", // (da approvare)
   "console.notices.tab.read": "Letti", // (da approvare)

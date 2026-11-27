@@ -167,7 +167,8 @@ describe("Registro: the first read", () => {
     ).toBeTruthy();
   });
 
-  it("the Azione options are «Tutte» and the ten sentences, in the order of the code list", async () => {
+  // re-pinned on purpose by SP3 (PR 1 add-owner, lead 2026-11-27; was ten codes): script.add_owner.
+  it("the Azione options are «Tutte» and the eleven sentences, in the order of the code list", async () => {
     setup();
     mount();
     await table();
@@ -183,6 +184,7 @@ describe("Registro: the first read", () => {
       "Locale creato con lo script",
       "Reset del secondo fattore (disconnessione da tutti i locali)",
       "Obbligo della verifica cambiato con lo script",
+      "Titolare aggiunto con lo script",
     ]);
   });
 

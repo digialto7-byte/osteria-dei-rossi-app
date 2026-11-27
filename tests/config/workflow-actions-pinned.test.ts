@@ -481,6 +481,8 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
     "extraction-contract.yml:contract",
     "perf-dashboard-4g.yml:timing",
     "perf-order-entry.yml:timing",
+    // re-pinned on purpose by SP3 (step 7; was: three platform-ops jobs): the bootstrap job holds the secret key.
+    "platform-ops.yml:bootstrap",
     "platform-ops.yml:create-tenant",
     "platform-ops.yml:mfa-reset",
     "platform-ops.yml:set-mfa-enforcement",

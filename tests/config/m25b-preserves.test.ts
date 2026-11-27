@@ -229,6 +229,22 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261207100200_select_tenant.sql",
   // SP2 step S5 (20261207100300_session_tenant_purge.sql), re-pinned on purpose by SP2 (step S5; was the list ending at 20261207100200_select_tenant.sql): the auth-purge job removes old selections.
   "20261207100300_session_tenant_purge.sql",
+  // SP3 step 1 (20261208100000_organisation_vat_guard.sql), re-pinned on purpose by SP3 (step 1; was the list ending at 20261207100300_session_tenant_purge.sql): the organisation-side VAT drift guard (one trigger and its function).
+  "20261208100000_organisation_vat_guard.sql",
+  // SP3 step 2 (20261208100100_platform_staff_audit.sql), re-pinned on purpose by SP3 (step 2; was the list ending at 20261208100000_organisation_vat_guard.sql): platform.staff, platform.audit_event and their guards.
+  "20261208100100_platform_staff_audit.sql",
+  // SP3 step 3 (20261208100200_platform_staff_guards.sql), re-pinned on purpose by SP3 (step 3; was the list ending at 20261208100100_platform_staff_audit.sql): the staff/member guards on platform.staff and public.app_user, and the lock table platform.auth_lock.
+  "20261208100200_platform_staff_guards.sql",
+  // SP3 step 4 (20261208100300_platform_bootstrap.sql), re-pinned on purpose by SP3 (step 4; was the list ending at 20261208100200_platform_staff_guards.sql): public.platform_bootstrap_admin (service role only).
+  "20261208100300_platform_bootstrap.sql",
+  // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was the list ending at 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
+  "20261208100400_platform_script_audit.sql",
+  // SP3 step 5 follow-up (20261208100450_script_audit_mfa_reset_tenant.sql), re-pinned on purpose by SP3 (step 5; was the list without it): platform_record_script_run re-created to resolve the tenant of script.mfa_reset.
+  "20261208100450_script_audit_mfa_reset_tenant.sql",
+  // SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was the list ending at 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
+  "20261208100500_platform_mfa.sql",
+  // SP3 step 9 (20261208100550_platform_mfa_enrol_check.sql), re-pinned on purpose by SP3 (step 9; was the list ending at 20261208100500_platform_mfa.sql): public.platform_mfa_enrol_check, the account enrolment's refusal of a venue owner or admin.
+  "20261208100550_platform_mfa_enrol_check.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

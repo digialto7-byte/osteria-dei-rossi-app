@@ -12,6 +12,8 @@ export const PLATFORM_AUDIT_ACTIONS = [
   "script.create_tenant",
   "script.mfa_reset",
   "script.set_mfa_enforcement",
+  // SP3 PR 1 (lead, 2026-11-27): scripts/add-owner.ts.
+  "script.add_owner",
 ] as const;
 export type AuditAction = (typeof PLATFORM_AUDIT_ACTIONS)[number];
 

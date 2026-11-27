@@ -1,5 +1,6 @@
 import { closeSync, constants, fchmodSync, openSync, unlinkSync, writeSync } from "node:fs";
 import { z } from "zod";
+import { AUDIT_NOT_WRITTEN, AuditNotWrittenError, recordScriptRun } from "./platform-audit";
 
 export interface CreateTenantInput {
   name: string;
@@ -317,10 +318,24 @@ export async function runCreateTenant(
         : { kind: "existing", input: readExistingOwnerEnv(env), authId: existingOwnerId };
     if (idsOut !== undefined) idsFile = openIdsFile(idsOut);
     const display = createIdDisplay(env, io.out);
+    const admin = io.admin();
     const ids =
       owner.kind === "new"
-        ? await createTenant(io.admin(), owner.input, display)
-        : await createTenantForExistingOwner(io.admin(), owner.input, owner.authId);
+        ? await createTenant(admin, owner.input, display)
+        : await createTenantForExistingOwner(admin, owner.input, owner.authId);
+    // The platform audit row (SP3 step 5) is written after the tenant exists and only then. If it cannot be written the run fails: the tenant WAS created, and only a
+    // prefix of its id (masked first under GitHub Actions) says which one.
+    try {
+      await recordScriptRun(admin, "script.create_tenant", ids.tenantId, {
+        tenantId: ids.tenantId,
+      });
+    } catch (error) {
+      const prefix = display.reveal(ids.tenantId).slice(0, 8);
+      const reason = error instanceof AuditNotWrittenError ? error.message : AUDIT_NOT_WRITTEN;
+      io.err(`${reason}: the tenant WAS created; its id starts with ${prefix}`);
+      idsFile?.discard(io.err);
+      return 1;
+    }
     if (idsFile) {
       try {
         idsFile.write(ids, io.err);
