@@ -26,7 +26,10 @@ const OLD = "2026-10-01 10:00:00+00";
 
 const CLEAN_ROOM = `set local session_replication_role = replica;
 delete from storage.objects where bucket_id = 'invoices';`;
-const TENANT_ROW = `insert into public.tenant (id, name, vat_number) values ('${TENANT}', 'Osteria Fake', 'IT00000000000');`;
+// The clean room runs with triggers off, so the tenant's organisation (SP2 S1, filled by a trigger otherwise) is written here.
+const TENANT_ROW = `with o as (insert into platform.organisation (name, vat_number) values ('Osteria Fake', 'IT00000000000')
+     on conflict (vat_number) do update set name = platform.organisation.name returning id)
+   insert into public.tenant (id, name, vat_number, organisation_id) select '${TENANT}', 'Osteria Fake', 'IT00000000000', o.id from o;`;
 const object = (id: string, size: number, createdAt: string, ext = "pdf") =>
   `insert into storage.objects (bucket_id, name, metadata, created_at)
    values ('invoices', '${path(id, ext)}', '{"size": ${size}, "mimetype": "application/pdf"}', ${createdAt});`;
