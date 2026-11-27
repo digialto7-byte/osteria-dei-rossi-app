@@ -1,0 +1,131 @@
+// @vitest-environment jsdom
+import { createElement } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+// SP2 S10 (docs/plans/2026-11-26-sp02-memberships.md §8): the venue chooser /login/scegli-locale. It reads GET /api/me/tenants and
+// switches through `switchTenant`; it never re-implements the switch.
+const A = "11111111-1111-4111-8111-111111111111";
+const B = "22222222-2222-4222-8222-222222222222";
+const row = (id: string, name: string, role: string, current = false) => ({
+  id,
+  name,
+  role,
+  current,
+});
+
+let reply: unknown;
+const apiJson = vi.fn((_path: string) => Promise.resolve(reply));
+vi.mock("@/lib/api/client", () => ({ apiJson: (path: string) => apiJson(path) }));
+const switchTenant = vi.fn();
+vi.mock("@/lib/tenancy/switch", () => ({
+  switchTenant: (...args: unknown[]) => switchTenant(...args),
+}));
+vi.mock("@/pwa/use-outbox", () => ({ useSyncView: () => ({ mine: 0 }) }));
+vi.mock("@/components/forget-user", () => ({ forgetUser: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
+
+const { VenuePicker } = await import("@/app/(public)/login/scegli-locale/venue-picker");
+
+const ok = (tenants: unknown[]) => ({ ok: true, status: 200, data: { tenants } });
+beforeEach(() => {
+  apiJson.mockClear();
+  switchTenant.mockReset();
+  switchTenant.mockResolvedValue({ ok: true });
+  reply = ok([row(A, "Locale Uno", "owner"), row(B, "Locale Due", "waiter")]);
+  Object.defineProperty(navigator, "onLine", { value: true, configurable: true });
+});
+afterEach(cleanup);
+
+const mount = (next?: string) => render(createElement(VenuePicker, { next }));
+
+describe("VenuePicker", () => {
+  it("reads GET /api/me/tenants and shows one button per venue with its role label", async () => {
+    mount();
+    expect(apiJson).toHaveBeenCalledWith("/api/me/tenants");
+    const uno = await screen.findByRole("button", { name: /Locale Uno/ });
+    expect(uno.textContent).toContain("Titolare");
+    expect(screen.getByRole("button", { name: /Locale Due/ }).textContent).toContain("Cameriere");
+    expect(screen.getAllByRole("button", { name: /Locale/ })).toHaveLength(2);
+  });
+
+  it("marks the current venue", async () => {
+    reply = ok([row(A, "Locale Uno", "owner", true), row(B, "Locale Due", "waiter")]);
+    mount();
+    const uno = await screen.findByRole("button", { name: /Locale Uno/ });
+    expect(uno.getAttribute("aria-current")).toBe("true");
+    expect(uno.textContent).toContain("Locale attuale");
+    expect(
+      screen.getByRole("button", { name: /Locale Due/ }).getAttribute("aria-current"),
+    ).toBeNull();
+  });
+
+  it("a tap calls switchTenant with the id and the page's next, unchanged", async () => {
+    mount("/fatture?x=1");
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Due/ }));
+    expect(switchTenant).toHaveBeenCalledWith(B, { next: "/fatture?x=1" });
+  });
+
+  it("is busy while it switches: no second tap, a status line", async () => {
+    let finish!: (v: unknown) => void;
+    switchTenant.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Due/ }));
+    expect(screen.getByRole("status").textContent).toContain("Cambio locale");
+    fireEvent.click(screen.getByRole("button", { name: /Locale Uno/ }));
+    expect(switchTenant).toHaveBeenCalledTimes(1);
+    finish({ ok: false, code: "forbidden" });
+    await waitFor(() => expect(screen.queryByText(/Cambio locale/)).toBeNull());
+  });
+
+  it.each([
+    ["offline", "Serve la connessione per cambiare locale."],
+    ["tenant_switch_too_soon", "Attendi qualche secondo e riprova."],
+    ["tenant_not_found", "Non è stato possibile cambiare locale. Riprova."],
+    ["tenant_switch_failed", "Non è stato possibile cambiare locale. Riprova."],
+  ])("the code %s shows its message", async (code, message) => {
+    switchTenant.mockResolvedValue({ ok: false, code });
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Due/ }));
+    expect((await screen.findByRole("alert")).textContent).toBe(message);
+  });
+
+  it("an empty list shows home.noAccess", async () => {
+    reply = ok([]);
+    mount();
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Il tuo account non è abilitato per nessun locale.",
+    );
+    expect(screen.queryByRole("button", { name: /Locale/ })).toBeNull();
+  });
+
+  it("a failed read shows an error with Riprova, which asks again", async () => {
+    reply = { ok: false, status: 500, error: { code: "x", message: "x" } };
+    mount();
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    reply = ok([row(A, "Locale Uno", "owner")]);
+    fireEvent.click(screen.getByRole("button", { name: "Riprova" }));
+    expect(await screen.findByRole("button", { name: /Locale Uno/ })).toBeTruthy();
+    expect(apiJson).toHaveBeenCalledTimes(2);
+  });
+
+  it("offline: says a connection is needed and makes no read", async () => {
+    Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
+    reply = { ok: false, status: 0, error: { code: "network_error", message: "x" } };
+    mount();
+    expect((await screen.findByRole("alert")).textContent).toContain("Serve la connessione");
+  });
+
+  it("has Esci below the list", async () => {
+    mount();
+    await screen.findByRole("button", { name: /Locale Uno/ });
+    expect(screen.getByRole("button", { name: "Esci" })).toBeTruthy();
+  });
+
+  it("targets are 44 px and full width", async () => {
+    mount();
+    const uno = await screen.findByRole("button", { name: /Locale Uno/ });
+    expect(uno.className).toContain("min-h-tap");
+    expect(uno.className).toContain("w-full");
+  });
+});

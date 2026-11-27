@@ -18,6 +18,11 @@ vi.mock("@/pwa/use-outbox", () => ({
   useSyncView: () => ({ ready: true, pending: 0, mine: 0, visible: false }),
 }));
 
+// SP2 S10: the venue switcher has its own tests (tenant-switcher.test.ts); here it is a marker, so its read is not counted as a logout call.
+vi.mock("@/components/nav/tenant-switcher", () => ({
+  TenantSwitcher: () => createElement("span", { "data-slot": "tenant-switcher-stub" }),
+}));
+
 const { LeaveGuardProvider, useLeaveGuard } = await import("@/components/nav/leave-guard");
 const { SidebarNavView } = await import("@/components/nav/sidebar-nav");
 const { navFor } = await import("@/lib/nav/nav-model");

@@ -72,6 +72,8 @@ const PAGES = [
   "(owner)/tavoli/impostazioni",
   "(public)/dispositivo",
   "(public)/login",
+  // re-pinned on purpose by SP2 (step S10; was: no venue chooser page, 61 pages)
+  "(public)/login/scegli-locale",
   "(public)/pin",
 ];
 
@@ -84,6 +86,8 @@ const ALLOWED_NEW_PUBLIC_PAGES = [
   "(public)/login/attiva-codice/page.tsx",
   "(public)/login/codice/page.tsx",
   "(public)/login/offerta-codice/page.tsx",
+  // re-pinned on purpose by SP2 (step S10; was: no venue chooser page)
+  "(public)/login/scegli-locale/page.tsx",
 ];
 
 const ALLOWED_NEW_OWNER_PAGES = [
@@ -251,7 +255,7 @@ const BASE_ONLY_AFTER = [
 
 describe("URLs stay put (ADR-030)", () => {
   it("lists 61 pages", () => {
-    expect(PAGES).toHaveLength(61);
+    expect(PAGES).toHaveLength(62); // re-pinned on purpose by SP2 (step S10; was 61)
   });
 
   for (const route of PAGES) {

@@ -2,13 +2,14 @@
 
 import { useLogout } from "@/components/logout-button";
 import { useRequestLeave } from "@/components/nav/leave-guard";
+import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { t, tn } from "@/lib/i18n";
 
 /**
  * The signed-in person's own name and "Esci" in the header band, on every signed-in screen of a phone (QW6, ADR-041): a shared
  * kitchen phone shows who is signed in, and "Esci" is one tap away on `/cucina` and on the comanda too. The laptop sidebar keeps its
  * own (`lg:hidden` here). The name is passed in by the shell once /api/me has answered, so the server-rendered shell holds none.
- * The tap asks the page's leave guard first (the comanda, with dishes not sent). The logout is the one `LogoutButton` uses; the pending-operations line is in the band ink.
+ * A login with several venues also gets the venue switcher here (SP2 S10; it renders nothing for one venue). The tap asks the page's leave guard first (the comanda, with dishes not sent). The logout is the one `LogoutButton` uses; the pending-operations line is in the band ink.
  */
 export function AccountControl({ name }: { name: string }) {
   const { busy, mine, logout } = useLogout();
@@ -19,6 +20,7 @@ export function AccountControl({ name }: { name: string }) {
       className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-3 lg:hidden"
     >
       <span className="min-w-0 truncate text-sm text-band-ink">{name}</span>
+      <TenantSwitcher tone="band" />
       <button
         type="button"
         onClick={() => requestLeave(() => void logout())}

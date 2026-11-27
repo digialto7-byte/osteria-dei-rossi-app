@@ -24,6 +24,12 @@ vi.mock("next/link", () => ({
 }));
 vi.mock("@/lib/api/client", () => ({ apiJson: (...args: unknown[]) => apiJson(...(args as [])) }));
 
+// SP2 S10: the venue switcher has its own tests (tenant-switcher.test.ts); here it is a marker, so its read does not count as a logout call.
+vi.mock("@/components/nav/tenant-switcher", () => ({
+  TenantSwitcher: ({ tone }: { tone: string }) =>
+    createElement("span", { "data-slot": "tenant-switcher-stub", "data-tone": tone }),
+}));
+
 const { AccountControl } = await import("@/components/nav/account-control");
 const { LeaveGuardProvider, useLeaveGuard } = await import("@/components/nav/leave-guard");
 const { ShellBrandLink } = await import("@/components/nav/shell-brand-link");
@@ -55,6 +61,12 @@ describe("AccountControl", () => {
     expect(container.textContent).toContain("Cameriere Demo");
     expect(getAllByRole("button")).toHaveLength(1);
     expect(getByRole("button", { name: "Esci" })).toBeTruthy();
+  });
+
+  it("holds the venue switcher in the band tone, after the name", () => {
+    const { container } = render(createElement(AccountControl, { name: "Utente Demo" }));
+    const stub = container.querySelector('[data-slot="tenant-switcher-stub"]')!;
+    expect(stub.getAttribute("data-tone")).toBe("band");
   });
 
   it("is hidden on a laptop, where the sidebar has its own Esci", () => {
