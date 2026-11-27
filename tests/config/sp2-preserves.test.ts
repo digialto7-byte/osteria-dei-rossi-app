@@ -16,6 +16,8 @@ type Step = {
   functions: string[];
   /** The only tables the step may delete from (S5: the auth-purge job, whose earlier deletes are kept as they were). Default: none. */
   deletesFrom?: string[];
+  /** The only `on delete cascade` lines the step may hold, exactly (review of PR 2, lead ruling 2026-11-27). Any other cascade fails. */
+  cascades?: string[];
 };
 const STEPS: Step[] = [
   {
@@ -27,6 +29,10 @@ const STEPS: Step[] = [
   {
     // S3: the key, the PIN single-membership trigger, the member-elsewhere guard, the selection table and the hook (one migration).
     file: "20261207100100_memberships.sql",
+    // app.session_tenant is a per-session cache: it goes with its membership, so a demo reset (ADR-018) can delete the demo users (pgTAP 194, 434).
+    cascades: [
+      "foreign key (tenant_id, auth_id) references public.app_user (tenant_id, auth_id) on delete cascade",
+    ],
     tables: ["app.session_tenant"],
     functions: [
       "app.app_user_pin_single_membership",
@@ -129,7 +135,11 @@ describe("SP2 migrations", () => {
 
       it("never cascades or truncates, and deletes only from the tables listed for it (no ledger)", () => {
         const sql = read(step.file);
-        expect(sql).not.toMatch(/\bcascade\b/i);
+        const cascading = sql
+          .split("\n")
+          .filter((line) => /\bcascade\b/i.test(line))
+          .map((line) => line.trim());
+        expect(cascading).toEqual(step.cascades ?? []);
         expect(sql).not.toMatch(/^\s*truncate\s/im);
         const deleted = [...sql.matchAll(/^\s*delete\s+from\s+([a-z_]+\.[a-z_0-9]+)/gim)].map((m) =>
           m[1]!.toLowerCase(),
