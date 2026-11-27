@@ -2,7 +2,7 @@
 -- Service role only. It writes origin script and an action that starts with `script.`; the audit's own checks refuse an unknown action and a detail that is not codes and ids.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(32);
+select plan(34);
 
 insert into public.tenant (id, name, vat_number) values ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
   ('22222222-2222-4222-8222-222222222222', 'Osteria Demo B', 'IT11111111115');
@@ -69,6 +69,14 @@ set local role service_role;
 select lives_ok($$ select public.platform_record_script_run('script.mfa_reset', '11111111-1111-4111-8111-111111111111', '{"appUserId": "b4000000-0000-4000-8000-000000000001"}') $$, 'a tenant that agrees with the app_user''s is accepted');
 reset role;
 select is((select count(*)::int from platform.audit_event where action = 'script.mfa_reset' and tenant_id = '11111111-1111-4111-8111-111111111111'), 2, 'and the row carries it');
+
+set local role service_role;
+-- scripts/add-owner.ts (SP3 PR 1, lead 2026-11-27): the exact detail it sends is accepted.
+select lives_ok($$ select public.platform_record_script_run('script.add_owner', '11111111-1111-4111-8111-111111111111',
+  '{"tenantId": "11111111-1111-4111-8111-111111111111", "appUserId": "b7000000-0000-4000-8000-000000000001", "authId": "a7000000-0000-4000-8000-000000000001", "outcome": "reused"}') $$,
+  'a script.add_owner row with the script''s detail (tenantId, appUserId, authId, outcome) is written');
+reset role;
+select is((select tenant_id from platform.audit_event where action = 'script.add_owner'), '11111111-1111-4111-8111-111111111111'::uuid, 'with the tenant it names');
 
 select * from finish();
 rollback;
