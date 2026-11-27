@@ -105,8 +105,13 @@ select throws_ok($$ insert into public.app_user (tenant_id, auth_id, role, displ
 select throws_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name)
     values ('22222222-2222-4222-8222-222222222222', '90000000-0000-4000-8000-000000000001', 'waiter', 'Cameriere PIN via e-mail') $$,
   'P0001', 'pin_single_membership', 'nor a second row of any kind');
+-- A waiter (a role that may use a PIN, so app_user_login_method_ck passes and the AFTER trigger answers) with e-mail rows in A and C.
+insert into auth.users (id, email) values ('e0000000-0000-4000-8000-00000000000e', 'waiter-ac@example.test');
+insert into public.app_user (tenant_id, auth_id, role, display_name) values
+  ('11111111-1111-4111-8111-111111111111', 'e0000000-0000-4000-8000-00000000000e', 'waiter', 'Cameriere in A'),
+  ('33333333-3333-4333-8333-333333333333', 'e0000000-0000-4000-8000-00000000000e', 'waiter', 'Cameriere in C');
 select throws_ok($$ update public.app_user set login_method = 'pin'
-    where tenant_id = '11111111-1111-4111-8111-111111111111' and auth_id = 'a0000000-0000-4000-8000-00000000000a' $$,
+    where tenant_id = '11111111-1111-4111-8111-111111111111' and auth_id = 'e0000000-0000-4000-8000-00000000000e' $$,
   'P0001', 'pin_single_membership', 'an e-mail login with rows elsewhere cannot become a PIN login');
 select is(pg_temp.claims('90000000-0000-4000-8000-000000000001', null) ->> 'session_state', 'ended',
   'the PIN branch is untouched: a PIN password sign-in outside the allowed window ends the session, as in M11');

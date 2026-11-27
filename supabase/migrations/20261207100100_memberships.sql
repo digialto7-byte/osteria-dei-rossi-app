@@ -12,7 +12,8 @@ alter table public.app_user add constraint app_user_tenant_auth_key unique (tena
 create index app_user_auth_id_idx on public.app_user (auth_id);
 
 -- 2. A PIN login keeps exactly one membership (ADR-010 decision 2) ---------------------------------------------------------------------------------
--- Refuses a PIN row whose login has another row, and any row for a login that already has a PIN row.
+-- Refuses a PIN row whose login has another row, and any row for a login that already has a PIN row. An AFTER trigger: the row's own checks
+-- (app_user's CHECK constraints) answer first, and the exception still rolls the statement back.
 create function app.app_user_pin_single_membership() returns trigger
   language plpgsql security definer
   set search_path = ''
@@ -23,12 +24,12 @@ begin
                 and (new.login_method = 'pin' or u.login_method = 'pin')) then
     raise exception 'pin_single_membership' using errcode = 'P0001';
   end if;
-  return new;
+  return null;
 end
 $$;
 revoke all on function app.app_user_pin_single_membership() from public, anon, authenticated, service_role;
 
-create trigger app_user_pin_single_membership before insert or update of auth_id, login_method on public.app_user
+create trigger app_user_pin_single_membership after insert or update of auth_id, login_method on public.app_user
   for each row execute function app.app_user_pin_single_membership();
 
 -- 3. An owner cannot attach a login that is a member elsewhere (Q-S2) -------------------------------------------------------------------------------
@@ -62,7 +63,8 @@ create table app.session_tenant (
   auth_id uuid not null,
   tenant_id uuid not null references public.tenant (id),
   selected_at timestamptz not null default now(),
-  foreign key (tenant_id, auth_id) references public.app_user (tenant_id, auth_id)
+  -- A per-session cache, like app.mfa_failure: it goes with its membership (a demo reset, ADR-018, deletes the demo users' rows).
+  foreign key (tenant_id, auth_id) references public.app_user (tenant_id, auth_id) on delete cascade
 );
 alter table app.session_tenant enable row level security;
 revoke all on app.session_tenant from public, anon, authenticated, service_role;

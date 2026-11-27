@@ -155,6 +155,9 @@ Only what differs from #131 §2, or what SP2 depends on directly. Every other ro
 | `supabase/tests/database/005_create_tenant.test.sql` (the "already owns a tenant is rejected" case) | contract | becomes "an owner of A becomes owner of B too (two memberships); a PIN login as owner is refused and the tenant row is rolled back" | 2/S3 |
 | `tests/guards/waiter-weight-no-cost.test.ts` route list | cost guard | add `/api/me/tenants`, `/api/me/tenant` | 2/S6, S7 |
 | `scripts/spike/sp00/sql/03_memberships.sql` | scratch | skip the swap when `(tenant_id, auth_id)` is already unique (Q-S8) | 2/S2 |
+| `supabase/tests/database/194_demo_purge_tables_complete.test.sql` (the two exact `app` tenant-table lists) | structure | **lead-approved, found in review of PR 2:** add `session_tenant`. Its FK to `app_user (tenant_id, auth_id)` gets `on delete cascade`, so a demo reset (ADR-018) clears the demo users' selections (pgTAP 434); without it `purge_demo_data` failed with 23503 | 2/S3 |
+| `supabase/tests/database/080_staff_auth_tables.test.sql` test 10 | — | **not moved (lead ruling):** `app_user_pin_single_membership` is an AFTER trigger, so `app_user_login_method_ck` answers 23514 first; 431's "e-mail login becomes PIN" case uses a waiter | 2/S3 |
+| `supabase/tests/database/327_p20b_preserves.test.sql` public-function md5 | left-out list | **lead-approved, found in review of PR 2:** add `select_tenant`, `my_memberships` (the pinned `182,2f77…` stays) | 2/S4 |
 
 **Must pass unchanged:** pgTAP 001, 002, 003, 085, 086, 088, 101, 340, 342, 343, 389, 390, 417, 418;
 `tests/lint/offline-cache-allowlist.test.ts`; the `NAV_MODEL_MD5` pins; every prefix-scoped preserves test;
