@@ -63,6 +63,7 @@ test("a login with two venues picks one, switches from the header, and the read 
   await main(page)
     .getByRole("button", { name: new RegExp(VENUE_A) })
     .click();
+  const pickedAt = Date.now();
   await page.waitForURL((url) => url.pathname === "/");
   await page.evaluate(() => navigator.serviceWorker.ready);
   await expect
