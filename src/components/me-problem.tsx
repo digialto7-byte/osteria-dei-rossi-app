@@ -26,6 +26,15 @@ function retryWithFocus(button: HTMLElement, target: HTMLElement | null, retry: 
   retry();
 }
 
+/** The chooser's address with the way back (SP2): the current page as `next`, except Home and the pages under /login, where it is plain. */
+function venueChooserHref(): string {
+  const base = "/login/scegli-locale";
+  if (typeof window === "undefined") return base;
+  const { pathname, search } = window.location;
+  if (pathname === "/" || pathname === "/login" || pathname.startsWith("/login/")) return base;
+  return `${base}?next=${encodeURIComponent(`${pathname}${search ?? ""}`)}`;
+}
+
 export function MeProblem({
   status,
   retry,
@@ -51,7 +60,7 @@ export function MeProblem({
     return (
       <p>
         {t("me.selectTenant")}{" "}
-        <a href="/login/scegli-locale" className={linkClass}>
+        <a href={venueChooserHref()} className={linkClass}>
           {t("me.selectTenantLink")}
         </a>
       </p>

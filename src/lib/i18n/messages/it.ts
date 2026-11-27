@@ -38,6 +38,19 @@ export const it = {
   "me.error": "Non riusciamo a verificare il tuo accesso. Controlla la connessione e riprova.",
   "me.selectTenant": "Hai più di un locale: scegli quello in cui lavorare.",
   "me.selectTenantLink": "Scegli il locale",
+  // Tenant switcher and venue chooser (SP2 S10; Italian wording da approvare).
+  "tenantSwitch.title": "Scegli il locale", // (da approvare)
+  "tenantSwitch.open": "Cambia locale", // (da approvare)
+  "tenantSwitch.current": "Locale attuale: {name}", // (da approvare)
+  "tenantSwitch.currentTag": "Locale attuale", // (da approvare)
+  "tenantSwitch.busy": "Cambio locale…", // (da approvare)
+  "tenantSwitch.offline": "Serve la connessione per cambiare locale.", // (da approvare)
+  "tenantSwitch.failed": "Non è stato possibile cambiare locale. Riprova.", // (da approvare)
+  "tenantSwitch.tooSoon": "Attendi qualche secondo e riprova.", // (da approvare)
+  "tenantSwitch.pending.one":
+    "{count} operazione in attesa resta su questo telefono e partirà quando torni in questo locale.", // (da approvare)
+  "tenantSwitch.pending.other":
+    "{count} operazioni in attesa restano su questo telefono e partiranno quando torni in questo locale.", // (da approvare)
   "common.retry": "Riprova",
   "common.networkError": "Connessione assente. Riprova quando sei online.",
   "common.genericError": "Qualcosa è andato storto. Riprova tra poco.",

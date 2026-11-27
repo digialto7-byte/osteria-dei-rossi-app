@@ -27,6 +27,23 @@ describe("MeProblem", () => {
     expect(screen.queryByText(/Non riusciamo a verificare/)).toBeNull();
   });
 
+  it("selectTenant: the link to the chooser carries the current page as next (not from Home or /login)", () => {
+    window.history.pushState({}, "", "/fatture?stato=aperte");
+    const { unmount } = render(
+      createElement(MeProblem, { status: "selectTenant", retry: vi.fn() }),
+    );
+    expect(screen.getByRole("link", { name: "Scegli il locale" }).getAttribute("href")).toBe(
+      "/login/scegli-locale?next=%2Ffatture%3Fstato%3Daperte",
+    );
+    unmount();
+    window.history.pushState({}, "", "/login/codice");
+    render(createElement(MeProblem, { status: "selectTenant", retry: vi.fn() }));
+    expect(screen.getByRole("link", { name: "Scegli il locale" }).getAttribute("href")).toBe(
+      "/login/scegli-locale",
+    );
+    window.history.pushState({}, "", "/");
+  });
+
   it("on Riprova asks again and moves focus to the page heading, so focus does not fall to the body", () => {
     const retry = vi.fn();
     page(retry);

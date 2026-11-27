@@ -39,6 +39,19 @@ export const en: Record<MessageKey, string> = {
   "me.error": "We cannot check your access. Check your connection and try again.",
   "me.selectTenant": "You have more than one venue: choose the one to work in.",
   "me.selectTenantLink": "Choose the venue",
+  // Tenant switcher and venue chooser (SP2 S10).
+  "tenantSwitch.title": "Choose the venue",
+  "tenantSwitch.open": "Switch venue",
+  "tenantSwitch.current": "Current venue: {name}",
+  "tenantSwitch.currentTag": "Current venue",
+  "tenantSwitch.busy": "Switching venue…",
+  "tenantSwitch.offline": "You need a connection to switch venue.",
+  "tenantSwitch.failed": "Could not switch venue. Try again.",
+  "tenantSwitch.tooSoon": "Wait a few seconds and try again.",
+  "tenantSwitch.pending.one":
+    "{count} waiting operation stays on this phone and is sent when you are back in this venue.",
+  "tenantSwitch.pending.other":
+    "{count} waiting operations stay on this phone and are sent when you are back in this venue.",
   "common.retry": "Try again",
   "common.networkError": "You are offline. Try again when you are back online.",
   "common.genericError": "Something went wrong. Please try again shortly.",

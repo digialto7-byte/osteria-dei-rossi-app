@@ -23,6 +23,8 @@ const HEADINGS = [
   "Avvio magazzino (carico iniziale)",
   // Comanda per uscita (plan step 12), added on purpose.
   "Comanda per uscita",
+  // SP2 (step S12), added on purpose.
+  "SP2 rollout (memberships)",
   "Go-live day",
 ];
 
