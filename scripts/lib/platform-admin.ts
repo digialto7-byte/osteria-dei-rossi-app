@@ -43,10 +43,13 @@ function codeOf(error: { message: string; code?: string }): string {
   return /^[a-z_]{1,60}$/.test(error.message) ? error.message : (error.code ?? "unknown_error");
 }
 
-class LookupError extends Error {}
+export class LookupError extends Error {}
 
 /** Finds the auth user of an address: the user list page by page, compared in memory, stopping at the first match or at the first short page. */
-async function findAuthId(admin: PlatformAdminClient, address: string): Promise<string | null> {
+export async function findAuthId(
+  admin: PlatformAdminClient,
+  address: string,
+): Promise<string | null> {
   const wanted = address.trim().toLowerCase();
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: PAGE_SIZE });

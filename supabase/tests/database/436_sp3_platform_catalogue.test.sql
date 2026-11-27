@@ -46,8 +46,8 @@ select lives_ok($$ insert into platform.audit_event (origin, action) values ('co
 select is((select count(*)::int from platform.audit_event where tenant_id = '11111111-1111-4111-8111-111111111111'), 1, 'a row can carry a tenant id');
 select lives_ok($$ insert into platform.audit_event (origin, action, tenant_id) values ('console', 'console.left', gen_random_uuid()) $$,
   'and a tenant id with no tenant behind it: there is no foreign key, so an erased tenant''s rows survive');
-select is((select array_length(platform.audit_actions(), 1)), 10, 'platform.audit_actions() has ten codes');
-select is((select count(distinct a)::int from unnest(platform.audit_actions()) a), 10, 'all different');
+select is((select array_length(platform.audit_actions(), 1)), 11 /* re-pinned on purpose by SP3 (PR 1 add-owner; was 10): script.add_owner */, 'platform.audit_actions() has eleven codes');
+select is((select count(distinct a)::int from unnest(platform.audit_actions()) a), 11, 'all different');
 select is(platform.notice_kinds(), array['subprocessor']::text[], 'platform.notice_kinds() is the one kind');
 
 -- 4. The writer ---------------------------------------------------------------------------------------------------------------------------------------------------------

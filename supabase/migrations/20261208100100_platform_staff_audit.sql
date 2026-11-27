@@ -12,7 +12,7 @@ create function platform.audit_actions() returns text[]
 as $$
   select array[
     'platform_admin.bootstrapped', 'platform_admin.factor_enrolled', 'console.entered', 'console.left', 'console.tenant_opened',
-    'notice.created', 'notice.tenant_notified', 'script.create_tenant', 'script.mfa_reset', 'script.set_mfa_enforcement'
+    'notice.created', 'notice.tenant_notified', 'script.create_tenant', 'script.mfa_reset', 'script.set_mfa_enforcement', 'script.add_owner'
   ]::text[]
 $$;
 
