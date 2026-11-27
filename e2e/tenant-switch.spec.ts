@@ -10,6 +10,9 @@ requireSupabaseStack();
 // cache is checked while no request of the new venue has happened yet.
 const main = (page: Page) => page.locator("main");
 const READ_CACHE = "api-user";
+// select_tenant refuses a second selection of one session within 3 s (app.tenant_switch_min_interval, 429 tenant_switch_too_soon). The pick of A and the switch
+// to B are that close, so the spec waits out the interval (with a margin) before it switches; CI run 45924429108 hit the 429 without this.
+const SWITCH_INTERVAL_MS = 3_500;
 
 const cacheHolds = (page: Page) => page.evaluate((name) => caches.has(name), READ_CACHE);
 const cachedMeNames = (page: Page) =>
@@ -81,6 +84,7 @@ test("a login with two venues picks one, switches from the header, and the read 
     await held;
     await route.continue();
   });
+  await page.waitForTimeout(Math.max(0, pickedAt + SWITCH_INTERVAL_MS - Date.now()));
   await switcher.click();
   await header.getByRole("button", { name: new RegExp(VENUE_B) }).click();
   await expect
