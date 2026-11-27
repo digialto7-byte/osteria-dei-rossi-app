@@ -466,12 +466,12 @@ describe("--existing-owner-id (SP2 S9)", () => {
     const failed = run(
       ["--existing-owner-id", EXISTING],
       ENV_EXISTING,
-      fakeAdmin({ rpcError: { message: "pin_login_cannot_own", code: "P0001" } }),
+      fakeAdmin({ rpcError: { message: "pin_single_membership", code: "P0001" } }),
     );
     expect(await failed.done).toBe(1);
     expect(failed.admin.auth.admin.createUser).not.toHaveBeenCalled();
     expect(failed.admin.auth.admin.deleteUser).not.toHaveBeenCalled();
-    expect(failed.err.join("\n")).toContain("pin_login_cannot_own");
+    expect(failed.err.join("\n")).toContain("pin_single_membership");
     expect(failed.err.join("\n")).not.toContain("removed");
   });
 
