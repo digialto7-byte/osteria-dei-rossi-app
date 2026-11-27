@@ -143,6 +143,25 @@ describe("TenantSwitcher", () => {
     expect((await screen.findByRole("alert")).textContent).toBe(message);
   });
 
+  it("a failed switch keeps focus on the venue button that was pressed, and the list stays", async () => {
+    switchTenant.mockResolvedValue({ ok: false, code: "tenant_switch_too_soon" });
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Uno/ }));
+    const item = screen.getByRole("button", { name: /Locale Due/ });
+    item.focus();
+    fireEvent.click(item);
+    await screen.findByRole("alert");
+    expect(screen.getByRole("button", { name: /Locale Due/ })).toBe(item);
+    expect(document.activeElement).toBe(item);
+  });
+
+  it("warns about waiting operations in the open list before the tap, when mine > 0", async () => {
+    view = { ...EMPTY_VIEW, ready: true, pending: 1, mine: 1, visible: true };
+    mount();
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Uno/ }));
+    expect(screen.getByText(/1 operazione in attesa resta su questo telefono/)).toBeTruthy();
+  });
+
   it("the band tone uses the band ink and its focus ring", async () => {
     mount("band");
     const button = await screen.findByRole("button", { name: /Locale Uno/ });

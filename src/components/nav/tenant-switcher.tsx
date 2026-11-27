@@ -78,7 +78,7 @@ export function TenantSwitcher({ tone }: { tone: "band" | "page" }) {
       >
         <span className="truncate">{current ? current.name : t("tenantSwitch.open")}</span>
       </button>
-      {open && !busy && (
+      {open && (
         <ul
           id={listId}
           className="mt-1 flex w-full min-w-48 flex-col gap-1 rounded-lg border-[1.5px] border-ink bg-surface p-1 text-ink lg:absolute lg:top-full lg:z-40"
@@ -87,14 +87,18 @@ export function TenantSwitcher({ tone }: { tone: "band" | "page" }) {
             <li key={venue.id}>
               <button
                 type="button"
+                aria-disabled={busy ? true : undefined}
                 onClick={() => choose(venue.id)}
-                className="flex min-h-tap w-full flex-col items-start justify-center rounded-md px-3 py-2 text-left hover:bg-sunk"
+                className="aria-disabled:opacity-60 flex min-h-tap w-full flex-col items-start justify-center rounded-md px-3 py-2 text-left hover:bg-sunk"
               >
                 <span className="font-bold [overflow-wrap:anywhere]">{venue.name}</span>
                 <span className="text-sm text-ink-muted">{t(`role.${venue.role}`)}</span>
               </button>
             </li>
           ))}
+          {mine > 0 && !busy && (
+            <li className="px-3 py-2 text-sm text-ink-muted">{tn("tenantSwitch.pending", mine)}</li>
+          )}
         </ul>
       )}
       {busy && (

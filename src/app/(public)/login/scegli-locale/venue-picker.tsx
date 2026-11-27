@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LogoutButton } from "@/components/logout-button";
-import { Button, ErrorAlert, Muted } from "@/components/ui";
+import { Button, ErrorAlert, linkClass, Muted } from "@/components/ui";
 import { useTenants } from "@/components/use-tenants";
 import { t } from "@/lib/i18n";
 import { switchTenant } from "@/lib/tenancy/switch";
@@ -30,6 +30,16 @@ export function VenuePicker({ next }: { next: string | undefined }) {
   }
 
   if (state.status === "loading") return <Muted>{t("common.loading")}</Muted>;
+  if (state.status === "signedOut") {
+    return (
+      <p>
+        {t("home.signedOut")}{" "}
+        <a href="/login" className={linkClass}>
+          {t("login.title")}
+        </a>
+      </p>
+    );
+  }
   if (state.status === "offline" || state.status === "error") {
     return (
       <div className="flex flex-col gap-3">

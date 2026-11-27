@@ -109,11 +109,19 @@ describe("VenuePicker", () => {
     expect(apiJson).toHaveBeenCalledTimes(2);
   });
 
-  it("offline: says a connection is needed and makes no read", async () => {
+  it("offline: says a connection is needed", async () => {
     Object.defineProperty(navigator, "onLine", { value: false, configurable: true });
     reply = { ok: false, status: 0, error: { code: "network_error", message: "x" } };
     mount();
     expect((await screen.findByRole("alert")).textContent).toContain("Serve la connessione");
+  });
+
+  it("a signed-out visitor (401) gets a link to the sign-in, not a retry", async () => {
+    reply = { ok: false, status: 401, error: { code: "unauthenticated", message: "x" } };
+    mount();
+    const link = await screen.findByRole("link", { name: "Accedi" });
+    expect(link.getAttribute("href")).toBe("/login");
+    expect(screen.queryByRole("button", { name: "Riprova" })).toBeNull();
   });
 
   it("has Esci below the list", async () => {

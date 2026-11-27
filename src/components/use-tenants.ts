@@ -15,6 +15,7 @@ export interface TenantChoice {
 export type TenantsState =
   | { status: "loading"; tenants: null }
   | { status: "ok"; tenants: TenantChoice[] }
+  | { status: "signedOut"; tenants: null }
   | { status: "offline"; tenants: null }
   | { status: "error"; tenants: null };
 
@@ -45,6 +46,7 @@ function read(): Promise<TenantsState> {
         if (Array.isArray(list) && list.every(isChoice)) return { status: "ok", tenants: list };
         return { status: "error", tenants: null };
       }
+      if (result.status === 401) return { status: "signedOut", tenants: null };
       if (result.status === 0 && typeof navigator !== "undefined" && navigator.onLine === false)
         return { status: "offline", tenants: null };
       return { status: "error", tenants: null };
