@@ -4,7 +4,8 @@
 --    row is refused when the auth user has any app_user row whose role is not admin, active or not.
 --  * public.app_user, before insert or update of auth_id, role: when the auth user has a platform.staff row, the app_user row is refused unless that staff row is an
 --    active platform_admin and the new role is admin. This is the one new trigger in public (pgTAP 365 counts it: 128 to 129).
--- The functions are definers with an empty search_path and closed to every API role.
+-- The functions are definers with an empty search_path and closed to every API role. A row with a null auth_id passes through untouched, so pgTAP 390's
+-- cross-tenant inserts still meet the row level security check (42501) first.
 -- Race (lead's review): each guard reads the other table with a plain `exists`, and under READ COMMITTED an uncommitted row of the other session is invisible, so a staff
 -- row and a member row for one auth user could both commit. Both guards therefore lock a row of OUR OWN table, platform.auth_lock (one row per auth user, made on first
 -- need), before they check: the second writer waits for the first to commit and then sees its row. An update that changes auth_id locks the old and the new auth user in one
@@ -23,6 +24,10 @@ create function platform.staff_member_guard() returns trigger
   set search_path = ''
 as $$
 begin
+  -- A row without an auth user is refused later by the row level security check or the NOT NULL constraint, with their own codes: nothing to lock or guard here.
+  if new.auth_id is null then
+    return new;
+  end if;
   if tg_op = 'UPDATE' then
     insert into platform.auth_lock (auth_id) select x from unnest(array[old.auth_id, new.auth_id]) x order by x on conflict do nothing;
     perform 1 from platform.auth_lock l where l.auth_id in (new.auth_id, old.auth_id) order by l.auth_id for update;
@@ -49,6 +54,10 @@ create function app.app_user_platform_staff_guard() returns trigger
   set search_path = ''
 as $$
 begin
+  -- A row without an auth user is refused later by the row level security check or the NOT NULL constraint, with their own codes: nothing to lock or guard here.
+  if new.auth_id is null then
+    return new;
+  end if;
   if tg_op = 'UPDATE' then
     insert into platform.auth_lock (auth_id) select x from unnest(array[old.auth_id, new.auth_id]) x order by x on conflict do nothing;
     perform 1 from platform.auth_lock l where l.auth_id in (new.auth_id, old.auth_id) order by l.auth_id for update;
