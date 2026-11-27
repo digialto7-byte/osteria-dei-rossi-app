@@ -240,6 +240,7 @@ written in any file or chat.
 | Q-R4 | **Yes:** the lead reads `withApi`'s platform branch line by line in PR 4 |
 | Q-R5 | The lead closes #138 and #150 as superseded |
 | F-1, F-3 | Taken to the founder by the lead. FS-1 is planned from a PC on 2026-11-28 (required reviewer, `main` only) |
+| T2 gate (PR 2, PR 3) | **Decided 2026-11-27:** the hosted T2 check cannot run from a cloud session (#220). PR 2 and PR 3 merge on the local T2.L evidence (pgTAP 441–443 as `platform_staff`) plus CI. T2 is verified on the live project after PR 4 is merged: the founder signs in to the console on `console.digialto.com`, and the lead checks that the console reads work under the `platform_staff` role and that tenant sessions are unchanged. Tenant sign-in stays byte-for-byte unchanged for every non-console session, and a test pins it |
 
 **For the founder (via the lead):**
 - **F-1.** FS-1: create the `platform-ops` environment **before anyone dispatches the workflow** (#138 §9a).
