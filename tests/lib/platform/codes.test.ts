@@ -17,7 +17,8 @@ function disallowedImports(text: string): string[] {
 }
 
 describe("platform codes", () => {
-  it("PLATFORM_AUDIT_ACTIONS is exactly the ten codes of the plan", () => {
+  // re-pinned on purpose by SP3 (PR 1 add-owner, lead 2026-11-27; was ten codes): script.add_owner.
+  it("PLATFORM_AUDIT_ACTIONS is exactly the eleven codes of the plan", () => {
     expect([...PLATFORM_AUDIT_ACTIONS]).toEqual([
       "platform_admin.bootstrapped",
       "platform_admin.factor_enrolled",
@@ -29,6 +30,7 @@ describe("platform codes", () => {
       "script.create_tenant",
       "script.mfa_reset",
       "script.set_mfa_enforcement",
+      "script.add_owner",
     ]);
   });
 
