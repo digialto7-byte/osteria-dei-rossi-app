@@ -36,11 +36,19 @@ create trigger app_user_pin_single_membership after insert or update of auth_id,
 -- Without the old unique, the direct insert policy would let an owner of B add the owner of A to B, and A's owner would lose their default tenant.
 -- A second tenant's membership is created only by service-role paths (create_tenant_with_owner, scripts/create-tenant.ts --existing-owner-id).
 -- Executable by authenticated because the insert policy calls it as the caller; it answers only "has this login a row in another tenant".
+-- A definer, so the caller comes first: only an owner or admin, and only about the tenant of its own token (the policy's own condition), else
+-- 42501. Anyone else could otherwise ask it about any login and tenant (a cross-tenant oracle).
 create function app.auth_member_elsewhere(p_auth uuid, p_tenant uuid) returns boolean
-  language sql stable security definer
+  language plpgsql stable security definer
   set search_path = ''
 as $$
-  select exists (select 1 from public.app_user u where u.auth_id = p_auth and u.tenant_id <> p_tenant)
+begin
+  if p_tenant is distinct from (select app.tenant_id())
+     or coalesce((select app.role()) not in ('owner', 'admin'), true) then
+    raise exception 'permission denied' using errcode = '42501';
+  end if;
+  return exists (select 1 from public.app_user u where u.auth_id = p_auth and u.tenant_id <> p_tenant);
+end
 $$;
 revoke all on function app.auth_member_elsewhere(uuid, uuid) from public, anon, service_role;
 grant execute on function app.auth_member_elsewhere(uuid, uuid) to authenticated;

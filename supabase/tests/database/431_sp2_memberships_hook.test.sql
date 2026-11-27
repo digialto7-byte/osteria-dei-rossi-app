@@ -4,7 +4,7 @@
 -- active membership, else no tenant claim. AT2 (hook half) and AT5 (database half). Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(41);
+select plan(45);
 
 insert into auth.users (id, email) values
   ('a0000000-0000-4000-8000-00000000000a', 'owner-a@example.test'),
@@ -127,6 +127,24 @@ select throws_ok($$ insert into public.app_user (tenant_id, auth_id, role, displ
 select lives_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name)
     values ('22222222-2222-4222-8222-222222222222', 'd0000000-0000-4000-8000-00000000000d', 'waiter', 'Nuovo cameriere') $$,
   'but may insert a row for a login with no membership');
+reset role;
+-- Review of PR 2 (lead): the guard is a definer, so it checks its caller first. Only an owner or admin may ask, and only about the tenant of the token:
+-- otherwise it would be a cross-tenant oracle ("has login X a row in some other tenant?").
+set local role authenticated;
+select set_config('request.jwt.claims', json_build_object(
+  'sub', 'b0000000-0000-4000-8000-00000000000b', 'role', 'authenticated',
+  'tenant_id', '22222222-2222-4222-8222-222222222222', 'app_role', 'owner')::text, true);
+select is(app.auth_member_elsewhere('c0000000-0000-4000-8000-00000000000c', '22222222-2222-4222-8222-222222222222'), true,
+  'the owner of B asking about B: the chef of A is a member elsewhere');
+select is(app.auth_member_elsewhere('b0000000-0000-4000-8000-00000000000b', '22222222-2222-4222-8222-222222222222'), false,
+  'and the owner of B is not');
+select throws_ok($$ select app.auth_member_elsewhere('c0000000-0000-4000-8000-00000000000c', '11111111-1111-4111-8111-111111111111') $$,
+  '42501', null, 'the owner of B asking about another tenant (A) is refused');
+select set_config('request.jwt.claims', json_build_object(
+  'sub', '90000000-0000-4000-8000-000000000001', 'role', 'authenticated',
+  'tenant_id', '11111111-1111-4111-8111-111111111111', 'app_role', 'waiter', 'login', 'pin')::text, true);
+select throws_ok($$ select app.auth_member_elsewhere('a0000000-0000-4000-8000-00000000000a', '11111111-1111-4111-8111-111111111111') $$,
+  '42501', null, 'a waiter (neither owner nor admin) is refused, even about its own tenant');
 reset role;
 select ok(has_function_privilege('authenticated', 'app.auth_member_elsewhere(uuid, uuid)', 'execute'),
   'the guard is executable by authenticated (the insert policy calls it as the caller)');
