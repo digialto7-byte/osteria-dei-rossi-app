@@ -28,16 +28,42 @@ const ENV_FOR: Record<keyof CreateTenantInput, string> = {
  * reason, never by the value.
  */
 export function readCreateTenantEnv(env: Record<string, string | undefined>): CreateTenantInput {
-  const missing = (Object.keys(ENV_FOR) as (keyof CreateTenantInput)[])
+  return readVariables(
+    env,
+    Object.keys(ENV_FOR) as (keyof CreateTenantInput)[],
+  ) as CreateTenantInput;
+}
+
+/** What an existing owner's new tenant needs: no e-mail (the login exists already). */
+export type ExistingOwnerInput = Omit<CreateTenantInput, "ownerEmail">;
+
+/**
+ * SP2 S9: the variables for `--existing-owner-id`. TENANT_NAME, TENANT_VAT_NUMBER and OWNER_NAME as usual; OWNER_EMAIL must NOT be set (one owner source only,
+ * so a run never makes a second login by mistake).
+ */
+export function readExistingOwnerEnv(env: Record<string, string | undefined>): ExistingOwnerInput {
+  if ((env[ENV_FOR.ownerEmail] ?? "").trim() !== "")
+    throw new Error(
+      `${ENV_FOR.ownerEmail} and --existing-owner-id are mutually exclusive: unset ${ENV_FOR.ownerEmail}.`,
+    );
+  return readVariables(env, ["name", "vatNumber", "ownerName"]) as ExistingOwnerInput;
+}
+
+function readVariables(
+  env: Record<string, string | undefined>,
+  keys: (keyof CreateTenantInput)[],
+): Partial<CreateTenantInput> {
+  const missing = keys
     .filter((key) => (env[ENV_FOR[key]] ?? "").trim() === "")
     .map((key) => ENV_FOR[key]);
   if (missing.length > 0) throw new Error(`Missing environment variables: ${missing.join(", ")}.`);
-  const parsed = inputSchema.safeParse({
-    name: env[ENV_FOR.name],
-    vatNumber: env[ENV_FOR.vatNumber],
-    ownerEmail: env[ENV_FOR.ownerEmail],
-    ownerName: env[ENV_FOR.ownerName],
-  });
+  const parsed = inputSchema
+    .pick(
+      Object.fromEntries(keys.map((key) => [key, true])) as Partial<
+        Record<keyof CreateTenantInput, true>
+      >,
+    )
+    .safeParse(Object.fromEntries(keys.map((key) => [key, env[ENV_FOR[key]]])));
   if (!parsed.success) {
     const problems = parsed.error.issues.map(
       (issue) => `${ENV_FOR[issue.path[0] as keyof CreateTenantInput]}: ${issue.message}`,
@@ -47,15 +73,32 @@ export function readCreateTenantEnv(env: Record<string, string | undefined>): Cr
   return parsed.data;
 }
 
-const ARGUMENT_HINT = `This script takes no arguments except --ids-out <path>: set ${Object.values(ENV_FOR).join(", ")} in the environment.`;
+const ARGUMENT_HINT = `This script takes no arguments except --ids-out <path> and --existing-owner-id <uuid>, each at most once: set ${Object.values(ENV_FOR).join(", ")} in the environment.`;
 
-/** The only argument is `--ids-out <path>`. Anything else is refused without being echoed (it could be a name or an address). */
-export function parseCreateTenantArgs(argv: string[]): { idsOut: string | undefined } {
-  if (argv.length === 0) return { idsOut: undefined };
-  const [flag, path, ...rest] = argv;
-  if (flag !== "--ids-out" || path === undefined || path === "" || rest.length > 0)
-    throw new Error(ARGUMENT_HINT);
-  return { idsOut: path };
+/**
+ * The only arguments are `--ids-out <path>` and (SP2 S9) `--existing-owner-id <uuid>`, each at most once, in any order. Anything else, a repeated flag or a
+ * value that is not a uuid is refused without being echoed (it could be a name or an address).
+ */
+export function parseCreateTenantArgs(argv: string[]): {
+  idsOut: string | undefined;
+  existingOwnerId?: string;
+} {
+  const found: { idsOut?: string; existingOwnerId?: string } = {};
+  for (let i = 0; i < argv.length; i += 2) {
+    const [flag, value] = [argv[i], argv[i + 1]];
+    if (value === undefined || value === "") throw new Error(ARGUMENT_HINT);
+    if (flag === "--ids-out" && found.idsOut === undefined) found.idsOut = value;
+    else if (
+      flag === "--existing-owner-id" &&
+      found.existingOwnerId === undefined &&
+      z.uuid().safeParse(value).success
+    )
+      found.existingOwnerId = value;
+    else throw new Error(ARGUMENT_HINT);
+  }
+  return found.existingOwnerId === undefined
+    ? { idsOut: found.idsOut }
+    : { idsOut: found.idsOut, existingOwnerId: found.existingOwnerId };
 }
 
 /** The two full ids a caller on a throwaway stack reads back from `--ids-out`. */
@@ -234,6 +277,31 @@ export async function createTenant(
   return { tenantId: z.uuid().parse(data), ownerAuthId: userId };
 }
 
+/**
+ * SP2 S9: a new tenant whose owner is an existing login (a second membership, SP2 S3). No auth user is created, so none is deleted when the RPC fails:
+ * the login was there before and stays.
+ */
+export async function createTenantForExistingOwner(
+  admin: AdminClient,
+  input: ExistingOwnerInput,
+  ownerAuthId: string,
+): Promise<CreatedIds> {
+  const { data, error } = await admin.rpc("create_tenant_with_owner", {
+    tenant_name: input.name,
+    tenant_vat_number: input.vatNumber,
+    owner_auth_id: ownerAuthId,
+    owner_display_name: input.ownerName,
+  });
+  if (error)
+    throw new Error(`Could not create the tenant (no auth user was touched): ${errorCode(error)}`);
+  return { tenantId: z.uuid().parse(data), ownerAuthId };
+}
+
+/** Who owns the new tenant: a login made now from OWNER_EMAIL, or an existing one (`--existing-owner-id`). */
+type OwnerSource =
+  | { kind: "new"; input: CreateTenantInput }
+  | { kind: "existing"; input: ExistingOwnerInput; authId: string };
+
 /** The whole run of scripts/create-tenant.ts, with its inputs and outputs injected. Returns the exit code. */
 export async function runCreateTenant(
   argv: string[],
@@ -242,11 +310,17 @@ export async function runCreateTenant(
 ): Promise<number> {
   let idsFile: ReturnType<typeof openIdsFile> | undefined;
   try {
-    const { idsOut } = parseCreateTenantArgs(argv);
-    const input = readCreateTenantEnv(env);
+    const { idsOut, existingOwnerId } = parseCreateTenantArgs(argv);
+    const owner: OwnerSource =
+      existingOwnerId === undefined
+        ? { kind: "new", input: readCreateTenantEnv(env) }
+        : { kind: "existing", input: readExistingOwnerEnv(env), authId: existingOwnerId };
     if (idsOut !== undefined) idsFile = openIdsFile(idsOut);
     const display = createIdDisplay(env, io.out);
-    const ids = await createTenant(io.admin(), input, display);
+    const ids =
+      owner.kind === "new"
+        ? await createTenant(io.admin(), owner.input, display)
+        : await createTenantForExistingOwner(io.admin(), owner.input, owner.authId);
     if (idsFile) {
       try {
         idsFile.write(ids, io.err);

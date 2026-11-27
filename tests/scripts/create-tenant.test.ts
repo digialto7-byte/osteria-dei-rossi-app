@@ -435,3 +435,114 @@ describe("runCreateTenant", () => {
     expect(err.join("\n")).toContain("NEXT_PUBLIC_SUPABASE_URL");
   });
 });
+
+// SP2 S9 (docs/plans/2026-11-26-sp02-memberships.md §5 S9, Q-S7): `--existing-owner-id <uuid>` gives a second venue to an existing login. No auth user is
+// created or deleted; OWNER_EMAIL must not be set with it (one owner source only); the output still names the tenant id only.
+describe("--existing-owner-id (SP2 S9)", () => {
+  const EXISTING = "b0000000-0000-4000-8000-00000000000b";
+  const { OWNER_EMAIL: _email, ...ENV_EXISTING } = ENV;
+  function run(argv: string[], env: Record<string, string | undefined>, admin = fakeAdmin()) {
+    const out: string[] = [];
+    const err: string[] = [];
+    const done = runCreateTenant(argv, env, {
+      admin: () => admin,
+      out: (l) => out.push(l),
+      err: (l) => err.push(l),
+    });
+    return { admin, out, err, done };
+  }
+
+  it("with --existing-owner-id no auth user is created, and none is deleted when the RPC fails", async () => {
+    const ok = run(["--existing-owner-id", EXISTING], ENV_EXISTING);
+    expect(await ok.done).toBe(0);
+    expect(ok.admin.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(ok.admin.rpc).toHaveBeenCalledWith("create_tenant_with_owner", {
+      tenant_name: "Osteria Demo",
+      tenant_vat_number: "IT00000000000",
+      owner_auth_id: EXISTING,
+      owner_display_name: "Titolare Demo",
+    });
+
+    const failed = run(
+      ["--existing-owner-id", EXISTING],
+      ENV_EXISTING,
+      fakeAdmin({ rpcError: { message: "pin_login_cannot_own", code: "P0001" } }),
+    );
+    expect(await failed.done).toBe(1);
+    expect(failed.admin.auth.admin.createUser).not.toHaveBeenCalled();
+    expect(failed.admin.auth.admin.deleteUser).not.toHaveBeenCalled();
+    expect(failed.err.join("\n")).toContain("pin_login_cannot_own");
+    expect(failed.err.join("\n")).not.toContain("removed");
+  });
+
+  it("the output names the tenant id only", async () => {
+    const r = run(["--existing-owner-id", EXISTING], ENV_EXISTING);
+    expect(await r.done).toBe(0);
+    expect(r.out).toEqual([TENANT]);
+    expect([...r.out, ...r.err].join("\n")).not.toContain(EXISTING);
+  });
+
+  it("writes both ids to --ids-out, in either order of the flags", async () => {
+    for (const order of [0, 1]) {
+      const path = join(mkdtempSync(join(tmpdir(), "ids-")), "ids.json");
+      const argv =
+        order === 0
+          ? ["--existing-owner-id", EXISTING, "--ids-out", path]
+          : ["--ids-out", path, "--existing-owner-id", EXISTING];
+      const r = run(argv, ENV_EXISTING);
+      expect(await r.done).toBe(0);
+      expect(JSON.parse(readFileSync(path, "utf8"))).toEqual({
+        tenantId: TENANT,
+        ownerAuthId: EXISTING,
+      });
+    }
+  });
+
+  it("is mutually exclusive with OWNER_EMAIL: refused before any call, naming both", async () => {
+    const r = run(["--existing-owner-id", EXISTING], ENV);
+    expect(await r.done).toBe(1);
+    expect(r.admin.rpc).not.toHaveBeenCalled();
+    expect(r.admin.auth.admin.createUser).not.toHaveBeenCalled();
+    const message = r.err.join("\n");
+    expect(message).toMatch(/OWNER_EMAIL/);
+    expect(message).toMatch(/--existing-owner-id/);
+    expect(message).not.toContain("owner@example.test");
+  });
+
+  it("still needs TENANT_NAME, TENANT_VAT_NUMBER and OWNER_NAME", async () => {
+    const { OWNER_NAME: _name, ...rest } = ENV_EXISTING;
+    const r = run(["--existing-owner-id", EXISTING], rest);
+    expect(await r.done).toBe(1);
+    expect(r.err.join("\n")).toMatch(/OWNER_NAME/);
+    expect(r.err.join("\n")).not.toMatch(/OWNER_EMAIL/);
+  });
+
+  it.each([
+    [["--existing-owner-id"]],
+    [["--existing-owner-id", ""]],
+    [["--existing-owner-id", "owner@example.test"]],
+    [["--existing-owner-id", "not-a-uuid"]],
+    [["--existing-owner-id", EXISTING, "--existing-owner-id", EXISTING]],
+    [["--existing-owner-id", EXISTING, "extra"]],
+  ])("refuses %j without echoing it", (argv) => {
+    let message = "";
+    try {
+      parseCreateTenantArgs(argv);
+    } catch (error) {
+      message = error instanceof Error ? error.message : "";
+    }
+    expect(message).toMatch(/--existing-owner-id/);
+    for (const part of argv.filter((p) => p.length > 1 && !p.startsWith("--")))
+      expect(message).not.toContain(part);
+  });
+
+  it("parses the uuid, alone or with --ids-out", () => {
+    expect(parseCreateTenantArgs(["--existing-owner-id", EXISTING])).toEqual({
+      idsOut: undefined,
+      existingOwnerId: EXISTING,
+    });
+    expect(
+      parseCreateTenantArgs(["--ids-out", "/tmp/ids.json", "--existing-owner-id", EXISTING]),
+    ).toEqual({ idsOut: "/tmp/ids.json", existingOwnerId: EXISTING });
+  });
+});
