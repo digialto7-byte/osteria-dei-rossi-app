@@ -1,6 +1,6 @@
 # Tech plan: Costì / Osteria Digitalization · SP3, the platform layer (the DigiAlto console's backend)
 
-- **Status:** draft for the lead · **Author:** SP3 planner · **Date:** 2026-11-27
+- **Status:** approved by the lead 2026-11-27 (§8a) · **Author:** SP3 planner · **Date:** 2026-11-27
 - **Supersedes:** `docs/plans/2026-11-15-sp3-console.md` on draft PR #138 (`docs/sp3-console-plan`, head `210258a1`, never merged). The
   **design is #138's, unchanged** (its §3, the API of its §3.4 "FINAL", its lead decisions Q-P1–Q-P16 of §7a, its variants V1–V15). This
   file re-bases it on today's `main` (`c78de05e`, SP2 PR 1 #216 merged) and on SP2 PR 2 #217 / PR 3 #218 as approved: what is already on
@@ -196,7 +196,8 @@ with a console row, and `my_memberships` only for `admin` holders. PR 4 is inert
   environment the repository lacks makes GitHub create it **without protection** when the job runs (#138 §9a FS-1). So **nobody dispatches
   `platform-ops` until the founder has done FS-1**: required reviewer = the founder's GitHub account; branches = `main`; secrets
   `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`, then `PLATFORM_ADMIN_EMAIL` before the first `bootstrap`. FS-1's text
-  is #138 §9a, unchanged; the lead relays it when PR 1 is near merge. Q-R3 asks for a guard that makes this fail closed.
+  is #138 §9a, unchanged. **Nobody dispatches `platform-ops` before the lead confirms FS-1 is done** (lead, 2026-11-27). No new workflow
+  logic for this (Q-R3 decided); the runbook carries the warning (PR 1, with the `PLATFORM_ADMIN_EMAIL` row).
 - **Bootstrap order (runbook, PR 4):** FS-1 → PR 1 merged → dispatch `bootstrap` (founder approves) → after PR 4 and `CONSOLE_HOST`: the
   first console sign-in → `/login/attiva-codice` → enrol → console.
 
@@ -228,6 +229,18 @@ written in any file or chat.
 - **Q-R4.** Should the lead read `withApi`'s platform branch (PR 4) line by line, as for `src/proxy.ts`? Recommendation: yes.
 - **Q-R5.** Close #138 and #150 as superseded when this PR and PR 1 open (not by me).
 
+### 8a. Decided by the lead (2026-11-27)
+
+| ID | Decision |
+|---|---|
+| Plan | **Approved**, with the PR split and the order after #217/#218 |
+| Q-R1 | **Yes:** PR 1's first commit copies `docs/plans/2026-11-15-sp3-console.md` from `docs/sp3-console-plan` (`210258a1`) to `main` unchanged, with one line under its title: "Design reference. Numbering, pins, gates and PR split superseded by `2026-11-27-sp03-platform-layer.md`." |
+| Q-R2 | PR 1 starts after #217 merges (the brief) |
+| Q-R3 | **FS-1 plus a runbook warning**; no new workflow logic now. Nobody dispatches `platform-ops` before the lead confirms FS-1 |
+| Q-R4 | **Yes:** the lead reads `withApi`'s platform branch line by line in PR 4 |
+| Q-R5 | The lead closes #138 and #150 as superseded |
+| F-1, F-3 | Taken to the founder by the lead. FS-1 is planned from a PC on 2026-11-28 (required reviewer, `main` only) |
+
 **For the founder (via the lead):**
 - **F-1.** FS-1: create the `platform-ops` environment **before anyone dispatches the workflow** (#138 §9a).
 - **F-2.** Which auth user becomes the platform admin account: a fresh login, not the owner's login at tenant #1.
@@ -245,3 +258,37 @@ written in any file or chat.
 Repository only: `main` `c78de05e`; branches `feat/sp02-memberships-2` (`676ab591`), `feat/sp02-memberships-3` (`e5c7e051`),
 `feat/sp3-console` (`4c9e79d3`), `docs/sp3-console-plan` (`210258a1`); PRs #138, #140, #142, #150, #155, #217, #218. The console host's
 Vercel status is the lead's report of 2026-11-27, not checked here.
+
+---
+
+## 11. Builder hand-off (read first)
+
+You start from this file, after #217 is merged (Monday 2026-11-30 at the earliest). Do not start PR 3 before #217 is on `main`, or PR 4
+before #218.
+
+1. **Base check.** `git fetch`; branch `feat/sp03-platform-1` from `main`. Confirm: the newest migration is `20261207100300_session_tenant_purge.sql`;
+   the newest pgTAP is 434; no `20261208*` file and no `43[5-9]_`/`44[0-7]_` pgTAP exists; `LAST_MIGRATION` in `m25-preserves` names
+   `100300`. If any of these differs, stop and tell the lead.
+2. **First commit (Q-R1):** copy the design file (§8a), docs only.
+3. **Cherry-pick from #150** (`origin/feat/sp3-console`, head `4c9e79d3`). Take **only** the commits whose message says "SP3 step"; skip
+   the merges (`4c9e79d3`, `23475ce2`, `ca51ad3a` and the others) and every SP2 file (`20261207100000_organisation.sql`, `369_sp2_*`,
+   `src/lib/tenancy/**`, `use-tenant-switch-listener.ts`, `sp2-preserves`, `sp00-memberships-shape`); those are on `main` or in #217.
+   List them with `git log --reverse --no-merges --format='%h %s' $(git merge-base origin/main origin/feat/sp3-console)..origin/feat/sp3-console | grep 'SP3 step'`
+   (fetch with `--deepen` first: the clone is shallow). On a conflict, re-apply by hand on today's file.
+4. **Renumber:** `374_sp3_organisation_vat_guard` → 435, `375_sp3_platform_catalogue` → 436, `376_sp3_staff_member_guards` → 437,
+   `377_sp3_bootstrap` → 438, `378_sp3_script_audit` → 439, `379_sp3_platform_mfa` → 440. Update every reference (`sp00-scratch-isolated`
+   pattern `4[34][0-9]_sp3_*`, comments, `sp3-preserves`). The migration names stay as #150 has them.
+5. **Pins:** never copy #150's values. Run the suites, read each failure, and re-pin only rows of §4 with the comment form
+   "re-pinned on purpose by SP3 (step N; was …)". Anything else red: stop and report.
+6. **#150's diff also touches** `platform-ops.yml` (the `bootstrap` job), `.env.example`, `docs/runbook.md`, `docs/go-live/rate-limits.md`,
+   `scripts/lib/create-tenant.ts`, `scripts/lib/mfa-admin.ts`, `src/server/auth/mfa.ts`, `src/app/api/me/mfa/**`, `src/lib/platform/api.ts`
+   (4 lines) and `src/components/me-problem.tsx`. `main` changed most of these since (#140, #142, SP1, SP2); compare each hunk with `main`
+   before keeping it. `src/lib/platform/api.ts` and the console screens are the contract (#138 §3.4): a change to them needs the lead.
+7. **Workflow file:** every change to `.github/workflows/platform-ops.yml` is read line by line by the lead. Never dispatch the workflow
+   (§6).
+8. **The account MFA routes** must answer the shapes the screens on `main` already expect (`src/lib/console/account-mfa.ts`,
+   `tests/components/console/console-fixtures.ts`). Read those first.
+9. **Never** write an e-mail address other than `@example.test` fakes, and never print one in a script or a test log.
+10. **Per PR:** draft PR from `feat/sp03-platform-<n>`; body: what changed, the SP0 verdicts relied on, the pins moved (old → new), open
+    questions; one `code-reviewer` round; fill §9 here in the same PR.
+
