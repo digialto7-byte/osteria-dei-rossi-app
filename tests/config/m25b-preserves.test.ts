@@ -217,6 +217,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261206220600_uscita_tables_order_view.sql",
   // Comanda per uscita step 18 (20261206220700_uscita_close.sql), re-pinned on purpose by comanda-uscite (step 18; was the list ending at 20261206220600_uscita_tables_order_view.sql): the close guard (M8)
   "20261206220700_uscita_close.sql",
+  // SP2 step S1 (20261207100000_organisation.sql), re-pinned on purpose by SP2 (step S1; was the list ending at 20261206220700_uscita_close.sql): platform.organisation and H1.
+  "20261207100000_organisation.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

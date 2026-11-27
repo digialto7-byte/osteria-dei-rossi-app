@@ -6,7 +6,7 @@ import type { MeState } from "@/components/use-me";
 import { t } from "@/lib/i18n";
 
 /**
- * What a screen shows when /api/me gave no user: the sign-in link for a 401, the "no venue" notice for a 403,
+ * What a screen shows when /api/me gave no user: the sign-in link for a 401, the "no venue" notice for a 403, the link to the venue chooser for a 409 (SP2),
  * and for an error (network, 5xx) a notice with "Riprova", so the screen never claims "signed out" or shows a bare heading.
  */
 /**
@@ -47,6 +47,16 @@ export function MeProblem({
     );
   }
   if (status === "noAccess") return <ErrorAlert message={t("home.noAccess")} />;
+  if (status === "selectTenant") {
+    return (
+      <p>
+        {t("me.selectTenant")}{" "}
+        <a href="/login/scegli-locale" className={linkClass}>
+          {t("me.selectTenantLink")}
+        </a>
+      </p>
+    );
+  }
   return (
     <>
       <ErrorAlert message={t("me.error")} />

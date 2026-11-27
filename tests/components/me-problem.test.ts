@@ -17,6 +17,16 @@ const page = (retry: () => void) =>
   );
 
 describe("MeProblem", () => {
+  it("selectTenant (SP2 Q-S4): says a venue must be chosen and links to the chooser, with no retry and no error", () => {
+    render(createElement(MeProblem, { status: "selectTenant", retry: vi.fn() }));
+    expect(screen.getByText(/Hai più di un locale/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Scegli il locale" }).getAttribute("href")).toBe(
+      "/login/scegli-locale",
+    );
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(screen.queryByText(/Non riusciamo a verificare/)).toBeNull();
+  });
+
   it("on Riprova asks again and moves focus to the page heading, so focus does not fall to the body", () => {
     const retry = vi.fn();
     page(retry);
