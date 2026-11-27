@@ -95,6 +95,8 @@ rotation: redeploy (or re-run the workflow) and check that the app, the daily ba
 | GitHub account | the owner's password manager, MFA on | humans | As above; also review who may approve the `production` environment |
 | Domain registrar account | the owner's password manager, MFA on | humans | As above; also review the DNS records |
 
+**Never dispatch `platform-ops` before its GitHub environment exists with protection** (SP3 plan §6, FS-1). A job that names an environment the repository lacks makes GitHub create it without protection when the job runs. The founder first creates `platform-ops` (Settings, Environments: required reviewer the founder's own GitHub account, deployment branches `main` only) and adds its secrets; nobody dispatches any `platform-ops` job until the lead confirms that is done. `PLATFORM_ADMIN_EMAIL` is added before the first `bootstrap` run.
+
 **Changing `.github/workflows/platform-ops.yml`** (the workflow that holds the secret key and the four tenant secrets above) needs the lead's line-by-line read in the pull request. Its guard test, `tests/config/platform-ops-workflow.test.ts`, is a safety net, not the review: it can only refuse what its author thought of. Never re-run a `platform-ops` job with debug logging, and never set `ACTIONS_STEP_DEBUG` or `ACTIONS_RUNNER_DEBUG` (as a secret or a variable) in this repository: debug output is outside what the file and its guard control.
 
 ### GitHub environment `production-backup`

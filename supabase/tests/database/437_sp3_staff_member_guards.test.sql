@@ -2,7 +2,7 @@
 -- platform_support account holds none. Both directions are guarded, for every role, the migration owner included. Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(36);
+select plan(38);
 
 insert into public.tenant (id, name, vat_number) values
   ('11111111-1111-4111-8111-111111111111', 'Osteria Demo A', 'IT00000000000'),
@@ -69,6 +69,13 @@ insert into platform.staff (auth_id, role, is_active) values ('a2000000-0000-400
 select throws_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name) values ('11111111-1111-4111-8111-111111111111', 'a2000000-0000-4000-8000-000000000010', 'admin', 'DigiAlto inattivo') $$,
   'P0001', 'platform_staff_member_role', 'an admin app_user row for an auth user whose platform_admin staff row is inactive is refused');
 
+-- 5c. A PIN login cannot become platform staff either (SP2's PIN logins are chef or waiter rows, single-membership by app_user_pin_single_membership) --------------------
+insert into public.app_user (tenant_id, auth_id, role, display_name, login_method) values ('22222222-2222-4222-8222-222222222222', 'a2000000-0000-4000-8000-000000000011', 'waiter', 'Cameriere PIN', 'pin');
+select throws_ok($$ insert into platform.staff (auth_id, role, is_active) values ('a2000000-0000-4000-8000-000000000011', 'platform_admin', false) $$, 'P0001', 'platform_admin_member_role',
+  'a platform_admin staff row for a PIN login is refused');
+select throws_ok($$ insert into platform.staff (auth_id, role) values ('a2000000-0000-4000-8000-000000000011', 'platform_support') $$, 'P0001', 'platform_support_has_member_row',
+  'and so is a platform_support row');
+
 -- 6. Neither guard touches a person who is not staff ----------------------------------------------------------------------------------------------------------------------
 select lives_ok($$ insert into public.app_user (tenant_id, auth_id, role, display_name) values ('11111111-1111-4111-8111-111111111111', 'a2000000-0000-4000-8000-000000000009', 'owner', 'Titolare Due') $$,
   'an ordinary auth user gets any membership as before');
@@ -82,8 +89,8 @@ select ok(not has_function_privilege('anon', 'app.app_user_platform_staff_guard(
   and not has_function_privilege('anon', 'platform.staff_member_guard()', 'execute') and not has_function_privilege('authenticated', 'platform.staff_member_guard()', 'execute')
   and not has_function_privilege('service_role', 'platform.staff_member_guard()', 'execute'), 'both guard functions are executable by no API role');
 select ok((select bool_and(p.prosecdef and 'search_path=""' = any (p.proconfig)) from pg_proc p where p.proname in ('app_user_platform_staff_guard', 'staff_member_guard')), 'both are definers with an empty search_path');
-select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 129,
-  'the public/app trigger count is 129 (365 moves 128 to 129 for this guard, on purpose)');
+select is((select count(*)::int from pg_trigger t join pg_class c on c.oid = t.tgrelid where not t.tgisinternal and c.relnamespace in ('public'::regnamespace, 'app'::regnamespace)), 137,
+  'the public/app trigger count is 137 (365 moves 136 to 137 for this guard, on purpose)');
 
 -- 8. The guards serialise on a platform-owned lock row, not on anything of Supabase's (lead 2026-11-15) ------------------------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.proname in ('staff_member_guard', 'app_user_platform_staff_guard') and pg_get_functiondef(p.oid) ~* 'auth\.users'), 0,
