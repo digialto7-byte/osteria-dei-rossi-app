@@ -35,6 +35,16 @@ const venue = await import("@/app/api/settings/venue/route");
 const mfaAccount = await import("@/app/api/auth/mfa/account/route");
 const mfaAccountFactors = await import("@/app/api/auth/mfa/account/factors/route");
 const mfaAccountVerify = await import("@/app/api/auth/mfa/account/factors/[id]/verify/route");
+const platformMe = await import("@/app/api/platform/me/route");
+const platformTenants = await import("@/app/api/platform/tenants/route");
+const platformTenant = await import("@/app/api/platform/tenants/[id]/route");
+const platformOpen = await import("@/app/api/platform/tenants/[id]/open/route");
+const platformAudit = await import("@/app/api/platform/audit/route");
+const platformNotices = await import("@/app/api/platform/notices/route");
+const platformNotified = await import("@/app/api/platform/notices/[id]/notified/route");
+const platformConsole = await import("@/app/api/platform/console/route");
+const platformLogout = await import("@/app/api/platform/logout/route");
+const platformPassword = await import("@/app/api/platform/auth/password/route");
 
 const COST_KEY = /cost|margin|food|gp|vat|recipe/i;
 // One path outside the plan's pattern predates P2-0b: the cover charge's VAT rate on /api/tables (M17), a sale fact and not a cost.
@@ -700,5 +710,97 @@ describe("the platform staff account routes (SP3 step 9): no cost-like key at an
     expect(flagged("/api/auth/mfa/account", { factors: [{ id: F1, unitCost: 3.2 }] })).toEqual([
       "factors.unitCost",
     ]);
+  });
+});
+
+// SP3 step 17 (plan §4, cost-guard row): every /api/platform/* route. Re-pinned on purpose by SP3 (step 17; was the three account routes only). The replies are
+// the documented examples of src/lib/platform/api.ts, passed through each route; none may name a cost, margin, food cost, GP, VAT or recipe at any depth.
+describe("the console routes (SP3 step 17): no cost-like key at any depth", async () => {
+  const { PLATFORM_API_SCHEMAS: ex } = await import("@/lib/platform/api");
+  const CONSOLE = {
+    sub: "a7000000-0000-4000-8000-000000000001",
+    role: "platform_staff",
+    aal: "aal2",
+    session_id: "c7000000-0000-4000-8000-000000000001",
+  };
+  const TENANT = "a0000000-0000-4000-8000-00000000000a";
+  const NOTICE = "f0000000-0000-4000-8000-00000000000f";
+  const B = "http://127.0.0.1:3000/api/platform";
+  const cases: [string, () => Promise<Response>, Record<string, FakeResult[]>][] = [
+    [
+      "/api/platform/me",
+      () => platformMe.GET(new Request(`${B}/me`)),
+      { platform_me: [ok(ex.meResponse.example)] },
+    ],
+    [
+      "/api/platform/tenants",
+      () => platformTenants.GET(new Request(`${B}/tenants`)),
+      { platform_tenants: [ok(ex.tenantsResponse.example.tenants)] },
+    ],
+    [
+      "/api/platform/tenants/[id]",
+      () => platformTenant.GET(new Request(`${B}/tenants/${TENANT}`), routeContext({ id: TENANT })),
+      { platform_tenant: [ok(ex.tenantDetailResponse.example)] },
+    ],
+    [
+      "/api/platform/tenants/[id]/open",
+      () =>
+        platformOpen.POST(
+          jsonRequest(`${B}/tenants/${TENANT}/open`, {}),
+          routeContext({ id: TENANT }),
+        ),
+      { platform_open_tenant: [ok({ tenantId: TENANT, attached: true })] },
+    ],
+    [
+      "/api/platform/audit",
+      () => platformAudit.GET(new Request(`${B}/audit?dal=2026-10-16&al=2026-11-15`)),
+      { platform_audit: [ok(ex.auditResponse.example)] },
+    ],
+    [
+      "/api/platform/notices",
+      () => platformNotices.GET(new Request(`${B}/notices`)),
+      { platform_notices: [ok(ex.noticesResponse.example.notices)] },
+    ],
+    [
+      "/api/platform/notices/[id]/notified",
+      () =>
+        platformNotified.POST(
+          jsonRequest(`${B}/notices/${NOTICE}/notified`, { tenantId: TENANT }),
+          routeContext({ id: NOTICE }),
+        ),
+      { platform_notice_mark: [ok(ex.noticeNotifiedResponse.example)] },
+    ],
+    ["/api/platform/console", () => platformConsole.POST(jsonRequest(`${B}/console`, {})), {}],
+    [
+      "/api/platform/logout",
+      () => platformLogout.POST(jsonRequest(`${B}/logout`, {})),
+      { platform_leave_console: [ok({ changed: true })] },
+    ],
+  ];
+
+  it.each(cases)("%s", async (path, call, rpc) => {
+    vi.stubEnv("APP_ORIGIN", "https://app.example.test");
+    client = fakeSupabase({ claims: CONSOLE, rpc });
+    const response = await call();
+    vi.unstubAllEnvs();
+    expect(response.status).toBe(200);
+    const json = await response.json();
+    expect(keysOf(json).length).toBeGreaterThan(0);
+    expect(flagged(path, json)).toEqual([]);
+  });
+
+  it("/api/platform/auth/password", async () => {
+    client = fakeSupabase({
+      claims: null,
+      rpc: { platform_mfa_attempt_allowed: [ok({ allowed: true, retryAfterSeconds: 0 })] },
+    });
+    const response = await platformPassword.POST(
+      jsonRequest(`${B}/auth/password`, {
+        email: "platform-admin@example.test",
+        password: "test-password",
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(flagged("/api/platform/auth/password", await response.json())).toEqual([]);
   });
 });

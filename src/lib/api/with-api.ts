@@ -22,21 +22,31 @@ export interface TenantSession {
 
 /**
  * A signed-in login on an `{ authenticated: true }` route. `tenantId` is the token's tenant claim, null when the session has not chosen one (SP2);
- * `pinLogin` is true for a staff PIN session (ADR-010), which is bound to one tenant and never switches.
+ * `pinLogin` is true for a staff PIN session (ADR-010), which is bound to one tenant and never switches. `consoleMode` is true for a console-mode
+ * token (role platform_staff, SP3), which only a route with `consoleSession: "allow"` ever sees.
  */
 export interface LoginSession {
   authId: string;
   tenantId: string | null;
   pinLogin: boolean;
+  consoleMode: boolean;
 }
 
-/** Who may call a route: anyone, any signed-in user, or members of a tenant with these roles. */
-type Access = { public: true } | { authenticated: true } | { roles: readonly AppRole[] };
+/** A console-mode session on a `{ platform: true }` route (SP3): the token's role is platform_staff and it is aal2. Postgres checks the rest. */
+export interface PlatformSession {
+  authId: string;
+}
+
+/** Who may call a route: anyone, any signed-in user, members of a tenant with these roles, or a console-mode session (SP3). */
+type Access =
+  { public: true } | { authenticated: true } | { roles: readonly AppRole[] } | { platform: true };
 type SessionFor<A extends Access> = A extends { roles: readonly AppRole[] }
   ? TenantSession
   : A extends { authenticated: true }
     ? LoginSession
-    : null;
+    : A extends { platform: true }
+      ? PlatformSession
+      : null;
 
 type Options<
   A extends Access,
@@ -58,6 +68,11 @@ type Options<
    * is entered (status, enrol, verify, challenge) say `mfa: "exempt"`; the database still gates every query they make. Staff and PIN sessions are never asked.
    */
   mfa?: "exempt";
+  /**
+   * SP3 (plan §3.4.1): a console-mode token (role platform_staff) is refused with 403 console_session on every venue and login route, before any RPC.
+   * Only an `authenticated` route that must work from console mode says `"allow"`: logout and the switch into console mode.
+   */
+  consoleSession?: A extends { authenticated: true } ? "allow" : never;
 };
 
 export interface ApiContext<
@@ -89,6 +104,8 @@ const NO_STORE = "no-store";
 
 const claimsSchema = z.object({
   sub: z.string().min(1),
+  // The Postgres role PostgREST switches to: authenticated, or platform_staff for a console-mode session (SP3, set by the hook).
+  role: z.string().optional(),
   tenant_id: z.uuid().optional(),
   app_role: z.string().optional(),
   // Set by the access token hook for staff PIN sessions (ADR-010).
@@ -214,7 +231,40 @@ async function refuseWithoutTenant(supabase: SupabaseClient): Promise<never> {
   throw new ApiError(403, "no_tenant", "Questo account non è abilitato per nessun locale.");
 }
 
-async function resolveSession(access: Access, supabase: SupabaseClient, mfaExempt: boolean) {
+const CONSOLE_ROLE = "platform_staff";
+
+/**
+ * SP3 (plan §3.4.1): the console's own checks, made from the token alone so they come before any RPC. A console route needs a console-mode token
+ * (else 409 console_selection_required: the client switches and reloads) at aal2 (else 403 mfa_required). Postgres decides everything else
+ * (app.require_console is the first statement of every console function).
+ */
+function platformSessionOf(claims: { sub: string; role?: string; aal?: string }): PlatformSession {
+  if (claims.role !== CONSOLE_ROLE) {
+    throw new ApiError(409, "console_selection_required", "Entra nella console per continuare.");
+  }
+  if (claims.aal !== "aal2") {
+    throw new ApiError(403, "mfa_required", t("authError.mfa_required"));
+  }
+  return { authId: claims.sub };
+}
+
+/** SP3: a console-mode token anywhere outside the console is 403 console_session, unless the route allows it (logout, the switch). */
+function refuseConsoleToken(claims: { role?: string }, consoleAllowed: boolean): void {
+  if (claims.role === CONSOLE_ROLE && !consoleAllowed) {
+    throw new ApiError(
+      403,
+      "console_session",
+      "Questa sessione è della console: esci dalla console per usare il locale.",
+    );
+  }
+}
+
+async function resolveSession(
+  access: Access,
+  supabase: SupabaseClient,
+  mfaExempt: boolean,
+  consoleAllowed: boolean,
+) {
   if ("public" in access) return null;
 
   const { data, error } = await supabase.auth.getClaims();
@@ -224,11 +274,14 @@ async function resolveSession(access: Access, supabase: SupabaseClient, mfaExemp
   }
   await enforceSessionAge(claims.data, supabase);
   await enforceStaffSession(claims.data, supabase);
+  if ("platform" in access) return platformSessionOf(claims.data);
+  refuseConsoleToken(claims.data, consoleAllowed);
   if ("authenticated" in access) {
     return {
       authId: claims.data.sub,
       tenantId: claims.data.tenant_id ?? null,
       pinLogin: claims.data.login === "pin",
+      consoleMode: claims.data.role === CONSOLE_ROLE,
     } satisfies LoginSession;
   }
 
@@ -276,7 +329,12 @@ export function withApi<
         throw new ApiError(413, "payload_too_large", "Il file è troppo grande.");
       }
       const supabase = await createSupabaseServerClient();
-      const session = await resolveSession(options, supabase, options.mfa === "exempt");
+      const session = await resolveSession(
+        options,
+        supabase,
+        options.mfa === "exempt",
+        options.consoleSession === "allow",
+      );
       const authDoneAt = performance.now();
       const params = options.params ? await readParams(routeContext, options.params) : undefined;
       const body = options.body ? await readBody(request, options.body) : undefined;

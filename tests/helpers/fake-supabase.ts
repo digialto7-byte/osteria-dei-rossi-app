@@ -3,6 +3,8 @@ import { ME_SETTINGS } from "./me-data";
 
 export interface FakeClaims {
   sub?: string;
+  /** The Postgres role claim: authenticated, or platform_staff in console mode (SP3). */
+  role?: string;
   tenant_id?: string;
   app_role?: string;
   /** Set by the access token hook for PIN sessions (ADR-010). */

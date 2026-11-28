@@ -17,7 +17,15 @@ function routeFiles(dir: string): string[] {
 }
 const toUrl = (file: string) => `/api/${file.slice(API.length + 1).replace(/\/?route\.ts$/, "")}`;
 
-const EXTRA = ["me/password", "invoices", "invoices/[id]/retry", "invoices/[id]/original", "sync"];
+// SP3 step 17: the console's password sign-in joins the list (re-pinned on purpose by SP3; was without it).
+const EXTRA = [
+  "me/password",
+  "invoices",
+  "invoices/[id]/retry",
+  "invoices/[id]/original",
+  "sync",
+  "platform/auth/password",
+];
 const routes = [
   ...["auth", "devices", "cron", "public", "me/mfa"].flatMap((d) => routeFiles(join(API, d))),
   ...EXTRA.map((r) => join(API, r, "route.ts")),
