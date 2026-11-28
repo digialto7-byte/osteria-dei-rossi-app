@@ -28,11 +28,11 @@ insert into public.app_user (tenant_id, auth_id, role, display_name) values
 insert into public.app_user (tenant_id, auth_id, role, display_name, is_active, deactivated_at) values
   ('11111111-1111-4111-8111-111111111111', 'a8000000-0000-4000-8000-000000000005', 'chef', 'Cuoco uscito', false, now()),
   ('22222222-2222-4222-8222-222222222222', 'a8000000-0000-4000-8000-000000000001', 'admin', 'DigiAlto', false, now());
--- Venue activity: A's newest row is 2026-11-21 in Rome (23:30 UTC the day before); B's is 2026-11-20 in New York (03:00 UTC the next day). C has none.
+-- Venue activity: A's newest row is 2020-11-21 in Rome (23:30 UTC the day before); B's is 2020-11-20 in New York (03:00 UTC the next day). C has none.
 insert into public.audit_event (tenant_id, entity_type, entity_id, action, created_at, created_by)
   select v.t::uuid, 'invoice', gen_random_uuid(), 'invoice.approved', v.at::timestamptz, (select m.id from public.app_user m where m.tenant_id = v.t::uuid and m.role = 'owner')
-    from (values ('11111111-1111-4111-8111-111111111111', '2026-11-20 23:30:00+00'), ('11111111-1111-4111-8111-111111111111', '2026-11-01 10:00:00+00'),
-                 ('22222222-2222-4222-8222-222222222222', '2026-11-21 03:00:00+00')) v(t, at);
+    from (values ('11111111-1111-4111-8111-111111111111', '2020-11-20 23:30:00+00'), ('11111111-1111-4111-8111-111111111111', '2020-11-01 10:00:00+00'),
+                 ('22222222-2222-4222-8222-222222222222', '2020-11-21 03:00:00+00')) v(t, at);
 insert into public.reservation_settings (tenant_id, public_slug) values ('11111111-1111-4111-8111-111111111111', 'osteria-demo-a');
 -- Platform audit: 12 rows for A, 50 platform-wide rows, one for a tenant id that no longer exists.
 insert into platform.audit_event (origin, action, tenant_id, detail)
@@ -116,8 +116,8 @@ select is((select e -> 'members' from tenant_row where e ->> 'id' = '11111111-11
 select is((select e ->> 'digialtoAttached' from tenant_row where e ->> 'id' = '11111111-1111-4111-8111-111111111111'), 'true', 'digialtoAttached for A (an active admin row)');
 select is((select e ->> 'digialtoAttached' from tenant_row where e ->> 'id' = '22222222-2222-4222-8222-222222222222'), 'false', 'not for B (its admin row is inactive)');
 select is((select e -> 'members' from tenant_row where e ->> 'id' = '22222222-2222-4222-8222-222222222222'), '{"owner": 1, "admin": 0, "chef": 0, "waiter": 0}'::jsonb, 'B counts its owner only');
-select is((select e ->> 'lastActivityDate' from tenant_row where e ->> 'id' = '11111111-1111-4111-8111-111111111111'), '2026-11-21', 'lastActivityDate of A is its newest row''s day in Rome');
-select is((select e ->> 'lastActivityDate' from tenant_row where e ->> 'id' = '22222222-2222-4222-8222-222222222222'), '2026-11-20', 'and of B its day in New York (the tenant''s zone)');
+select is((select e ->> 'lastActivityDate' from tenant_row where e ->> 'id' = '11111111-1111-4111-8111-111111111111'), '2020-11-21', 'lastActivityDate of A is its newest row''s day in Rome');
+select is((select e ->> 'lastActivityDate' from tenant_row where e ->> 'id' = '22222222-2222-4222-8222-222222222222'), '2020-11-20', 'and of B its day in New York (the tenant''s zone)');
 select is((select e -> 'lastActivityDate' from tenant_row where e ->> 'id' = '33333333-3333-4333-8333-333333333333'), 'null'::jsonb, 'null for C, with no activity');
 select is((select string_agg((e -> 'organisation' ->> 'tenantCount'), ',' order by e ->> 'name') from tenant_row), '2,2,1', 'tenantCount is 2 for two tenants with one VAT number, 1 for C');
 select is((select count(distinct e -> 'organisation' ->> 'id')::int from tenant_row where e ->> 'name' in ('Osteria Demo A', 'Osteria Demo B')), 1, 'and A and B share their organisation');
@@ -195,8 +195,9 @@ reset role;
 
 -- 6. Grants and definitions ----------------------------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(n.nspname || '.' || p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-            where n.nspname in ('public', 'app', 'platform') and has_function_privilege('platform_staff', p.oid, 'execute')),
-  'public.platform_audit,public.platform_open_tenant,public.platform_tenant,public.platform_tenants', 'platform_staff now executes exactly these four');
+            where n.nspname in ('public', 'app', 'platform') and has_function_privilege('platform_staff', p.oid, 'execute')
+              and p.proname in ('platform_tenants', 'platform_tenant', 'platform_audit', 'platform_open_tenant')),
+  'public.platform_audit,public.platform_open_tenant,public.platform_tenant,public.platform_tenants', 'platform_staff executes these four (443 pins its whole list)');
 select is((select count(*)::int from pg_proc p where p.oid in ('public.platform_tenants()'::regprocedure, 'public.platform_tenant(uuid)'::regprocedure,
             'public.platform_audit(date, date, uuid, text, bigint)'::regprocedure, 'public.platform_open_tenant(uuid)'::regprocedure)
             and p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole and p.prosrc ~ '^\s*(declare[\s\S]*?)?begin\s+perform app\.require_console\(\);'), 4,
