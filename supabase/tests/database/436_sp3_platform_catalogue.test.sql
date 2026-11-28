@@ -86,7 +86,9 @@ select is((select count(*)::int from pg_class c, unnest(array['anon', 'authentic
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r where has_schema_privilege(r, 'platform', 'usage')), 0, 'no API role (platform_staff included) has usage on the platform schema');
 select is((select count(*)::int from pg_proc p, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
             where p.pronamespace = 'platform'::regnamespace and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role (platform_staff included) can execute any function in the platform schema');
-select is((select count(*)::int from pg_policy where polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass, 'platform.notice'::regclass /* re-pinned on purpose by SP3 (step 12; was the two) */)), 0, 'none of staff, audit_event and notice has a policy yet (the hook policy joins at step 14)');
+select is((select string_agg(c.relname || ':' || p.polname, ',' order by c.relname) from pg_policy p join pg_class c on c.oid = p.polrelid
+             where p.polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass, 'platform.notice'::regclass /* re-pinned on purpose by SP3 (step 12; was the two) */)),
+  'staff:staff_read_by_auth_hook' /* re-pinned on purpose by SP3 (step 14; was 0 policies): the hook's read */, 'of staff, audit_event and notice only staff has a policy: the hook''s read (step 14)');
 
 -- 6b. Every function of step 2 is pinned: existence, definer where intended, an empty search_path, closed to the API roles ------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace

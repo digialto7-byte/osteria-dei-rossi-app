@@ -9,7 +9,7 @@ select plan(28);
 -- 1. Unchanged on purpose: md5 on main.
 create temp table pins (fn regprocedure primary key, md5 text not null);
 insert into pins values
-  ('app.custom_access_token_hook(jsonb)', '2926d3231eb6bcf843957755f1273899'), -- re-pinned on purpose by SP2 (step S3; was f748cfaaaa9fd22fb48a872745f1bbc5): the e-mail branch reads the session's selection (ADR-038); one pin over both branches, the PIN branch is M11's text (tests/config/sp2-hook-pin-branch.test.ts) and 003 and 085 pass unchanged
+  ('app.custom_access_token_hook(jsonb)', 'b9be22fcd38c10e2934b99bc455490ad'), -- re-pinned on purpose by SP3 (step 14; was 2926d3231eb6bcf843957755f1273899): the console block between the PIN branch and the e-mail branches, both unchanged (tests/config/sp3-hook-branches.test.ts); re-pinned on purpose by SP2 (step S3; was f748cfaaaa9fd22fb48a872745f1bbc5): the e-mail branch reads the session's selection (ADR-038); one pin over both branches, the PIN branch is M11's text (tests/config/sp2-hook-pin-branch.test.ts) and 003 and 085 pass unchanged
   ('app.staff_session_open(uuid, uuid, timestamptz)', '57542249aea3b728369c41daf47ea8ff'),
   ('app.pin_sign_in_allowed(uuid, timestamptz)', 'efc44d434d6ec09c0dec5fb4b46ca79d'),
   ('public.pin_login_begin(text, uuid)', 'ac47a9d282b10b025334d9070a133f07'),

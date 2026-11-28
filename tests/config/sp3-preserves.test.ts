@@ -231,6 +231,13 @@ const STEPS: Step[] = [
     triggers: [],
     deletesFrom: ["app.session_tenant", "platform.console_session", "platform.console_session"],
   },
+  {
+    // Step 14: the hook's console mode (the hook is re-created; the strip, PIN and e-mail branches are pinned by tests/config/sp3-hook-branches.test.ts).
+    file: "20261208101000_hook_console_mode.sql",
+    tables: [],
+    functions: ["app.custom_access_token_hook"],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
