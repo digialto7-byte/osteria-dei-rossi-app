@@ -10,10 +10,9 @@ export function enterVenueMessage(failure: ConsoleFailure): string {
   return failureMessage(failure, "console.enter.error");
 }
 
-/** The URL the server answered, only when it is http(s): anything else (javascript:, data:) is never opened. */
+/** The URL the server answered, only when it is an http(s) URL of the venue app's chooser: anything else (javascript:, data:, another page) is never opened. */
 export function safeVenueUrl(value: string): string | null {
   const url = URL.parse(value);
-  return url !== null && (url.protocol === "https:" || url.protocol === "http:")
-    ? url.toString()
-    : null;
+  if (url === null || (url.protocol !== "https:" && url.protocol !== "http:")) return null;
+  return url.pathname === "/login/scegli-locale" ? url.toString() : null;
 }

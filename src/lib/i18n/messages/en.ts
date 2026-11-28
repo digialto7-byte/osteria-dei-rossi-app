@@ -45,6 +45,7 @@ export const en: Record<MessageKey, string> = {
   "tenantSwitch.current": "Current venue: {name}",
   "tenantSwitch.currentTag": "Current venue",
   "tenantSwitch.fromConsoleTag": "Opened from the console", // (da approvare)
+  "tenantSwitch.codeLink": "Enter the code", // (da approvare)
   "tenantSwitch.busy": "Switching venue…",
   "tenantSwitch.offline": "You need a connection to switch venue.",
   "tenantSwitch.failed": "Could not switch venue. Try again.",

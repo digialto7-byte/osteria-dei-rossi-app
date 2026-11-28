@@ -110,13 +110,18 @@ describe("EnterVenue", () => {
     expect(openSpy).not.toHaveBeenCalled();
   });
 
-  it("a returned URL that is not http(s) is never opened", async () => {
-    reply = { ok: true, status: 200, data: { url: "javascript:alert(1)" } };
-    mount(true);
-    fireEvent.click(enterButton());
-    fireEvent.click(screen.getByRole("button", { name: "Entra" }));
-    expect((await screen.findByRole("alert")).textContent).toBe("Non riesco ad aprire il locale.");
-    expect(openSpy).not.toHaveBeenCalled();
-    expect(screen.queryByRole("link")).toBeNull();
-  });
+  it.each(["javascript:alert(1)", "https://app.example.test/impostazioni"])(
+    "a returned URL that is not the app's chooser (%s) is never opened",
+    async (url) => {
+      reply = { ok: true, status: 200, data: { url } };
+      mount(true);
+      fireEvent.click(enterButton());
+      fireEvent.click(screen.getByRole("button", { name: "Entra" }));
+      expect((await screen.findByRole("alert")).textContent).toBe(
+        "Non riesco ad aprire il locale.",
+      );
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole("link")).toBeNull();
+    },
+  );
 });

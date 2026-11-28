@@ -578,8 +578,8 @@ addresses. Plan: `docs/plans/2026-11-27-sp03-platform-layer.md` (design `docs/pl
   environment (see "Where every secret lives"); (2) the founder adds the console's domain in Vercel and sets `CONSOLE_HOST` and `APP_ORIGIN` for
   Production only, then redeploys main; (3) the lead dispatches the `bootstrap` job and the founder approves it: it creates the platform admin row of the
   account named by `PLATFORM_ADMIN_EMAIL` (or the `auth_id` input), and writes only ids and codes to the run page; (4) the founder signs in on the
-  console host with the password, lands on "Attiva il codice", scans the code with the authenticator app, enters it, then adds the backup device
-  ("riserva"). Only then does the console open. (test: tests/integration/console.int.ts)
+  console host with the password, lands on "Attiva il codice", scans the code with the authenticator app and enters it. The page then offers a
+  backup device ("riserva"): add it (strongly advised: it is the way back from a lost phone); "Più tardi" skips it and opens the console. (test: tests/integration/console.int.ts)
 - **What "console mode" is.** After the password and the code, the console switches the session into console mode: its token carries the Postgres role
   `platform_staff` and no venue. Such a session reads nothing of any venue, and every venue route answers 403. "Esci" leaves console mode and signs out.
   The console session and a venue session of the same account are separate sign-ins. (test: tests/lib/api/with-api-platform.test.ts)

@@ -346,6 +346,16 @@ written in any file or chat.
   - «Torna alla console» uses `APP_ORIGIN`'s scheme (http on the local stack);
   - the Playwright spec skips the second sign-in ("next sign-in → code page"), the Registro and the Avvisi screens (each is covered by
     `tests/components/console/**` and the route tests).
+- **Review:** one `code-reviewer` round. It found the `withApi` boundary sound and FAILed on two step 19 gaps, both fixed:
+  - the chooser's ways to the sign-in and the code (401, 403 `mfa_required`) now keep `?locale=` (a `next` back to the chooser);
+  - «Torna alla console» is in the laptop sidebar too.
+  Notes taken:
+  - the integration fixture is cleaned up even after a failed expectation;
+  - a single-venue owner case was added (the PIN case stays with `staff-pin.int.ts` and pgTAP 085);
+  - a guard pins the two `consoleSession: "allow"` routes;
+  - `safeVenueUrl` accepts the chooser path only;
+  - the runbook says the backup device is advised, not a gate.
+  Not done: a console-mode token cannot use `/api/auth/mfa/account/**` (§3.4.1, unreachable today).
 - **Verification:** vitest (app, lib, server, components, config, guards, lint), tsc, lint and format were run locally. The integration and e2e
   suites need the local stack, so CI is their first run.
 

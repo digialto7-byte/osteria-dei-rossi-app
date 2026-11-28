@@ -184,3 +184,26 @@ describe("the chooser page reads ?locale= only as a lowercase uuid", async () =>
     expect(highlightOf(value as string | string[] | undefined)).toBe(expected);
   });
 });
+
+// Review of PR 4: the tab «Entra nel locale» opens is usually signed out on the app host, and the platform admin's list needs the code first. Both ways out of
+// the chooser come back to it with ?locale= kept, so the venue is still highlighted after the sign-in and the code.
+describe("VenuePicker: the way to the sign-in and the code keeps the highlight", () => {
+  const SELF = `/login/scegli-locale?locale=${B}`;
+  const mountSelf = () =>
+    render(createElement(VenuePicker, { next: undefined, highlight: B, self: SELF }));
+
+  it("signed out: «Accedi» goes to /login with next = this page", async () => {
+    reply = { ok: false, status: 401, error: { code: "unauthenticated", message: "x" } };
+    mountSelf();
+    const link = await screen.findByRole("link", { name: "Accedi" });
+    expect(link.getAttribute("href")).toBe(`/login?next=${encodeURIComponent(SELF)}`);
+  });
+
+  it("the list needs the code (403 mfa_required): a link to the code page with next = this page, not an error", async () => {
+    reply = { ok: false, status: 403, error: { code: "mfa_required", message: "x" } };
+    mountSelf();
+    const link = await screen.findByRole("link", { name: "Inserisci il codice" });
+    expect(link.getAttribute("href")).toBe(`/login/codice?next=${encodeURIComponent(SELF)}`);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

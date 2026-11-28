@@ -531,21 +531,22 @@ describe("AppShellView, «Torna alla console»", () => {
       ),
     );
 
-  it("the admin gets the link in the band", () => {
-    const { getByRole } = withConsole(ok("admin"), CONSOLE_URL);
-    expect(getByRole("link", { name: "Torna alla console" }).getAttribute("href")).toBe(
-      CONSOLE_URL,
-    );
+  it("the admin gets the link in the band (phone) and in the sidebar (laptop)", () => {
+    const { getAllByRole } = withConsole(ok("admin"), CONSOLE_URL);
+    const links = getAllByRole("link", { name: "Torna alla console" });
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([CONSOLE_URL, CONSOLE_URL]);
+    expect(links[0]!.closest('[data-slot="account-control"]')?.className).toContain("lg:hidden");
+    expect(links[1]!.closest('[data-slot="sidebar-nav"]')?.className).toContain("lg:flex");
   });
 
   it.each(["owner", "chef", "waiter"] as const)("the %s never does", (role) => {
-    const { queryByRole } = withConsole(ok(role), CONSOLE_URL);
-    expect(queryByRole("link", { name: "Torna alla console" })).toBeNull();
+    const { queryAllByRole } = withConsole(ok(role), CONSOLE_URL);
+    expect(queryAllByRole("link", { name: "Torna alla console" })).toEqual([]);
   });
 
   it("without a console URL (CONSOLE_HOST unset) the admin does not either", () => {
-    const { queryByRole } = withConsole(ok("admin"), null);
-    expect(queryByRole("link", { name: "Torna alla console" })).toBeNull();
+    const { queryAllByRole } = withConsole(ok("admin"), null);
+    expect(queryAllByRole("link", { name: "Torna alla console" })).toEqual([]);
   });
 });
 

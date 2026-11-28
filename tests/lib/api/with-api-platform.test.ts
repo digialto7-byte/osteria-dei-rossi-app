@@ -154,3 +154,19 @@ describe("a console-mode token outside the console", () => {
     expect(client.auth.getClaims).not.toHaveBeenCalled();
   });
 });
+
+// Review of PR 4: the console-session exception stays on exactly two routes (logout and the switch). Any other route that says "allow" fails here.
+describe("consoleSession allow is used by exactly two routes", async () => {
+  const { readdirSync, readFileSync } = await import("node:fs");
+  const { join, relative } = await import("node:path");
+  it("/api/platform/console and /api/platform/logout, nothing else under src/app/api", () => {
+    const root = join(process.cwd(), "src/app/api");
+    const users = readdirSync(root, { recursive: true, withFileTypes: true })
+      .filter((e) => e.isFile() && e.name === "route.ts")
+      .map((e) => join(e.parentPath, e.name))
+      .filter((file) => /consoleSession/.test(readFileSync(file, "utf8")))
+      .map((file) => relative(root, file))
+      .sort();
+    expect(users).toEqual(["platform/console/route.ts", "platform/logout/route.ts"]);
+  });
+});

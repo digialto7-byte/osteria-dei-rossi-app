@@ -16,10 +16,14 @@ import { switchMessageKey } from "@/lib/tenancy/switch-message";
 export function VenuePicker({
   next,
   highlight,
+  self,
 }: {
   next: string | undefined;
   highlight?: string | undefined;
+  /** SP3 step 19: this page with its parameters, so the way to the sign-in and the code comes back here with the highlight kept. */
+  self?: string | undefined;
 }) {
+  const back = self === undefined ? "" : `?next=${encodeURIComponent(self)}`;
   const state = useTenants();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,8 +45,18 @@ export function VenuePicker({
     return (
       <p>
         {t("home.signedOut")}{" "}
-        <a href="/login" className={linkClass}>
+        <a href={`/login${back}`} className={linkClass}>
           {t("login.title")}
+        </a>
+      </p>
+    );
+  }
+  if (state.status === "mfaRequired") {
+    return (
+      <p>
+        {t("authError.mfa_required")}{" "}
+        <a href={`/login/codice${back}`} className={linkClass}>
+          {t("tenantSwitch.codeLink")}
         </a>
       </p>
     );

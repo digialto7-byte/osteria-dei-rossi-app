@@ -115,8 +115,9 @@ describe.skipIf(!env)("the console on the real stack (AT1, AT3, AT12)", () => {
     }
     const boot = await admin.rpc("platform_bootstrap_admin", { p_auth: staffUser.authId });
     if (boot.error) throw new Error(`Fixture failed: bootstrap: ${boot.error.code}`);
-    expect(boot.data).toEqual({ authId: staffUser.authId, hasVerifiedFactor: false });
+    // Set before any expectation, so afterAll always deactivates the row (one active platform admin per database).
     staff = { role: "admin", appUserId: "", ...staffUser };
+    expect(boot.data).toEqual({ authId: staffUser.authId, hasVerifiedFactor: false });
     browser = await signInJar(env!, staff);
   }, 120_000);
 
@@ -247,5 +248,22 @@ describe.skipIf(!env)("the console on the real stack (AT1, AT3, AT12)", () => {
     expect(reply.status).toBe(403);
     expect(reply.body.error.code).toBe("forbidden");
     expect(await roleOf(other.client)).toBe("authenticated");
+  });
+
+  it("a single-venue owner keeps today's claims: its venue, role authenticated (the PIN branch is pinned by staff-pin.int.ts and pgTAP 085)", async () => {
+    const single = await authUser(admin, "owner-single");
+    const created = await admin.rpc("create_tenant_with_owner", {
+      tenant_name: "Osteria Console C",
+      tenant_vat_number: fakeVat(),
+      owner_auth_id: single.authId,
+      owner_display_name: "Titolare Demo",
+    });
+    if (created.error || typeof created.data !== "string")
+      throw new Error("Fixture failed: single venue");
+    const jar = await signInJar(env!, { role: "owner", appUserId: "", ...single });
+    const claims = await claimsOf(jar.client);
+    expect(claims.tenant_id).toBe(created.data);
+    expect(claims.app_role).toBe("owner");
+    expect(await roleOf(jar.client)).toBe("authenticated");
   });
 });

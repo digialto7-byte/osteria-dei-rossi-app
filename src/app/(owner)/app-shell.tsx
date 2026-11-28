@@ -94,6 +94,7 @@ export function AppShellView({
             currentHref={section?.href ?? null}
             userName={me.user.displayName}
             roleLabel={t(`role.${me.user.role}`)}
+            consoleUrl={me.user.role === "admin" ? consoleUrl : null}
           />
         ) : (
           state.status === "loading" && (

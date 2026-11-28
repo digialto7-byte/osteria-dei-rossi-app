@@ -44,6 +44,7 @@ export const it = {
   "tenantSwitch.current": "Locale attuale: {name}", // (da approvare)
   "tenantSwitch.currentTag": "Locale attuale", // (da approvare)
   "tenantSwitch.fromConsoleTag": "Aperto dalla console", // (da approvare)
+  "tenantSwitch.codeLink": "Inserisci il codice", // (da approvare)
   "tenantSwitch.busy": "Cambio locale…", // (da approvare)
   "tenantSwitch.offline": "Serve la connessione per cambiare locale.", // (da approvare)
   "tenantSwitch.failed": "Non è stato possibile cambiare locale. Riprova.", // (da approvare)
