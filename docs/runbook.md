@@ -565,6 +565,53 @@ T1.H and T3.H**: a push to `main` migrates hosted staging.
 - **A person sees "Scegli il locale" and cannot continue.** The login has two or more venues and chose none, or the chosen venue was deactivated.
   They pick one. If the list is empty, their account is enabled for no venue (an owner can enable it again).
 
+## Console (SP3)
+
+The platform console is DigiAlto's own portal: Locali, a venue's metadata, the platform Registro and the Avvisi. It never shows money, people's names or
+addresses. Plan: `docs/plans/2026-11-27-sp03-platform-layer.md` (design `docs/plans/2026-11-15-sp3-console.md`).
+
+### Turning the console on
+
+- **Off by default.** With `CONSOLE_HOST` unset (or blank) there is no console anywhere: every console path is 404 on every host.
+  (test: tests/proxy-console-host.test.ts)
+- **Order** (FS-1 to FS-4 of the design plan, §9a; the lead relays each step when it is due): (1) the founder creates the protected `platform-ops`
+  environment (see "Where every secret lives"); (2) the founder adds the console's domain in Vercel and sets `CONSOLE_HOST` and `APP_ORIGIN` for
+  Production only, then redeploys main; (3) the lead dispatches the `bootstrap` job and the founder approves it: it creates the platform admin row of the
+  account named by `PLATFORM_ADMIN_EMAIL` (or the `auth_id` input), and writes only ids and codes to the run page; (4) the founder signs in on the
+  console host with the password, lands on "Attiva il codice", scans the code with the authenticator app and enters it. The page then offers a
+  backup device ("riserva"): add it (strongly advised: it is the way back from a lost phone); "Più tardi" skips it and opens the console. (test: tests/integration/console.int.ts)
+- **What "console mode" is.** After the password and the code, the console switches the session into console mode: its token carries the Postgres role
+  `platform_staff` and no venue. Such a session reads nothing of any venue, and every venue route answers 403. "Esci" leaves console mode and signs out.
+  The console session and a venue session of the same account are separate sign-ins. (test: tests/lib/api/with-api-platform.test.ts)
+- **A venue account on the console** gets "Questo account non ha accesso alla console." and is signed out at once.
+  (test: tests/app/api/platform/console-session.test.ts)
+
+### Entering a venue from the console
+
+- "Entra nel locale" on a venue's page works only where the DigiAlto account already has an active admin row in that venue; elsewhere it is disabled and
+  the page says "DigiAlto non è collegato a questo locale." It asks first, writes `console.tenant_opened` to the platform audit, and opens the venue app's
+  "Scegli il locale" in a new tab with that venue first. There the account signs in, passes its code (the venue list needs it for this account) and
+  taps the venue. Every change made there is in the venue's own Registro under the account's name. "Torna alla console" in the venue app's header
+  (admin only) goes back. (test: tests/components/console/enter-venue.test.ts)
+
+### `platform-ops`: dispatching and approving a job
+
+- **Never before FS-1** (see "Where every secret lives"). Every job runs from `main` only and waits for the founder's approval on the `platform-ops`
+  environment.
+- **Dispatch:** Actions → "Platform ops" → "Run workflow" → branch `main` → choose the operation and fill only its inputs (ids and codes, never a name,
+  an address or a VAT number). The jobs are `bootstrap`, `create-tenant`, `mfa-reset`, `set-mfa-enforcement` and `notice-add`.
+- **Approve:** the run waits on "Review deployments". Read the run summary first (it names the operation and the ids), then approve or reject.
+  (test: tests/config/platform-ops-workflow.test.ts)
+- **Break-glass second-factor reset (`mfa-reset`).** The person is signed out of every venue, and of the console when it is the DigiAlto account, and
+  must activate the code again at the next sign-in. The confirmation is shown twice: the dispatcher must tick `conferma_disconnessione` (its
+  description carries the text), and the summary page the founder reads before approving repeats it. The console has no reset button.
+- **Lost factors of the platform admin.** The account keeps two devices ("principale" and "riserva"). If both are lost: the founder removes that
+  account's factors in the Supabase dashboard, signs in on the console with the password and enrols again on "Attiva il codice". No terminal and no
+  code in a log.
+- **A VAT number on the wrong organisation.** A tenant's VAT number must equal its organisation's, and an organisation's VAT number cannot change while
+  any tenant points at it. To correct a typo, move the tenant (both tenant columns together) to the right organisation; a typo on an organisation that
+  several venues share needs a privileged procedure that does not exist yet: ask the lead. (test: supabase/tests/database/435_sp3_organisation_vat_guard.test.sql)
+
 ## Go-live day
 
 The go-live gate is 12 January. Before it, with the founder:

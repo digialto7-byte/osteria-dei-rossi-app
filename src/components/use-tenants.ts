@@ -16,6 +16,8 @@ export type TenantsState =
   | { status: "loading"; tenants: null }
   | { status: "ok"; tenants: TenantChoice[] }
   | { status: "signedOut"; tenants: null }
+  // SP3 step 19: the login must pass its code before its venues are listed (the platform admin at aal1, my_memberships).
+  | { status: "mfaRequired"; tenants: null }
   | { status: "offline"; tenants: null }
   | { status: "error"; tenants: null };
 
@@ -47,6 +49,8 @@ function read(): Promise<TenantsState> {
         return { status: "error", tenants: null };
       }
       if (result.status === 401) return { status: "signedOut", tenants: null };
+      if (result.status === 403 && result.error.code === "mfa_required")
+        return { status: "mfaRequired", tenants: null };
       if (result.status === 0 && typeof navigator !== "undefined" && navigator.onLine === false)
         return { status: "offline", tenants: null };
       return { status: "error", tenants: null };

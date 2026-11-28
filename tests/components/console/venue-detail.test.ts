@@ -102,12 +102,29 @@ describe("the venue detail: header", () => {
     expect(await screen.findByText("Gruppo Demo · creato il 21 ott 2026")).toBeTruthy();
   });
 
-  it("has no action in the header: no «Entra nel locale», no primary button", async () => {
-    replies[PATH] = [detail()];
-    const { container } = mount();
+  // Re-pinned on purpose by SP3 (step 19; was: no action): the header's one action is «Entra nel locale», secondary, enabled only when DigiAlto is attached.
+  it("has one action in the header: «Entra nel locale», secondary, enabled when DigiAlto is attached", async () => {
+    replies[PATH] = [detail({ digialtoAttached: true })];
+    mount();
     await screen.findByRole("heading", { level: 1 });
-    expect(container.textContent).not.toContain("Entra nel locale");
-    expect(screen.queryAllByRole("button")).toEqual([]);
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Entra nel locale"]);
+    expect(buttons[0]!.closest("header")).not.toBeNull();
+    expect(buttons[0]!.className).toContain("border-ink");
+    expect(buttons[0]!.className).not.toContain("bg-accent");
+    expect(buttons[0]!.hasAttribute("disabled")).toBe(false);
+  });
+
+  it("not attached: the same one button, disabled, described by the Salute sentence", async () => {
+    replies[PATH] = [detail({ digialtoAttached: false })];
+    mount();
+    await screen.findByRole("heading", { level: 1 });
+    const buttons = screen.getAllByRole("button");
+    expect(buttons.map((b) => b.textContent)).toEqual(["Entra nel locale"]);
+    expect(buttons[0]!.hasAttribute("disabled")).toBe(true);
+    const note = document.getElementById(buttons[0]!.getAttribute("aria-describedby") ?? "");
+    expect(note?.textContent).toBe("DigiAlto non è collegato a questo locale.");
+    expect(screen.getAllByText("DigiAlto non è collegato a questo locale.")).toHaveLength(1);
   });
 });
 

@@ -518,3 +518,50 @@ describe("AppShellView, what the chef and the waiter never see", () => {
     }
   });
 });
+
+// SP3 step 19 (plan §3.7, UX C6): «Torna alla console» for the role admin only, and only when the layout passes a console URL (CONSOLE_HOST set).
+describe("AppShellView, «Torna alla console»", () => {
+  const CONSOLE_URL = "https://console.example.test/";
+  const withConsole = (state: MeState, consoleUrl: string | null) =>
+    render(
+      createElement(
+        AppShellView,
+        { state, pathname: "/", consoleUrl },
+        createElement("h1", null, "Pagina"),
+      ),
+    );
+
+  it("the admin gets the link in the band: in the account control (phone) and on its own (laptop)", () => {
+    const { getAllByRole } = withConsole(ok("admin"), CONSOLE_URL);
+    const links = getAllByRole("link", { name: "Torna alla console" });
+    expect(links.map((l) => l.getAttribute("href"))).toEqual([CONSOLE_URL, CONSOLE_URL]);
+    expect(links[0]!.closest('[data-slot="account-control"]')?.className).toContain("lg:hidden");
+    // The laptop's own link is in the band, outside the sidebar's navigation (whose links e2e/app-shell.spec.ts counts).
+    expect(links[1]!.getAttribute("data-slot")).toBe("console-return");
+    expect(links[1]!.className).toContain("hidden");
+    expect(links[1]!.className).toContain("lg:inline-flex");
+    expect(links[1]!.closest('[data-slot="sidebar-nav"]')).toBeNull();
+  });
+
+  it.each(["owner", "chef", "waiter"] as const)("the %s never does", (role) => {
+    const { queryAllByRole } = withConsole(ok(role), CONSOLE_URL);
+    expect(queryAllByRole("link", { name: "Torna alla console" })).toEqual([]);
+  });
+
+  it("without a console URL (CONSOLE_HOST unset) the admin does not either", () => {
+    const { queryAllByRole } = withConsole(ok("admin"), null);
+    expect(queryAllByRole("link", { name: "Torna alla console" })).toEqual([]);
+  });
+});
+
+describe("consoleHomeUrl", async () => {
+  const { consoleHomeUrl } = await import("@/lib/platform/console-url");
+  it.each([
+    [undefined, "https://app.example.test", null],
+    ["console.example.test", "https://app.example.test", "https://console.example.test/"],
+    ["console.example.test", undefined, "https://console.example.test/"],
+    ["127.0.0.1:3000", "http://localhost:3000", "http://127.0.0.1:3000/"],
+  ])("CONSOLE_HOST %s with APP_ORIGIN %s -> %s", (host, origin, expected) => {
+    expect(consoleHomeUrl(host, origin)).toBe(expected);
+  });
+});

@@ -86,6 +86,12 @@ export default defineConfig({
     timeout: 60_000,
     // The sign-in timing floor (ADR-029) is skipped for the local stack only: about 135 e2e sign-ins would
     // otherwise each wait 800 ms. authFloorMs ignores this for any Supabase that is not on this machine.
-    env: { E2E_AUTH_FLOOR_OFF: "1" },
+    // SP3 step 23: the same server is the console on 127.0.0.1:3000 and the venue app on localhost:3000 (e2e/console.spec.ts, AT6). Every other spec uses
+    // localhost:3000, and 127.0.0.1 only for the Supabase stack (other ports), so nothing else changes host.
+    env: {
+      E2E_AUTH_FLOOR_OFF: "1",
+      CONSOLE_HOST: "127.0.0.1:3000",
+      APP_ORIGIN: BASE_URL,
+    },
   },
 });

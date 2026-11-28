@@ -43,6 +43,8 @@ export const it = {
   "tenantSwitch.open": "Cambia locale", // (da approvare)
   "tenantSwitch.current": "Locale attuale: {name}", // (da approvare)
   "tenantSwitch.currentTag": "Locale attuale", // (da approvare)
+  "tenantSwitch.fromConsoleTag": "Aperto dalla console", // (da approvare)
+  "tenantSwitch.codeLink": "Inserisci il codice", // (da approvare)
   "tenantSwitch.busy": "Cambio locale…", // (da approvare)
   "tenantSwitch.offline": "Serve la connessione per cambiare locale.", // (da approvare)
   "tenantSwitch.failed": "Non è stato possibile cambiare locale. Riprova.", // (da approvare)
@@ -3239,6 +3241,14 @@ export const it = {
   "console.detail.settings.bookingSlug": "Pagina prenotazioni", // (da approvare)
   "console.detail.notFound": "Locale non trovato", // (da approvare)
   "console.detail.readError": "Non riesco a leggere il locale.", // (da approvare)
+  // SP3 step 19 (plan §3.7): «Entra nel locale» and «Torna alla console». The confirm text is §3.7's proposal (da approvare); SP4 replaces it.
+  "console.enter.button": "Entra nel locale", // (da approvare)
+  "console.enter.confirm":
+    "Entri nel locale con il tuo account DigiAlto. Ogni modifica che fai resta nel registro del locale, visibile al titolare. Nel locale serve un accesso separato da questo.", // (da approvare)
+  "console.enter.go": "Entra", // (da approvare)
+  "console.enter.link": "Apri il locale", // (da approvare)
+  "console.enter.error": "Non riesco ad aprire il locale.", // (da approvare)
+  "nav.backToConsole": "Torna alla console", // (da approvare)
   "console.audit.title": "Registro della piattaforma", // (da approvare)
   "console.audit.filter.locale": "Locale", // (da approvare)
   "console.audit.filter.allLocali": "Tutti", // (da approvare)

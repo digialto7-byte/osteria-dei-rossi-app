@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { BackLink } from "@/components/back-link";
 import { FactList, FactRow } from "@/components/fact-list";
+import { EnterVenue } from "@/components/console/enter-venue";
 import { RawCode } from "@/components/console/raw-code";
 import { ReadError } from "@/components/read-error";
 import { useConsoleRead } from "@/components/console/use-console-read";
@@ -48,13 +49,15 @@ function ActivityRow({ row }: { row: AuditRow }) {
 
 /**
  * A venue, in metadata only (names, counts, dates, codes). On the phone the sections run Salute, Utilizzo, Attività, Impostazioni (UX C9);
- * from lg the settings take the wide left column. Salute exists only while DigiAlto is not attached to the venue.
+ * from lg the settings take the wide left column. Salute exists only while DigiAlto is not attached to the venue. The header's one action is «Entra nel
+ * locale» (step 19), disabled while DigiAlto is not attached.
  */
 export function VenueDetail({ id }: { id: string }) {
   const { load, reload, busy } = useConsoleRead<{ tenant: TenantDetail; activity: AuditRow[] }>(
     `/api/platform/tenants/${encodeURIComponent(id)}`,
   );
   const [today] = useState(() => romeToday(new Date()));
+  const healthId = useId();
 
   const back = <BackLink href="/">{t("console.detail.back")}</BackLink>;
   // While the name is not known (loading, a failed read) the one h1 is «Locali», the screen's section (key console.detail.back).
@@ -97,11 +100,17 @@ export function VenueDetail({ id }: { id: string }) {
         <Heading>{tenant.name}</Heading>
         <Muted>{detailMeta(tenant)}</Muted>
         {tenant.digialtoAttached && <Muted>{t("console.detail.attached")}</Muted>}
+        {/* SP3 step 19 (plan §3.7): the one action, secondary; disabled while DigiAlto is not attached (Salute says why). */}
+        <EnterVenue
+          tenantId={tenant.id}
+          attached={tenant.digialtoAttached}
+          describedBy={tenant.digialtoAttached ? undefined : healthId}
+        />
       </header>
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,640px)_minmax(0,360px)] lg:gap-x-10">
         {health !== null && (
           <Section title={t("console.detail.health.title")} className="lg:col-start-2">
-            <p>{health}</p>
+            <p id={healthId}>{health}</p>
           </Section>
         )}
         <Section title={t("console.detail.usage.title")} className="lg:col-start-2">

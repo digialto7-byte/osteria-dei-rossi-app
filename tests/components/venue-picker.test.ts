@@ -137,3 +137,73 @@ describe("VenuePicker", () => {
     expect(uno.className).toContain("w-full");
   });
 });
+
+// SP3 step 19 (docs/plans/2026-11-15-sp3-console.md §3.7): «Entra nel locale» opens this chooser with ?locale=<id>. The venue is listed first and marked; nothing
+// switches on load (a GET never switches a tenant), and an id that is not a lowercase uuid, or not one of the login's venues, is ignored.
+describe("VenuePicker with a highlighted venue (?locale=)", () => {
+  const mountWith = (highlight: string | undefined) =>
+    render(createElement(VenuePicker, { next: undefined, highlight }));
+  const names = () => screen.getAllByRole("button", { name: /Locale/ }).map((b) => b.textContent);
+
+  it("lists the highlighted venue first and marks it, and never switches on load", async () => {
+    mountWith(B);
+    const due = await screen.findByRole("button", { name: /Locale Due/ });
+    expect(names()[0]).toContain("Locale Due");
+    expect(due.textContent).toContain("Aperto dalla console");
+    expect(screen.getByRole("button", { name: /Locale Uno/ }).textContent).not.toContain(
+      "Aperto dalla console",
+    );
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(switchTenant).not.toHaveBeenCalled();
+  });
+
+  it("a tap on it still switches through switchTenant, like any venue", async () => {
+    mountWith(B);
+    fireEvent.click(await screen.findByRole("button", { name: /Locale Due/ }));
+    await waitFor(() => expect(switchTenant).toHaveBeenCalledWith(B, { next: undefined }));
+  });
+
+  it("an id that is not one of the login's venues changes nothing", async () => {
+    mountWith("33333333-3333-4333-8333-333333333333");
+    await screen.findByRole("button", { name: /Locale Uno/ });
+    expect(names()[0]).toContain("Locale Uno");
+    expect(screen.queryByText(/Aperto dalla console/)).toBeNull();
+  });
+});
+
+describe("the chooser page reads ?locale= only as a lowercase uuid", async () => {
+  const { highlightOf } = await import("@/app/(public)/login/scegli-locale/highlight");
+  it.each([
+    [B, B],
+    ["A0000000-0000-4000-8000-00000000000A", undefined],
+    ["a0000000-0000-4000-8000-00000000000a", "a0000000-0000-4000-8000-00000000000a"],
+    ["nope", undefined],
+    [undefined, undefined],
+    [[B, A], undefined],
+  ])("%s -> %s", (value, expected) => {
+    expect(highlightOf(value as string | string[] | undefined)).toBe(expected);
+  });
+});
+
+// Review of PR 4: the tab «Entra nel locale» opens is usually signed out on the app host, and the platform admin's list needs the code first. Both ways out of
+// the chooser come back to it with ?locale= kept, so the venue is still highlighted after the sign-in and the code.
+describe("VenuePicker: the way to the sign-in and the code keeps the highlight", () => {
+  const SELF = `/login/scegli-locale?locale=${B}`;
+  const mountSelf = () =>
+    render(createElement(VenuePicker, { next: undefined, highlight: B, self: SELF }));
+
+  it("signed out: «Accedi» goes to /login with next = this page", async () => {
+    reply = { ok: false, status: 401, error: { code: "unauthenticated", message: "x" } };
+    mountSelf();
+    const link = await screen.findByRole("link", { name: "Accedi" });
+    expect(link.getAttribute("href")).toBe(`/login?next=${encodeURIComponent(SELF)}`);
+  });
+
+  it("the list needs the code (403 mfa_required): a link to the code page with next = this page, not an error", async () => {
+    reply = { ok: false, status: 403, error: { code: "mfa_required", message: "x" } };
+    mountSelf();
+    const link = await screen.findByRole("link", { name: "Inserisci il codice" });
+    expect(link.getAttribute("href")).toBe(`/login/codice?next=${encodeURIComponent(SELF)}`);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+});

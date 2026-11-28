@@ -322,6 +322,43 @@ written in any file or chat.
 - **Verification:** native Postgres 16, all 343 pgTAP files and the race script; vitest config, guards, lib, app and server; tsc, lint, format.
   CI is the gate.
 
+**PR 4 (`feat/sp03-platform-4`).**
+- **Built:**
+  - step 17: `withApi` `{ platform: true }` and the `consoleSession: "allow"` option; `src/server/platform/*`; the ten routes under `src/app/api/platform/**`;
+    the new error codes;
+  - step 19: `enter-venue.tsx`, the chooser's `?locale=` highlight, «Torna alla console»;
+  - step 23: `tests/integration/console.int.ts`, `e2e/console.spec.ts`;
+  - step 24: the runbook's «Console (SP3)».
+  No migration.
+- **Pins moved:**
+  - the cost guard: every `/api/platform/*` route;
+  - rate-limits: the console sign-in row (`platform/auth/password` joins the scanned list);
+  - runbook: the «Console (SP3)» heading;
+  - **outside §4, lead-approved (2026-11-28):** `tests/components/console/venue-detail.test.ts`, one test (step 19; was: no action in the header);
+  - **outside §4, to ratify:** `tests/config/playwright-projects.test.ts`, the web server `env` text (step 23; it gains `CONSOLE_HOST` and `APP_ORIGIN`
+    as the plan's step 23 asks).
+- **Changes against #138:**
+  - the console sign-in tells staff from others with `platform_mfa_attempt_allowed` (any active staff row), so a `platform_support` account passes the
+    password and is refused at the switch (403 `forbidden`); there is no SQL to tell the platform admin apart without a migration;
+  - `POST /api/platform/console` answers at once for a session already in console mode;
+  - a failed refresh is 503 `console_switch_failed`, like a token without the role;
+  - `/open` checks `APP_ORIGIN` before the audit write;
+  - «Torna alla console» uses `APP_ORIGIN`'s scheme (http on the local stack);
+  - the Playwright spec skips the second sign-in ("next sign-in → code page"), the Registro and the Avvisi screens (each is covered by
+    `tests/components/console/**` and the route tests).
+- **Review:** one `code-reviewer` round. It found the `withApi` boundary sound and FAILed on two step 19 gaps, both fixed:
+  - the chooser's ways to the sign-in and the code (401, 403 `mfa_required`) now keep `?locale=` (a `next` back to the chooser);
+  - «Torna alla console» is shown on the laptop too, in the header band (outside the sidebar navigation, whose links `e2e/app-shell.spec.ts` counts).
+  Notes taken:
+  - the integration fixture is cleaned up even after a failed expectation;
+  - a single-venue owner case was added (the PIN case stays with `staff-pin.int.ts` and pgTAP 085);
+  - a guard pins the two `consoleSession: "allow"` routes;
+  - `safeVenueUrl` accepts the chooser path only;
+  - the runbook says the backup device is advised, not a gate.
+  Not done: a console-mode token cannot use `/api/auth/mfa/account/**` (§3.4.1, unreachable today).
+- **Verification:** vitest (app, lib, server, components, config, guards, lint), tsc, lint and format were run locally. The integration and e2e
+  suites need the local stack, so CI is their first run.
+
 ## 10. Sources
 
 Repository only: `main` `c78de05e`; branches `feat/sp02-memberships-2` (`676ab591`), `feat/sp02-memberships-3` (`e5c7e051`),

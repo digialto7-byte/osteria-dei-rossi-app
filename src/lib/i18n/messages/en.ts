@@ -44,6 +44,8 @@ export const en: Record<MessageKey, string> = {
   "tenantSwitch.open": "Switch venue",
   "tenantSwitch.current": "Current venue: {name}",
   "tenantSwitch.currentTag": "Current venue",
+  "tenantSwitch.fromConsoleTag": "Opened from the console", // (da approvare)
+  "tenantSwitch.codeLink": "Enter the code", // (da approvare)
   "tenantSwitch.busy": "Switching venue…",
   "tenantSwitch.offline": "You need a connection to switch venue.",
   "tenantSwitch.failed": "Could not switch venue. Try again.",
@@ -3200,6 +3202,14 @@ export const en: Record<MessageKey, string> = {
   "console.detail.settings.bookingSlug": "Booking page", // (da approvare)
   "console.detail.notFound": "Venue not found", // (da approvare)
   "console.detail.readError": "I cannot read the venue.", // (da approvare)
+  // SP3 step 19 (plan §3.7): «Entra nel locale» and «Torna alla console».
+  "console.enter.button": "Enter the venue", // (da approvare)
+  "console.enter.confirm":
+    "You enter the venue with your DigiAlto account. Every change you make stays in the venue's log, visible to the owner. The venue needs a sign-in separate from this one.", // (da approvare)
+  "console.enter.go": "Enter", // (da approvare)
+  "console.enter.link": "Open the venue", // (da approvare)
+  "console.enter.error": "I cannot open the venue.", // (da approvare)
+  "nav.backToConsole": "Back to the console", // (da approvare)
   "console.audit.title": "Platform log",
   "console.audit.filter.locale": "Venue",
   "console.audit.filter.allLocali": "All",
