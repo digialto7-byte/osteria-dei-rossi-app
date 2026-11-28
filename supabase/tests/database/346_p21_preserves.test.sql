@@ -77,6 +77,8 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'platform_notice_mark' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
               'platform_me' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
               'platform_add_notice' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
+              'select_console' /* SP3 step 13: re-pinned on purpose by SP3 (step 13; was: not left out, new in 20261208100900_console_session.sql) */,
+              'platform_leave_console' /* SP3 step 13: re-pinned on purpose by SP3 (step 13; was: not left out, new in 20261208100900_console_session.sql) */,
               'platform_mfa_enrol_check' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100550_platform_mfa_enrol_check.sql) */,
               'invoice_xml_precheck', 'import_xml_invoices', 'review_replace_with_xml', 'trace_lot_search', 'lot_capture', 'trace_lot', 'trace_batch', 'trace_order_line', 'trace_line_search', 'push_sell_through', 'reservations_covers',
               'tenant_settings', 'set_tenant_settings',
@@ -105,6 +107,8 @@ select is((select count(*)::int from pg_proc where pronamespace = 'public'::regn
               'platform_notice_mark' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
               'platform_me' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
               'platform_add_notice' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
+              'select_console' /* SP3 step 13: re-pinned on purpose by SP3 (step 13; was: not left out, new in 20261208100900_console_session.sql) */,
+              'platform_leave_console' /* SP3 step 13: re-pinned on purpose by SP3 (step 13; was: not left out, new in 20261208100900_console_session.sql) */,
               'platform_mfa_enrol_check' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100550_platform_mfa_enrol_check.sql) */)), 197, 'so the public surface is main''s 184 plus thirteen (P2-2''s functions left out on purpose)'); -- re-pinned on purpose by SP1 (step 7: the two new public functions are left out, so the count stays 197)
 
 -- 3b. The new app functions are closed to every API role.

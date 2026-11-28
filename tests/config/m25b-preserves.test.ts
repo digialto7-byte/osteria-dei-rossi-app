@@ -251,6 +251,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100700_platform_metadata.sql",
   // SP3 step 12 (20261208100800_platform_notices.sql), re-pinned on purpose by SP3 (step 12; was the list ending at 20261208100700_platform_metadata.sql): the platform notices and platform_me.
   "20261208100800_platform_notices.sql",
+  // SP3 step 13 (20261208100900_console_session.sql), re-pinned on purpose by SP3 (step 13; was the list ending at 20261208100800_platform_notices.sql): the console mode switches.
+  "20261208100900_console_session.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

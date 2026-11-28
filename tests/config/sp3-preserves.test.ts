@@ -112,7 +112,14 @@ describe("sp3-preserves: naming (plan section 5)", () => {
 const MIGRATIONS = join(process.cwd(), "supabase/migrations");
 const AFTER_SP2 = "20261207100300_session_tenant_purge.sql";
 
-type Step = { file: string; tables: string[]; functions: string[]; triggers: string[] };
+type Step = {
+  file: string;
+  tables: string[];
+  functions: string[];
+  triggers: string[];
+  /** The only tables the step's functions may delete from, in order (steps 13 and 22: session state, never a ledger; as SP2's guard). Default: none. */
+  deletesFrom?: string[];
+};
 const STEPS: Step[] = [
   {
     // Step 1: the organisation-side VAT guard.
@@ -216,6 +223,14 @@ const STEPS: Step[] = [
     ],
     triggers: ["platform_notice_no_update_delete", "platform_notice_no_truncate"],
   },
+  {
+    // Step 13: the console mode switches; select_tenant is re-created with one more delete.
+    file: "20261208100900_console_session.sql",
+    tables: ["platform.console_session"],
+    functions: ["public.select_console", "public.platform_leave_console", "public.select_tenant"],
+    triggers: [],
+    deletesFrom: ["app.session_tenant", "platform.console_session", "platform.console_session"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
@@ -243,6 +258,13 @@ function sqlWithoutComments(sql: string): string {
     .split("\n")
     .map((l) => l.replace(/--.*$/, ""))
     .join("\n");
+}
+
+/** The tables of every `delete from <schema.table>` at the start of a line, lower-cased, in order. */
+function deleteTargets(sql: string): string[] {
+  return [...sql.matchAll(/^\s*delete\s+from\s+([a-z_]+\.[a-z_0-9]+)/gim)].map((m) =>
+    m[1]!.toLowerCase(),
+  );
 }
 
 /** Names after `create [or replace] <kind>`, lower-cased (qualified for tables and functions, bare for triggers). */
@@ -293,12 +315,13 @@ describe("SP3 migrations", () => {
         for (const name of FORBIDDEN_DEFINITIONS) expect(defined).not.toContain(name);
       });
 
-      it("never cascades or deletes", () => {
+      it("never cascades, and deletes only from the session tables listed for it", () => {
         const sql = readSql(step.file);
         // Plan section 5: never `drop ... cascade`. A foreign key's `on delete cascade` (platform.auth_lock, lead 2026-11-15) is not a drop.
         expect(sql).not.toMatch(/\bdrop\b[^;]*\bcascade\b/i);
         expect(sql).not.toMatch(/^\s*truncate\s/im);
-        expect(sql).not.toMatch(/^\s*delete\s+from\b/im);
+        // Re-pinned on purpose by SP3 (step 13; was: no delete at all): steps 13 and 22 delete session state, so each step lists its delete targets (default none).
+        expect(deleteTargets(sql)).toEqual(step.deletesFrom ?? []);
       });
 
       it("names no object for cost, margin, price or service (naming rule, pgTAP 286)", () => {
@@ -326,6 +349,15 @@ describe("SP3 migrations", () => {
       ),
     ).toBe(false);
     expect(rule.test("create table t (a uuid references u (id) on delete cascade);")).toBe(false);
+  });
+
+  it("self-test: the delete rule sees every delete, a bare one included", () => {
+    expect(
+      deleteTargets(
+        "  delete from platform.console_session c where true;\ndelete from public.invoice;",
+      ),
+    ).toEqual(["platform.console_session", "public.invoice"]);
+    expect(deleteTargets("create policy x on t for select; -- on delete cascade")).toEqual([]);
   });
 
   it("self-test: the comment stripper hides a name in a comment, the extractor sees real ones", () => {
@@ -405,7 +437,8 @@ describe("sp3-preserves: pgTAP 327's exclusion list (lead's condition)", () => {
     .map((file) => ({ file, text: readFileSync(join(PGTAP_DIR, file), "utf8") }));
   // Public functions an SP3 migration re-creates with the same signature: not new names (mfa_enrol_check is already on 327's list from P2-1; the pin hashes signatures, not bodies).
   // Their behaviour is pinned by the files that pinned it before (mfa_enrol_check: pgTAP 342 and 349) and by the SP3 file of the step that changes it.
-  const RE_CREATED = ["mfa_enrol_check"];
+  // Re-pinned on purpose by SP3 (step 13; was mfa_enrol_check only): select_tenant (SP2's, pgTAP 432; changed by 444).
+  const RE_CREATED = ["mfa_enrol_check", "select_tenant"];
   const publicFunctions = STEPS.flatMap((step) => step.functions)
     .filter((fn) => fn.startsWith("public."))
     .map((fn) => fn.slice("public.".length))

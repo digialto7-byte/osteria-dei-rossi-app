@@ -118,6 +118,9 @@ insert into p27_objs values
 -- Step 12 (20261208100800_platform_notices.sql; re-pinned on purpose by SP3, was: not listed): the notices and the console shell's read.
 insert into p27_objs values
   ('public_fn', 'platform_notices'), ('public_fn', 'platform_notice_mark'), ('public_fn', 'platform_me'), ('public_fn', 'platform_add_notice');
+-- Step 13 (20261208100900_console_session.sql; re-pinned on purpose by SP3, was: not listed): the console mode switches (select_tenant keeps SP2's line).
+insert into p27_objs values
+  ('public_fn', 'select_console'), ('public_fn', 'platform_leave_console');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),
