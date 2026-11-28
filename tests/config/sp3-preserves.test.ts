@@ -291,6 +291,11 @@ function sqlWithoutComments(sql: string): string {
     .join("\n");
 }
 
+/** How many statements start with `delete from`, whatever follows (a qualified name or not). */
+function deleteStatements(sql: string): number {
+  return [...sql.matchAll(/^\s*delete\s+from\b/gim)].length;
+}
+
 /** The tables of every `delete from <schema.table>` at the start of a line, lower-cased, in order. */
 function deleteTargets(sql: string): string[] {
   return [...sql.matchAll(/^\s*delete\s+from\s+([a-z_]+\.[a-z_0-9]+)/gim)].map((m) =>
@@ -353,6 +358,8 @@ describe("SP3 migrations", () => {
         expect(sql).not.toMatch(/^\s*truncate\s/im);
         // Re-pinned on purpose by SP3 (step 13; was: no delete at all): steps 13 and 22 delete session state, so each step lists its delete targets (default none).
         expect(deleteTargets(sql)).toEqual(step.deletesFrom ?? []);
+        // Every delete statement is one of those: an unqualified, `only` or quoted target is not let through by the list (review of PR 3).
+        expect(deleteStatements(sql)).toBe((step.deletesFrom ?? []).length);
       });
 
       it("names no object for cost, margin, price or service (naming rule, pgTAP 286)", () => {
@@ -389,6 +396,14 @@ describe("SP3 migrations", () => {
       ),
     ).toEqual(["platform.console_session", "public.invoice"]);
     expect(deleteTargets("create policy x on t for select; -- on delete cascade")).toEqual([]);
+    for (const sneaky of [
+      "delete from only public.stock_movement;",
+      "delete from invoice;",
+      'delete from "public"."x";',
+    ]) {
+      expect(deleteTargets(sneaky)).toEqual([]);
+      expect(deleteStatements(sneaky)).toBe(1);
+    }
   });
 
   it("self-test: the comment stripper hides a name in a comment, the extractor sees real ones", () => {
