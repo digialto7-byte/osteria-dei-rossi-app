@@ -3,7 +3,6 @@ import { LogoutButton } from "@/components/logout-button";
 import { TenantSwitcher } from "@/components/nav/tenant-switcher";
 import { t } from "@/lib/i18n";
 import type { NavGroup } from "@/lib/nav/nav-model";
-import { linkClass } from "@/components/ui";
 import { sidebarLinkClass } from "./nav-classes";
 
 /**
@@ -15,14 +14,11 @@ export function SidebarNavView({
   currentHref,
   userName,
   roleLabel,
-  consoleUrl = null,
 }: {
   groups: NavGroup[];
   currentHref: string | null;
   userName: string;
   roleLabel: string;
-  /** SP3 step 19 (UX C6): «Torna alla console», passed by the shell only for the role admin with CONSOLE_HOST set. */
-  consoleUrl?: string | null;
 }) {
   return (
     <nav
@@ -51,11 +47,6 @@ export function SidebarNavView({
         <p className="font-bold">{userName}</p>
         <p className="text-ink-muted">{roleLabel}</p>
         <TenantSwitcher tone="page" />
-        {consoleUrl !== null && (
-          <a href={consoleUrl} className={`${linkClass} inline-flex min-h-tap items-center`}>
-            {t("nav.backToConsole")}
-          </a>
-        )}
         <div className="pt-2">
           <LogoutButton />
         </div>

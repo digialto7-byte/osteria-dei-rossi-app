@@ -80,10 +80,22 @@ export function AppShellView({
         brand={<ShellBrandLink venue={VENUE_LAYER_DEFAULT} />}
         account={
           me ? (
-            <AccountControl
-              name={me.user.displayName}
-              consoleUrl={me.user.role === "admin" ? consoleUrl : null}
-            />
+            <>
+              <AccountControl
+                name={me.user.displayName}
+                consoleUrl={me.user.role === "admin" ? consoleUrl : null}
+              />
+              {/* SP3 step 19: on a laptop the account control is hidden, so «Torna alla console» has its own place in the band (outside the sidebar's navigation). */}
+              {me.user.role === "admin" && consoleUrl !== null && (
+                <a
+                  href={consoleUrl}
+                  data-slot="console-return"
+                  className="ml-auto hidden min-h-tap items-center text-sm font-bold text-band-ink underline underline-offset-4 focus-visible:outline-band-ink lg:inline-flex"
+                >
+                  {t("nav.backToConsole")}
+                </a>
+              )}
+            </>
           ) : null
         }
       />
@@ -94,7 +106,6 @@ export function AppShellView({
             currentHref={section?.href ?? null}
             userName={me.user.displayName}
             roleLabel={t(`role.${me.user.role}`)}
-            consoleUrl={me.user.role === "admin" ? consoleUrl : null}
           />
         ) : (
           state.status === "loading" && (

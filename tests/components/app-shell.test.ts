@@ -531,12 +531,16 @@ describe("AppShellView, «Torna alla console»", () => {
       ),
     );
 
-  it("the admin gets the link in the band (phone) and in the sidebar (laptop)", () => {
+  it("the admin gets the link in the band: in the account control (phone) and on its own (laptop)", () => {
     const { getAllByRole } = withConsole(ok("admin"), CONSOLE_URL);
     const links = getAllByRole("link", { name: "Torna alla console" });
     expect(links.map((l) => l.getAttribute("href"))).toEqual([CONSOLE_URL, CONSOLE_URL]);
     expect(links[0]!.closest('[data-slot="account-control"]')?.className).toContain("lg:hidden");
-    expect(links[1]!.closest('[data-slot="sidebar-nav"]')?.className).toContain("lg:flex");
+    // The laptop's own link is in the band, outside the sidebar's navigation (whose links e2e/app-shell.spec.ts counts).
+    expect(links[1]!.getAttribute("data-slot")).toBe("console-return");
+    expect(links[1]!.className).toContain("hidden");
+    expect(links[1]!.className).toContain("lg:inline-flex");
+    expect(links[1]!.closest('[data-slot="sidebar-nav"]')).toBeNull();
   });
 
   it.each(["owner", "chef", "waiter"] as const)("the %s never does", (role) => {

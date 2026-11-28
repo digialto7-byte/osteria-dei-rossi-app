@@ -348,7 +348,7 @@ written in any file or chat.
     `tests/components/console/**` and the route tests).
 - **Review:** one `code-reviewer` round. It found the `withApi` boundary sound and FAILed on two step 19 gaps, both fixed:
   - the chooser's ways to the sign-in and the code (401, 403 `mfa_required`) now keep `?locale=` (a `next` back to the chooser);
-  - «Torna alla console» is in the laptop sidebar too.
+  - «Torna alla console» is shown on the laptop too, in the header band (outside the sidebar navigation, whose links `e2e/app-shell.spec.ts` counts).
   Notes taken:
   - the integration fixture is cleaned up even after a failed expectation;
   - a single-venue owner case was added (the PIN case stays with `staff-pin.int.ts` and pgTAP 085);

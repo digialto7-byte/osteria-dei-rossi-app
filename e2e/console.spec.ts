@@ -2,8 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { quoteUuid, runSql } from "../tests/integration/helpers/sql";
 import { enrolOnScreen } from "./helpers/mfa";
 import { admin } from "./helpers/seed-invoice";
-import { createTwoVenueOwner, VENUE_A, VENUE_B } from "./helpers/seed-memberships";
-import { fakeEmail, requireSupabaseStack, waitForHydration } from "./helpers/session";
+import { createTwoVenueOwner } from "./helpers/seed-memberships";
+import { fakeEmail, fakeVat, requireSupabaseStack, waitForHydration } from "./helpers/session";
 
 requireSupabaseStack();
 
@@ -29,7 +29,11 @@ test("AT6: console pages only on the console host, venue pages only on the app h
 }) => {
   expect((await request.get(`${APP}/console/locali`)).status()).toBe(404);
   expect((await request.get(`${APP}/api/platform/tenants`)).status()).toBe(404);
-  expect((await request.get(`${CONSOLE}/tavoli`)).status()).toBe(404);
+  // A venue page on the console host is the console's own path (/console/tavoli): never the venue's screen. Signed out, the proxy sends it to the sign-in.
+  const tavoli = await request.get(`${CONSOLE}/tavoli`, { maxRedirects: 0 });
+  expect([307, 308, 404]).toContain(tavoli.status());
+  if (tavoli.status() !== 404)
+    expect(new URL(tavoli.headers().location ?? "", CONSOLE).pathname).toBe("/login");
   expect((await request.get(`${CONSOLE}/api/me`)).status()).toBe(404);
 });
 
@@ -49,8 +53,30 @@ test("the platform admin: first sign-in, enrolment, Locali with both venues, «E
   context,
 }) => {
   test.setTimeout(180_000);
-  const venues = await createTwoVenueOwner();
+  // Venue names of this run only: the shared database holds venues of other specs with the demo names.
+  const tag = crypto.randomUUID().slice(0, 8);
+  const VENUE_A = `Console Alfa ${tag}`;
+  const VENUE_B = `Console Beta ${tag}`;
   const db = admin();
+  const ownerEmail = fakeEmail("owner");
+  const owner = await db.auth.admin.createUser({
+    email: ownerEmail,
+    password: `frase di prova ${crypto.randomUUID()}`,
+    email_confirm: true,
+  });
+  const ownerId = owner.data.user?.id;
+  if (owner.error || !ownerId) throw new Error("Fixture failed: owner");
+  const venue = async (name: string): Promise<string> => {
+    const { data, error } = await db.rpc("create_tenant_with_owner", {
+      tenant_name: name,
+      tenant_vat_number: fakeVat(),
+      owner_auth_id: ownerId,
+      owner_display_name: "Titolare Demo",
+    });
+    if (error || typeof data !== "string") throw new Error(`Fixture failed: ${name}`);
+    return data;
+  };
+  const venues = { tenantA: await venue(VENUE_A), tenantB: await venue(VENUE_B) };
   const email = fakeEmail("platform-admin");
   const password = `frase di prova ${crypto.randomUUID()}`;
   const created = await db.auth.admin.createUser({ email, password, email_confirm: true });
@@ -73,8 +99,12 @@ test("the platform admin: first sign-in, enrolment, Locali with both venues, «E
     await main(page).getByRole("button", { name: "Più tardi", exact: true }).click();
     await page.waitForURL(`${CONSOLE}/`);
     await expect(main(page).getByRole("heading", { level: 1, name: "Locali" })).toBeVisible();
-    await expect(main(page).getByText(VENUE_A, { exact: true }).first()).toBeVisible();
-    await expect(main(page).getByText(VENUE_B, { exact: true }).first()).toBeVisible();
+    await expect(
+      main(page).getByText(VENUE_A, { exact: true }).filter({ visible: true }).first(),
+    ).toBeVisible();
+    await expect(
+      main(page).getByText(VENUE_B, { exact: true }).filter({ visible: true }).first(),
+    ).toBeVisible();
     expect(
       await page.evaluate(
         async () => (await navigator.serviceWorker?.getRegistrations())?.length ?? 0,
