@@ -283,6 +283,21 @@ written in any file or chat.
   - a reused login's confirmation is not checked;
   - a `platform_support` enrolment is logged as `platform_admin.factor_enrolled`.
 
+**PR 2 (#223, `feat/sp03-platform-2`).**
+- **Built:** steps 10–12: migrations `20261208100600_platform_staff_role`, `100700_platform_metadata`, `100800_platform_notices`; pgTAP 441–443;
+  `platform-admin.ts notice-add`; the `platform-ops` job `notice-add`. 441 also pins the hook's claims for every non-console session (lead, 2026-11-27).
+- **Pins moved:** newest migration `100550` → `100800` (m25, m25a, ux-quick-wins; m25b +3 files); 359 `app.require_console` + 8 public fns; 229, 327, 346
+  (both lists) the 8 public fns left out; 436 `platform_staff` in its role lists, `notice` in the catalogue and the no-policy check; `sp3-preserves`
+  steps 10–12; `platform-ops-workflow` (`notice-add`, `read_int`, a hyphen in a script command, counts 5→6 jobs, 4→5, 8→10, 4→5).
+- **Outside §4:** `workflow-actions-pinned` (the `notice-add` job), as §11a foresaw.
+- **Changes against #138:** `platform_open_tenant` writes `console.tenant_opened` only when DigiAlto is attached (#138 §3.3.3 says it always writes;
+  the console refuses with 409 otherwise, so nothing was opened); `platform.notice` has no `created_by` (the actor is in `notice.created`);
+  `platform_add_notice` checks `auth.jwt() ->> 'role' = 'service_role'` first: **add it to the live T2 check after PR 4**.
+- **Verification:** native Postgres 16, all 339 pgTAP files; vitest config, guards, lint, scripts. CI is the gate.
+- **Review:** `code-reviewer` one round: FAIL on one missing test (Rome day bounds of `platform_audit`), fixed with rows on both sides of a Rome
+  midnight in CET and CEST; the existing-role guard also refuses grants to roles other than `authenticator` and role settings. Concurrency of
+  `platform_notice_mark` reasoned (advisory lock, READ COMMITTED), not testable in pgTAP.
+
 ## 10. Sources
 
 Repository only: `main` `c78de05e`; branches `feat/sp02-memberships-2` (`676ab591`), `feat/sp02-memberships-3` (`e5c7e051`),

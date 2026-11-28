@@ -3,7 +3,7 @@
 -- Fake data only.
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(54);
+select plan(57);
 
 insert into auth.users (id, email) values
   ('a8000000-0000-4000-8000-000000000001', 'platform-admin@example.test'),
@@ -39,6 +39,14 @@ insert into platform.audit_event (origin, action, tenant_id, detail)
   select 'script', 'script.set_mfa_enforcement', '11111111-1111-4111-8111-111111111111', jsonb_build_object('mode', 'required', 'version', g) from generate_series(1, 12) g;
 insert into platform.audit_event (origin, action, detail) select 'console', 'console.entered', '{}' from generate_series(1, 50);
 insert into platform.audit_event (origin, action, tenant_id, detail) values ('script', 'script.create_tenant', '99999999-9999-4999-8999-999999999999', '{"outcome": "ok"}');
+-- Rows on both sides of a Rome midnight (CET in November: UTC+1; CEST in July: UTC+2), in the past, for the day bounds of platform_audit.
+insert into platform.audit_event (at, origin, action, detail) values
+  ('2020-11-20 22:59:59+00', 'console', 'console.left', '{"outcome": "out_before"}'),
+  ('2020-11-20 23:00:00+00', 'console', 'console.left', '{"outcome": "in_first"}'),
+  ('2020-11-21 22:59:59+00', 'console', 'console.left', '{"outcome": "in_last"}'),
+  ('2020-11-21 23:00:00+00', 'console', 'console.left', '{"outcome": "out_after"}'),
+  ('2020-07-14 21:59:59+00', 'console', 'console.left', '{"outcome": "out_summer"}'),
+  ('2020-07-14 22:00:00+00', 'console', 'console.left', '{"outcome": "in_summer"}');
 
 create function pg_temp.token(p_auth uuid, p_role text, p_aal text) returns void language sql as $$
   select set_config('request.jwt.claims', jsonb_build_object('sub', p_auth, 'role', p_role, 'aal', p_aal)::text, true)
@@ -166,6 +174,15 @@ select is(jsonb_array_length(pg_temp.j($$select public.platform_audit(pg_temp.to
 select is(pg_temp.j($$select public.platform_audit(pg_temp.today(), pg_temp.today(), null, 'script.create_tenant', null)$$) -> 'rows' -> 0 -> 'tenantName', 'null'::jsonb,
   'tenantName is null for a tenant that no longer exists');
 select is(pg_temp.j($$select public.platform_audit(pg_temp.today(), pg_temp.today(), null, 'console.entered', null)$$) -> 'rows' -> 0 -> 'tenantName', 'null'::jsonb, 'and for a platform-wide row');
+select is((select string_agg(e -> 'detail' ->> 'outcome', ',' order by (e ->> 'id')::bigint)
+             from jsonb_array_elements(pg_temp.j($$select public.platform_audit('2020-11-21', '2020-11-21', null, 'console.left', null)$$) -> 'rows') e),
+  'in_first,in_last', 'a day is a Europe/Rome day: 00:00 Rome (23:00 UTC the day before) is in, 23:59:59 Rome is in, either side is out (CET)');
+select is((select string_agg(e -> 'detail' ->> 'outcome', ',' order by (e ->> 'id')::bigint)
+             from jsonb_array_elements(pg_temp.j($$select public.platform_audit('2020-11-20', '2020-11-21', null, 'console.left', null)$$) -> 'rows') e),
+  'out_before,in_first,in_last', 'p_to + 1 is the end bound: a two-day range ends at the second day''s Rome midnight');
+select is((select string_agg(e -> 'detail' ->> 'outcome', ',' order by (e ->> 'id')::bigint)
+             from jsonb_array_elements(pg_temp.j($$select public.platform_audit('2020-07-15', '2020-07-15', null, 'console.left', null)$$) -> 'rows') e),
+  'in_summer', 'and in summer (CEST) the day starts at 22:00 UTC');
 reset role;
 
 -- 4. platform_open_tenant ----------------------------------------------------------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 -- SP3 step 12 (docs/plans/2026-11-15-sp3-console.md §3.1.6, §3.3.3, §3.3.4; AT5, AT9): the platform notices and the console shell's own read.
 --  * platform.notice: one row per (kind, version), append-only for every role like the platform audit; the kinds are platform.notice_kinds() (= PLATFORM_NOTICE_KINDS).
 --    The text of a notice is not stored: the screen writes it from kind and version. The per-tenant "notified" date is the notice.tenant_notified audit row of that
---    tenant (detail.noticeId), so there is no second table.
+--    tenant (detail.noticeId), so there is no second table. Who added a notice is in its notice.created audit row, so the table holds no actor column.
 --  * public.platform_notices()             Notice[], newest first; pending = the tenants with no notified row, notified = the others with the first notified instant.
 --  * public.platform_notice_mark(n, t)     writes one notice.tenant_notified row unless the tenant already has one ({notifiedAt, changed}); unknown notice or tenant: P0002
 --                                           notice_not_found / tenant_not_found.
@@ -15,7 +15,6 @@ create table platform.notice (
   kind text not null constraint platform_notice_kind_check check (kind = any (platform.notice_kinds())),
   version integer not null constraint platform_notice_version_check check (version >= 1),
   created_at timestamptz not null default now(),
-  created_by uuid,
   constraint platform_notice_kind_version_key unique (kind, version)
 );
 alter table platform.notice enable row level security;
