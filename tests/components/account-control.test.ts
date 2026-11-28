@@ -114,6 +114,30 @@ describe("AccountControl", () => {
   });
 });
 
+// SP3 step 19 (docs/plans/2026-11-15-sp3-console.md §3.7, UX C6): «Torna alla console», a plain link to the console host, only when the shell passes one (role
+// admin and CONSOLE_HOST set). It is a link, not a button: the Esci count above stays one.
+describe("AccountControl, «Torna alla console»", () => {
+  it("shows a link to the console when the shell passes its URL", () => {
+    const { getByRole, getAllByRole } = render(
+      createElement(AccountControl, {
+        name: "DigiAlto",
+        consoleUrl: "https://console.example.test/",
+      }),
+    );
+    const link = getByRole("link", { name: "Torna alla console" });
+    expect(link.getAttribute("href")).toBe("https://console.example.test/");
+    expect(link.className).toContain("min-h-tap");
+    expect(getAllByRole("button")).toHaveLength(1);
+  });
+
+  it("shows nothing without a URL", () => {
+    const { queryByRole } = render(
+      createElement(AccountControl, { name: "DigiAlto", consoleUrl: null }),
+    );
+    expect(queryByRole("link", { name: "Torna alla console" })).toBeNull();
+  });
+});
+
 // QW12: "Esci" and the wordmark go through the leave guard of the page. Without a guard nothing changes (the tests above).
 describe("the exits in the band ask the page's leave guard", () => {
   let held: (() => void) | null = null;

@@ -24,7 +24,14 @@ import { DemoBanner } from "./demo-banner";
  * sidebar on the laptop, the one `main`. The navigation comes from the pure model in src/lib/nav and the
  * role from the one cached /api/me read. Hiding a link is not authorisation: the API still checks.
  */
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  consoleUrl = null,
+}: {
+  children: ReactNode;
+  /** SP3 step 19: the console's home when CONSOLE_HOST is set (the server layout reads it); shown to the admin only. */
+  consoleUrl?: string | null;
+}) {
   const pathname = usePathname();
   const state = useMe();
   // M20: the service worker and, for table operators, the offline queue start once we know who is signed in.
@@ -33,7 +40,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useTenantSwitchListener();
   return (
     <LeaveGuardProvider>
-      <AppShellView state={state} pathname={pathname}>
+      <AppShellView state={state} pathname={pathname} consoleUrl={consoleUrl}>
         <DemoBanner />
         <SyncStatus role={state.me?.user.role} />
         {children}
@@ -45,10 +52,12 @@ export function AppShell({ children }: { children: ReactNode }) {
 export function AppShellView({
   state,
   pathname,
+  consoleUrl = null,
   children,
 }: {
   state: MeState;
   pathname: string;
+  consoleUrl?: string | null;
   children?: ReactNode;
 }) {
   const focus = isFocusRoute(pathname);
@@ -69,7 +78,14 @@ export function AppShellView({
       <HeaderBand
         venue={VENUE_LAYER_DEFAULT}
         brand={<ShellBrandLink venue={VENUE_LAYER_DEFAULT} />}
-        account={me ? <AccountControl name={me.user.displayName} /> : null}
+        account={
+          me ? (
+            <AccountControl
+              name={me.user.displayName}
+              consoleUrl={me.user.role === "admin" ? consoleUrl : null}
+            />
+          ) : null
+        }
       />
       <div className="lg:mx-auto lg:flex lg:justify-center lg:gap-10 lg:px-6">
         {me ? (

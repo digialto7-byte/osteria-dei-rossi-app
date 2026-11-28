@@ -10,9 +10,16 @@ import { switchMessageKey } from "@/lib/tenancy/switch-message";
 
 /**
  * The list of venues of the login, one full-width button each (name, role, the current one marked). A tap runs `switchTenant`, which reloads
- * the page on success; this component only shows what it returned. No data logic here: the list is GET /api/me/tenants.
+ * the page on success; this component only shows what it returned. No data logic here: the list is GET /api/me/tenants. `highlight` (SP3 step 19) lists
+ * that venue first and marks it «Aperto dalla console»; it never switches by itself.
  */
-export function VenuePicker({ next }: { next: string | undefined }) {
+export function VenuePicker({
+  next,
+  highlight,
+}: {
+  next: string | undefined;
+  highlight?: string | undefined;
+}) {
   const state = useTenants();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +71,7 @@ export function VenuePicker({ next }: { next: string | undefined }) {
   return (
     <div className="flex flex-col gap-3">
       <ul className="flex flex-col gap-3">
-        {state.tenants.map((venue) => (
+        {highlightFirst(state.tenants, highlight).map((venue) => (
           <li key={venue.id}>
             <button
               type="button"
@@ -80,6 +87,7 @@ export function VenuePicker({ next }: { next: string | undefined }) {
               <span className="text-sm">
                 {t(`role.${venue.role}`)}
                 {venue.current ? ` · ${t("tenantSwitch.currentTag")}` : ""}
+                {venue.id === highlight ? ` · ${t("tenantSwitch.fromConsoleTag")}` : ""}
               </span>
             </button>
           </li>
@@ -90,4 +98,10 @@ export function VenuePicker({ next }: { next: string | undefined }) {
       <LogoutButton />
     </div>
   );
+}
+
+/** The highlighted venue first, the others in the server's order. */
+function highlightFirst<T extends { id: string }>(venues: T[], highlight: string | undefined): T[] {
+  if (highlight === undefined) return venues;
+  return [...venues.filter((v) => v.id === highlight), ...venues.filter((v) => v.id !== highlight)];
 }

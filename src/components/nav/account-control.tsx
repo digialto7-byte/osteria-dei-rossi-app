@@ -11,7 +11,14 @@ import { t, tn } from "@/lib/i18n";
  * own (`lg:hidden` here). The name is passed in by the shell once /api/me has answered, so the server-rendered shell holds none.
  * A login with several venues also gets the venue switcher here (SP2 S10; it renders nothing for one venue). The tap asks the page's leave guard first (the comanda, with dishes not sent). The logout is the one `LogoutButton` uses; the pending-operations line is in the band ink.
  */
-export function AccountControl({ name }: { name: string }) {
+export function AccountControl({
+  name,
+  consoleUrl = null,
+}: {
+  name: string;
+  /** SP3 step 19 (UX C6): the console's home, passed by the shell only for the role admin with CONSOLE_HOST set. */
+  consoleUrl?: string | null;
+}) {
   const { busy, mine, logout } = useLogout();
   const requestLeave = useRequestLeave();
   return (
@@ -21,6 +28,14 @@ export function AccountControl({ name }: { name: string }) {
     >
       <span className="min-w-0 truncate text-sm text-band-ink">{name}</span>
       <TenantSwitcher tone="band" />
+      {consoleUrl !== null && (
+        <a
+          href={consoleUrl}
+          className="inline-flex min-h-tap items-center text-sm font-bold text-band-ink underline underline-offset-4 focus-visible:outline-band-ink"
+        >
+          {t("nav.backToConsole")}
+        </a>
+      )}
       <button
         type="button"
         onClick={() => requestLeave(() => void logout())}

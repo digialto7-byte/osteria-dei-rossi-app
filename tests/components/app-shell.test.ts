@@ -518,3 +518,45 @@ describe("AppShellView, what the chef and the waiter never see", () => {
     }
   });
 });
+
+// SP3 step 19 (plan §3.7, UX C6): «Torna alla console» for the role admin only, and only when the layout passes a console URL (CONSOLE_HOST set).
+describe("AppShellView, «Torna alla console»", () => {
+  const CONSOLE_URL = "https://console.example.test/";
+  const withConsole = (state: MeState, consoleUrl: string | null) =>
+    render(
+      createElement(
+        AppShellView,
+        { state, pathname: "/", consoleUrl },
+        createElement("h1", null, "Pagina"),
+      ),
+    );
+
+  it("the admin gets the link in the band", () => {
+    const { getByRole } = withConsole(ok("admin"), CONSOLE_URL);
+    expect(getByRole("link", { name: "Torna alla console" }).getAttribute("href")).toBe(
+      CONSOLE_URL,
+    );
+  });
+
+  it.each(["owner", "chef", "waiter"] as const)("the %s never does", (role) => {
+    const { queryByRole } = withConsole(ok(role), CONSOLE_URL);
+    expect(queryByRole("link", { name: "Torna alla console" })).toBeNull();
+  });
+
+  it("without a console URL (CONSOLE_HOST unset) the admin does not either", () => {
+    const { queryByRole } = withConsole(ok("admin"), null);
+    expect(queryByRole("link", { name: "Torna alla console" })).toBeNull();
+  });
+});
+
+describe("consoleHomeUrl", async () => {
+  const { consoleHomeUrl } = await import("@/lib/platform/console-url");
+  it.each([
+    [undefined, "https://app.example.test", null],
+    ["console.example.test", "https://app.example.test", "https://console.example.test/"],
+    ["console.example.test", undefined, "https://console.example.test/"],
+    ["127.0.0.1:3000", "http://localhost:3000", "http://127.0.0.1:3000/"],
+  ])("CONSOLE_HOST %s with APP_ORIGIN %s -> %s", (host, origin, expected) => {
+    expect(consoleHomeUrl(host, origin)).toBe(expected);
+  });
+});
