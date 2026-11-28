@@ -140,6 +140,10 @@ select is((select count(*)::int || ',' || md5(string_agg(p.oid::regprocedure::te
               'platform_tenant' /* SP3 step 11: re-pinned on purpose by SP3 (step 11; was: not left out, new in 20261208100700_platform_metadata.sql) */,
               'platform_audit' /* SP3 step 11: re-pinned on purpose by SP3 (step 11; was: not left out, new in 20261208100700_platform_metadata.sql) */,
               'platform_open_tenant' /* SP3 step 11: re-pinned on purpose by SP3 (step 11; was: not left out, new in 20261208100700_platform_metadata.sql) */,
+              'platform_notices' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
+              'platform_notice_mark' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
+              'platform_me' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
+              'platform_add_notice' /* SP3 step 12: re-pinned on purpose by SP3 (step 12; was: not left out, new in 20261208100800_platform_notices.sql) */,
               'platform_mfa_enrol_check' /* SP3 step 9: re-pinned on purpose by SP3 (step 9; was: not left out, new in 20261208100550_platform_mfa_enrol_check.sql) */)), -- P2-2 (20261203*): the trace and covers functions are left out on purpose, each step adds its names; re-pinned on purpose by SP1 (step 7: tenant_settings and set_tenant_settings are left out too)
   '182,2f77316efe3cc05186e67da794abc0b6', 'the public functions other than the two new ones are exactly those of before P2-0b (catalogue md5)');
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname in ('weight_settings', 'set_weight_settings')), 2, 'and weight_settings and set_weight_settings are the only new ones');

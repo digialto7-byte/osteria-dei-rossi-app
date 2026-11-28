@@ -1,8 +1,11 @@
 import { parseArgs } from "node:util";
 import { z } from "zod";
+import { PLATFORM_NOTICE_KINDS } from "@/lib/platform/codes";
 import { createIdDisplay } from "./create-tenant";
 
 // SP3 step 7 (docs/plans/2026-11-15-sp3-console.md section 3.9.1): scripts/platform-admin.ts bootstrap [--auth-id <uuid>].
+// SP3 step 12 (section 3.3.4): scripts/platform-admin.ts notice-add --kind <kind> --version <n>, the `notice-add` job: one writing call, public.platform_add_notice, which
+// writes the notice and its notice.created audit row. Both arguments are required (no default kind); the notice id is the only output.
 // Runs only as the `bootstrap` job of the platform-ops workflow, with the secret key. Without --auth-id the platform admin account is found by the address in the environment
 // secret PLATFORM_ADMIN_EMAIL (never an argument, never an input): the Auth admin API's user list is read page by page and compared in memory. The address is never printed,
 // logged or put in an error. The script makes one writing call, public.platform_bootstrap_admin, which writes the staff row and the audit row itself (AT8). Errors are codes only.
@@ -12,7 +15,10 @@ const UUID = z.uuid();
 const PAGE_SIZE = 200;
 /** A hard stop for the lookup: 500 pages of 200 is 100 000 accounts, far more than this product will hold; past it the run fails with a code instead of looping. */
 const MAX_PAGES = 500;
-const USAGE = "Uso / Usage: platform-admin.ts bootstrap [--auth-id <uuid>]";
+const USAGE =
+  "Uso / Usage: platform-admin.ts bootstrap [--auth-id <uuid>] | notice-add --kind <kind> --version <n>";
+/** A notice version: an integer from 1 to 999999, written plainly (no sign, no leading zero, no exponent). */
+const VERSION = /^[1-9][0-9]{0,5}$/;
 const NEXT_LINE = "next: sign in on the console host and set up the code";
 
 /** The parts of the secret-key Supabase client this script uses. */
@@ -68,6 +74,7 @@ export async function runPlatformAdmin(
   io: PlatformAdminIo,
 ): Promise<number> {
   const [command, ...rest] = argv;
+  if (command === "notice-add") return addNotice(rest, env, io);
   if (command !== "bootstrap") {
     io.err(USAGE);
     return 2;
@@ -145,5 +152,53 @@ export async function runPlatformAdmin(
     }),
   );
   if (!answer.data.hasVerifiedFactor) io.out(NEXT_LINE);
+  return 0;
+}
+
+/** `notice-add --kind <kind> --version <n>`: adds one platform notice. Returns the exit code. */
+async function addNotice(
+  args: string[],
+  env: Record<string, string | undefined>,
+  io: PlatformAdminIo,
+): Promise<number> {
+  let kind: (typeof PLATFORM_NOTICE_KINDS)[number];
+  let version: number;
+  try {
+    const { values } = parseArgs({
+      args,
+      strict: true,
+      allowPositionals: false,
+      options: { kind: { type: "string" }, version: { type: "string" } },
+    });
+    const parsedKind = z.enum(PLATFORM_NOTICE_KINDS).safeParse(values.kind);
+    if (!parsedKind.success || values.version === undefined || !VERSION.test(values.version))
+      throw new Error("invalid");
+    kind = parsedKind.data;
+    version = Number(values.version);
+  } catch {
+    io.err(`Argomenti non validi / Invalid arguments. ${USAGE}`);
+    return 2;
+  }
+
+  const admin = io.admin();
+  let reply: Awaited<ReturnType<PlatformAdminClient["rpc"]>>;
+  try {
+    reply = await admin.rpc("platform_add_notice", { p_kind: kind, p_version: version });
+  } catch {
+    io.err("Operazione rifiutata / Refused: unreachable");
+    return 1;
+  }
+  const { data, error } = reply;
+  if (error) {
+    io.err(`Operazione rifiutata / Refused: ${codeOf(error)}`);
+    return 1;
+  }
+  const answer = z.strictObject({ noticeId: UUID }).safeParse(data);
+  if (!answer.success) {
+    io.err("Risposta inattesa dal database / Unexpected answer from the database.");
+    return 1;
+  }
+  const display = createIdDisplay(env, io.out);
+  io.out(JSON.stringify({ noticeId: display.reveal(answer.data.noticeId) }));
   return 0;
 }

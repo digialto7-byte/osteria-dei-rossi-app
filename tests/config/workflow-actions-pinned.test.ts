@@ -485,6 +485,8 @@ describe("jobs that hold secrets: no cache, no install scripts", () => {
     "platform-ops.yml:bootstrap",
     "platform-ops.yml:create-tenant",
     "platform-ops.yml:mfa-reset",
+    // re-pinned on purpose by SP3 (step 12; was: four platform-ops jobs): the notice-add job holds the secret key.
+    "platform-ops.yml:notice-add",
     "platform-ops.yml:set-mfa-enforcement",
     "t1-staging.yml:spike",
   ];

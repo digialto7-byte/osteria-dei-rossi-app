@@ -115,6 +115,9 @@ insert into p27_objs values
 -- Step 11 (20261208100700_platform_metadata.sql; re-pinned on purpose by SP3, was: not listed): the console's metadata reads.
 insert into p27_objs values
   ('public_fn', 'platform_tenants'), ('public_fn', 'platform_tenant'), ('public_fn', 'platform_audit'), ('public_fn', 'platform_open_tenant');
+-- Step 12 (20261208100800_platform_notices.sql; re-pinned on purpose by SP3, was: not listed): the notices and the console shell's read.
+insert into p27_objs values
+  ('public_fn', 'platform_notices'), ('public_fn', 'platform_notice_mark'), ('public_fn', 'platform_me'), ('public_fn', 'platform_add_notice');
 insert into p27_objs values
   ('app_fn', 'invoice_xml_guard'),
   ('public_fn', 'invoice_xml_precheck'), ('public_fn', 'import_xml_invoices'), ('public_fn', 'review_replace_with_xml'),

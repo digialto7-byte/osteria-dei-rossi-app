@@ -203,6 +203,19 @@ const STEPS: Step[] = [
     ],
     triggers: [],
   },
+  {
+    // Step 12: the platform notices and platform_me.
+    file: "20261208100800_platform_notices.sql",
+    tables: ["platform.notice"],
+    functions: [
+      "platform.notice_append_only",
+      "public.platform_notices",
+      "public.platform_notice_mark",
+      "public.platform_me",
+      "public.platform_add_notice",
+    ],
+    triggers: ["platform_notice_no_update_delete", "platform_notice_no_truncate"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
