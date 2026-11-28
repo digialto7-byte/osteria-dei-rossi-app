@@ -96,6 +96,9 @@ Steps of #138 **not built anywhere:** 10, 11, 12, 13, 14, 15, 17, 19, 22, 23, 24
 - **3.3.5:** `my_memberships` is re-created from #217's body. The caller is the active platform admin, or holds an active `admin` row, at
   `aal1` → P0001 `mfa_required`. #217's 432 must pass unchanged, and 341's `exempt_session` stays exactly two, with neither function
   reading `membership_ungated`.
+  **Lead decision 2026-11-28 (option A):** the two sentences conflicted (432's login holds an `admin` row in B and lists at `aal1`). Only the
+  active platform admin gets `mfa_required` at `aal1`; a legacy `admin` row lists as before, and 432 stays unchanged. Why: venue routes already
+  gate `admin` at `aal2` through the MFA gate, and the list is not sensitive.
 - **3.5 Host:** built (#155). `CONSOLE_HOST` unset (or blank) means no console anywhere.
 - **3.11 Pins:** replaced by §4 below.
 - **3.12 Gating:** replaced by §5 below.
@@ -297,6 +300,27 @@ written in any file or chat.
 - **Review:** `code-reviewer` one round: FAIL on one missing test (Rome day bounds of `platform_audit`), fixed with rows on both sides of a Rome
   midnight in CET and CEST; the existing-role guard also refuses grants to roles other than `authenticator` and role settings. Concurrency of
   `platform_notice_mark` reasoned (advisory lock, READ COMMITTED), not testable in pgTAP.
+
+**PR 3 (`feat/sp03-platform-3`).**
+- **Built:** steps 13, 14, 15 and 22: migrations `20261208100900_console_session`, `101000_hook_console_mode`, `101100_my_memberships_aal2`,
+  `101200_console_session_purge`; pgTAP 444–447; `tests/config/sp3-hook-branches.test.ts`; `withApi` and `GET /api/me/tenants` map `mfa_required`
+  from `my_memberships` to 403 (`src/server/tenancy/memberships-error.ts`, its own module to avoid an import cycle). Step 14 is one commit.
+- **Pins moved:**
+  - newest migration (m25, m25a, ux-quick-wins): `100800` → `101200`; m25b +4 files;
+  - 229, 327, 346 (both lists): `select_console`, `platform_leave_console` left out; 359: the same two in `p27_objs`;
+  - 341: `exempt_platform` 4 → 5 (`select_console`);
+  - 346 hook md5: `2926d3231eb6bcf843957755f1273899` → `b9be22fcd38c10e2934b99bc455490ad`;
+  - 436: `console_session` in the catalogue; `platform.staff` has the hook's read policy (was none);
+  - 441 test 8 and 443 (seven → eight): `platform_leave_console`;
+  - `sp3-preserves`: steps 13, 14, 15, 22; `select_tenant` and `my_memberships` join `RE_CREATED`; the blanket "no `delete from`" rule became a
+    per-step `deletesFrom` list (default none, so steps 1–12 are held as before), as SP2's guard does.
+- **Outside §4:** none.
+- **Changes against #138:** step 15 follows option A (§3, 3.3.5): only the active platform admin needs `aal2`. The hook resets a stale incoming
+  `platform_staff` role before the e-mail branches (outside them, so they stay SP2's text). `select_tenant`'s delete comes right after the session
+  check (not literally first), so a malformed session id still answers `session_missing`.
+- **Unchanged and green:** 003, 085, 340, 431, 432, 434, 088, 101, 347, 441 §4 (tenant sign-in claims), `sp2-hook-pin-branch`.
+- **Verification:** native Postgres 16, all 343 pgTAP files and the race script; vitest config, guards, lib, app and server; tsc, lint, format.
+  CI is the gate.
 
 ## 10. Sources
 

@@ -78,6 +78,29 @@ describe("withApi without a tenant claim", () => {
     expect(String(reportError.mock.calls[0]?.[0])).not.toContain("Osteria Demo");
   });
 
+  // SP3 step 15 (plan §3.3.5, §3.6 app host step 2): my_memberships needs aal2 from the platform admin; the no-tenant branch passes that on as 403 mfa_required.
+  it("my_memberships raising mfa_required (the platform admin at aal1) is 403 mfa_required, not 409 and not 500", async () => {
+    client = fakeSupabase({
+      claims: NO_TENANT,
+      rpc: { my_memberships: [{ data: null, error: { code: "P0001", message: "mfa_required" } }] },
+    });
+    const response = await get();
+    expect(response.status).toBe(403);
+    expect((await response.json()).error.code).toBe("mfa_required");
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("another P0001 from my_memberships is still a 500 with its code only", async () => {
+    client = fakeSupabase({
+      claims: NO_TENANT,
+      rpc: {
+        my_memberships: [{ data: null, error: { code: "P0001", message: "something_else" } }],
+      },
+    });
+    expect((await get()).status).toBe(500);
+    expect(String(reportError.mock.calls[0]?.[0])).not.toContain("something_else");
+  });
+
   it("a reply that is not a list is a 500, never a guess", async () => {
     client = fakeSupabase({
       claims: NO_TENANT,

@@ -74,8 +74,8 @@ select lives_ok($$ update platform.staff set is_active = true where auth_id = 'a
 
 -- 6. The named catalogue of the platform schema (§3.1.8) -------------------------------------------------------------------------------------------------------
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'f')),
-  array['audit_event', 'auth_lock', 'mfa_failure', 'notice', 'organisation', 'staff'] /* re-pinned on purpose by SP3 (step 12; was without notice) */,
-  'the platform tables are exactly organisation, staff, audit_event, auth_lock (step 3), mfa_failure (step 9) and notice (step 12)');
+  array['audit_event', 'auth_lock', 'console_session', 'mfa_failure', 'notice', 'organisation', 'staff'] /* re-pinned on purpose by SP3 (step 13; was without console_session) */,
+  'the platform tables are exactly organisation, staff, audit_event, auth_lock (step 3), mfa_failure (step 9), notice (step 12) and console_session (step 13)');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity), 0, 'every one has row level security on');
 select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
             where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'S')
@@ -86,7 +86,9 @@ select is((select count(*)::int from pg_class c, unnest(array['anon', 'authentic
 select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r where has_schema_privilege(r, 'platform', 'usage')), 0, 'no API role (platform_staff included) has usage on the platform schema');
 select is((select count(*)::int from pg_proc p, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
             where p.pronamespace = 'platform'::regnamespace and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role (platform_staff included) can execute any function in the platform schema');
-select is((select count(*)::int from pg_policy where polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass, 'platform.notice'::regclass /* re-pinned on purpose by SP3 (step 12; was the two) */)), 0, 'none of staff, audit_event and notice has a policy yet (the hook policy joins at step 14)');
+select is((select string_agg(c.relname || ':' || p.polname, ',' order by c.relname) from pg_policy p join pg_class c on c.oid = p.polrelid
+             where p.polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass, 'platform.notice'::regclass /* re-pinned on purpose by SP3 (step 12; was the two) */)),
+  'staff:staff_read_by_auth_hook' /* re-pinned on purpose by SP3 (step 14; was 0 policies): the hook's read */, 'of staff, audit_event and notice only staff has a policy: the hook''s read (step 14)');
 
 -- 6b. Every function of step 2 is pinned: existence, definer where intended, an empty search_path, closed to the API roles ------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace

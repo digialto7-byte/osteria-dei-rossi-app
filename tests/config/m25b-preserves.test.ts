@@ -251,6 +251,14 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100700_platform_metadata.sql",
   // SP3 step 12 (20261208100800_platform_notices.sql), re-pinned on purpose by SP3 (step 12; was the list ending at 20261208100700_platform_metadata.sql): the platform notices and platform_me.
   "20261208100800_platform_notices.sql",
+  // SP3 step 13 (20261208100900_console_session.sql), re-pinned on purpose by SP3 (step 13; was the list ending at 20261208100800_platform_notices.sql): the console mode switches.
+  "20261208100900_console_session.sql",
+  // SP3 step 14 (20261208101000_hook_console_mode.sql), re-pinned on purpose by SP3 (step 14; was the list ending at 20261208100900_console_session.sql): the hook's console mode.
+  "20261208101000_hook_console_mode.sql",
+  // SP3 step 15 (20261208101100_my_memberships_aal2.sql), re-pinned on purpose by SP3 (step 15; was the list without it): my_memberships at aal2 for the platform admin.
+  "20261208101100_my_memberships_aal2.sql",
+  // SP3 step 22 (20261208101200_console_session_purge.sql), re-pinned on purpose by SP3 (step 22; was the list ending at 20261208101100_my_memberships_aal2.sql): the purge of console rows and platform code failures.
+  "20261208101200_console_session_purge.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

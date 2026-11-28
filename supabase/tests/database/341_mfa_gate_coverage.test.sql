@@ -37,7 +37,8 @@ insert into exempt_auth (sig, oid)
 create temp table exempt_platform (sig text primary key, oid oid not null);
 insert into exempt_platform (sig, oid)
   select s, s::regprocedure::oid from unnest(array[
-    'public.platform_mfa_attempt_allowed()', 'public.platform_mfa_record_failure(text)', 'public.platform_mfa_record_enrolled(uuid)', 'public.platform_mfa_enrol_check(text)'
+    'public.platform_mfa_attempt_allowed()', 'public.platform_mfa_record_failure(text)', 'public.platform_mfa_record_enrolled(uuid)', 'public.platform_mfa_enrol_check(text)',
+    'public.select_console()' /* re-pinned on purpose by SP3 (step 13; was the four of step 9): it answers for the caller's own staff row and session, and checks aal2 itself */
   ]) as s;
 -- exempt_anon: the five anonymous booking functions found on main; used only by the anon check, never by the authenticated one.
 create temp table exempt_anon (sig text primary key, oid oid not null);
@@ -67,7 +68,7 @@ select is((select count(*)::int from exempt_session), 2, 'the session exempt lis
 select is((select count(*)::int from fn f where f.oid in (select oid from exempt_session) and f.prosrc ~* 'membership_ungated'), 0,
           'neither session function reads app.membership_ungated');
 select is((select count(*)::int from exempt_auth), 8, 'the authenticated exempt list is exactly eight signatures');
-select is((select count(*)::int from exempt_platform), 4, 'the platform exempt list is exactly the four signatures of step 9 and its follow-up (re-pinned on purpose by SP3)');
+select is((select count(*)::int from exempt_platform), 5 /* re-pinned on purpose by SP3 (step 13; was 4) */, 'the platform exempt list is exactly the four signatures of step 9 and its follow-up, and select_console of step 13 (re-pinned on purpose by SP3)');
 select is((select string_agg(f.proname, ', ' order by f.proname) from fn f where f.oid in (select oid from exempt_platform) and f.prosrc ~* 'membership_ungated'), null,
           'and none of them references app.membership_ungated');
 select is((select count(*)::int from fn f where f.proname in (select proname from invoker_ok) and f.prosecdef), 0, 'the invoker-listed functions are security invoker');

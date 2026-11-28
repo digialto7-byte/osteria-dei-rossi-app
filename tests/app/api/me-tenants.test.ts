@@ -75,6 +75,15 @@ describe("GET /api/me/tenants", () => {
     expect(await response.text()).not.toContain("3.2");
   });
 
+  // SP3 step 15 (plan §3.6, app host step 2): the platform admin at aal1 is sent to the code page, so its list answers 403 mfa_required, never 500.
+  it("my_memberships raising mfa_required is 403 mfa_required, not reported", async () => {
+    as({ sub: OWNER_CLAIMS.sub! }, null, { code: "P0001", message: "mfa_required" });
+    const response = await call();
+    expect(response.status).toBe(403);
+    expect((await response.json()).error.code).toBe("mfa_required");
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("an RPC error is a 500 reported with its code only, never a tenant name", async () => {
     as({ ...OWNER_CLAIMS }, null, { code: "42501", message: "Osteria Demo A denied" });
     const response = await call();

@@ -8,6 +8,7 @@ import { reportError } from "@/lib/observability/report";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import type { VenueSettings } from "@/lib/venue/settings";
 import { readTenantSettings } from "@/server/venue-settings/read";
+import { membershipsError } from "@/server/tenancy/memberships-error";
 
 export const APP_ROLES = ["owner", "chef", "waiter", "admin"] as const;
 export type AppRole = (typeof APP_ROLES)[number];
@@ -200,11 +201,12 @@ async function enforceSessionAge(
 /**
  * A token without a tenant claim (SP2, docs/plans/2026-11-26-sp02-memberships.md §3.4). A login with memberships has not chosen a venue in this
  * session yet: 409 tenant_selection_required, and the client goes to the chooser (Q-S4, Rule B: never a silent landing in some venue). A login
- * with none keeps today's 403 no_tenant. A lookup error is a 500 with its code only, never a guess.
+ * with none keeps today's 403 no_tenant. The platform admin at aal1 gets 403 mfa_required (SP3 step 15). Any other lookup error is a 500 with
+ * its code only, never a guess.
  */
 async function refuseWithoutTenant(supabase: SupabaseClient): Promise<never> {
   const { data, error } = await supabase.rpc("my_memberships");
-  if (error) throw new Error(`my_memberships failed: ${error.code ?? "no code"}`);
+  if (error) throw membershipsError(error);
   if (!Array.isArray(data)) throw new Error("my_memberships returned no list");
   if (data.length > 0) {
     throw new ApiError(409, "tenant_selection_required", "Scegli il locale in cui lavorare.");

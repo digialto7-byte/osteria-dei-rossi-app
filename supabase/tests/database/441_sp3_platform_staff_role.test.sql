@@ -65,8 +65,9 @@ select is((select count(*)::int from pg_class c join pg_namespace n on n.oid = c
   'nor on any sequence');
 select is((select string_agg(n.nspname || '.' || p.proname, ', ' order by n.nspname, p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname in ('public', 'app', 'platform') and has_function_privilege('platform_staff', p.oid, 'execute')
-              and not (n.nspname = 'public' and p.proname in ('platform_tenants', 'platform_tenant', 'platform_audit', 'platform_open_tenant', 'platform_notices', 'platform_notice_mark', 'platform_me'))), null,
-  'it executes no function in public, app or platform besides the console reads granted by steps 11 and 12 (443 pins that list exactly)');
+              and not (n.nspname = 'public' and p.proname in ('platform_tenants', 'platform_tenant', 'platform_audit', 'platform_open_tenant', 'platform_notices', 'platform_notice_mark', 'platform_me',
+                                                        'platform_leave_console' /* re-pinned on purpose by SP3 (step 13; was not listed) */))), null,
+  'it executes no function in public, app or platform besides the console reads granted by steps 11 and 12 and the way out of step 13 (443 pins that list exactly)');
 select ok(not has_function_privilege('platform_staff', 'public.platform_bootstrap_admin(uuid)', 'execute'), 'in particular not platform_bootstrap_admin (AT11)');
 select is((select string_agg(s, ',' order by s) from unnest(array['public', 'app', 'platform', 'storage', 'auth']) s where has_schema_privilege('platform_staff', s, 'usage')),
   'public', 'its only schema usage is public (to call the console functions); none on app, platform, storage or auth');

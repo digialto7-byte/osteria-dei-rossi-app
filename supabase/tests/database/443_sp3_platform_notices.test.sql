@@ -137,8 +137,9 @@ reset role;
 -- 6. Grants and definitions ----------------------------------------------------------------------------------------------------------------------------------------------
 select is((select string_agg(n.nspname || '.' || p.proname, ',' order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname in ('public', 'app', 'platform') and has_function_privilege('platform_staff', p.oid, 'execute')),
-  'public.platform_audit,public.platform_me,public.platform_notice_mark,public.platform_notices,public.platform_open_tenant,public.platform_tenant,public.platform_tenants',
-  'platform_staff now executes exactly seven functions');
+  'public.platform_audit,public.platform_leave_console,public.platform_me,public.platform_notice_mark,public.platform_notices,public.platform_open_tenant,public.platform_tenant,public.platform_tenants'
+  /* re-pinned on purpose by SP3 (step 13; was the seven without platform_leave_console) */,
+  'platform_staff now executes exactly eight functions (step 13 adds platform_leave_console)');
 select is((select count(*)::int from pg_proc p where p.oid in ('public.platform_notices()'::regprocedure, 'public.platform_notice_mark(uuid, uuid)'::regprocedure,
             'public.platform_me()'::regprocedure) and p.prosecdef and p.proconfig = array['search_path=""'] and p.proowner = 'postgres'::regrole
             and p.prosrc ~ '^\s*(declare[\s\S]*?)?begin\s+perform app\.require_console\(\);'), 3,
