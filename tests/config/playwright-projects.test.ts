@@ -204,7 +204,11 @@ describe("the e2e web server and the sign-in timing floor", () => {
   const config = readFileSync(new URL("../../playwright.config.ts", import.meta.url), "utf8");
 
   it("switches the floor off for the local test server only, and nowhere else in the repo's runtime config", () => {
-    expect(config).toContain('env: { E2E_AUTH_FLOOR_OFF: "1" }');
+    // Re-pinned on purpose by SP3 (step 23; was the one-key object env: { E2E_AUTH_FLOOR_OFF: "1" }): the web server's env also names the console host
+    // and the app origin of e2e/console.spec.ts, and still switches the floor off first.
+    expect(config).toMatch(
+      /\n {4}env: \{\n {6}E2E_AUTH_FLOOR_OFF: "1",\n {6}CONSOLE_HOST: "127\.0\.0\.1:3000",\n {6}APP_ORIGIN: BASE_URL,\n {4}\},\n/,
+    );
     for (const file of [".env.example", "vercel.json", "next.config.ts"]) {
       let text = "";
       try {

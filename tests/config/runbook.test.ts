@@ -25,6 +25,8 @@ const HEADINGS = [
   "Comanda per uscita",
   // SP2 (step S12), added on purpose.
   "SP2 rollout (memberships)",
+  // SP3 (step 24), added on purpose.
+  "Console (SP3)",
   "Go-live day",
 ];
 
