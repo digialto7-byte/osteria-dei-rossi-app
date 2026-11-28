@@ -301,6 +301,27 @@ written in any file or chat.
   midnight in CET and CEST; the existing-role guard also refuses grants to roles other than `authenticator` and role settings. Concurrency of
   `platform_notice_mark` reasoned (advisory lock, READ COMMITTED), not testable in pgTAP.
 
+**PR 3 (`feat/sp03-platform-3`).**
+- **Built:** steps 13, 14, 15 and 22: migrations `20261208100900_console_session`, `101000_hook_console_mode`, `101100_my_memberships_aal2`,
+  `101200_console_session_purge`; pgTAP 444–447; `tests/config/sp3-hook-branches.test.ts`; `withApi` and `GET /api/me/tenants` map `mfa_required`
+  from `my_memberships` to 403 (`src/server/tenancy/memberships-error.ts`, its own module to avoid an import cycle). Step 14 is one commit.
+- **Pins moved:**
+  - newest migration (m25, m25a, ux-quick-wins): `100800` → `101200`; m25b +4 files;
+  - 229, 327, 346 (both lists): `select_console`, `platform_leave_console` left out; 359: the same two in `p27_objs`;
+  - 341: `exempt_platform` 4 → 5 (`select_console`);
+  - 346 hook md5: `2926d3231eb6bcf843957755f1273899` → `b9be22fcd38c10e2934b99bc455490ad`;
+  - 436: `console_session` in the catalogue; `platform.staff` has the hook's read policy (was none);
+  - 441 test 8 and 443 (seven → eight): `platform_leave_console`;
+  - `sp3-preserves`: steps 13, 14, 15, 22; `select_tenant` and `my_memberships` join `RE_CREATED`; the blanket "no `delete from`" rule became a
+    per-step `deletesFrom` list (default none, so steps 1–12 are held as before), as SP2's guard does.
+- **Outside §4:** none.
+- **Changes against #138:** step 15 follows option A (§3, 3.3.5): only the active platform admin needs `aal2`. The hook resets a stale incoming
+  `platform_staff` role before the e-mail branches (outside them, so they stay SP2's text). `select_tenant`'s delete comes right after the session
+  check (not literally first), so a malformed session id still answers `session_missing`.
+- **Unchanged and green:** 003, 085, 340, 431, 432, 434, 088, 101, 347, 441 §4 (tenant sign-in claims), `sp2-hook-pin-branch`.
+- **Verification:** native Postgres 16, all 343 pgTAP files and the race script; vitest config, guards, lib, app and server; tsc, lint, format.
+  CI is the gate.
+
 ## 10. Sources
 
 Repository only: `main` `c78de05e`; branches `feat/sp02-memberships-2` (`676ab591`), `feat/sp02-memberships-3` (`e5c7e051`),
