@@ -189,6 +189,20 @@ const STEPS: Step[] = [
     functions: ["app.require_console"],
     triggers: [],
   },
+  {
+    // Step 11: the console's metadata reads.
+    file: "20261208100700_platform_metadata.sql",
+    tables: [],
+    functions: [
+      "platform.tenant_json",
+      "platform.audit_row_json",
+      "public.platform_tenants",
+      "public.platform_tenant",
+      "public.platform_audit",
+      "public.platform_open_tenant",
+    ],
+    triggers: [],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

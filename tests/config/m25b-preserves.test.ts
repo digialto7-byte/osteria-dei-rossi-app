@@ -247,6 +247,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100550_platform_mfa_enrol_check.sql",
   // SP3 step 10 (20261208100600_platform_staff_role.sql), re-pinned on purpose by SP3 (step 10; was the list ending at 20261208100550_platform_mfa_enrol_check.sql): the platform_staff role and app.require_console.
   "20261208100600_platform_staff_role.sql",
+  // SP3 step 11 (20261208100700_platform_metadata.sql), re-pinned on purpose by SP3 (step 11; was the list ending at 20261208100600_platform_staff_role.sql): the console's metadata reads.
+  "20261208100700_platform_metadata.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {
