@@ -182,6 +182,40 @@ const STEPS: Step[] = [
     functions: ["public.platform_mfa_enrol_check"],
     triggers: [],
   },
+  {
+    // Step 10: the platform_staff role and the console check.
+    file: "20261208100600_platform_staff_role.sql",
+    tables: [],
+    functions: ["app.require_console"],
+    triggers: [],
+  },
+  {
+    // Step 11: the console's metadata reads.
+    file: "20261208100700_platform_metadata.sql",
+    tables: [],
+    functions: [
+      "platform.tenant_json",
+      "platform.audit_row_json",
+      "public.platform_tenants",
+      "public.platform_tenant",
+      "public.platform_audit",
+      "public.platform_open_tenant",
+    ],
+    triggers: [],
+  },
+  {
+    // Step 12: the platform notices and platform_me.
+    file: "20261208100800_platform_notices.sql",
+    tables: ["platform.notice"],
+    functions: [
+      "platform.notice_append_only",
+      "public.platform_notices",
+      "public.platform_notice_mark",
+      "public.platform_me",
+      "public.platform_add_notice",
+    ],
+    triggers: ["platform_notice_no_update_delete", "platform_notice_no_truncate"],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [

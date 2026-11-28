@@ -25,6 +25,7 @@ on:
           - set-mfa-enforcement
           - create-tenant
           - bootstrap
+          - notice-add
       user:
         description: "mfa-reset: id (uuid) della persona nel locale (app_user)"
         type: string
@@ -51,6 +52,16 @@ on:
           - "off"
           - enrolled
           - required
+      notice_kind:
+        description: "notice-add: tipo di avviso ai locali"
+        type: choice
+        required: false
+        options:
+          - subprocessor
+      notice_version:
+        description: "notice-add: versione dell'avviso, un intero da 1 a 999999"
+        type: string
+        required: false
       conferma_disconnessione:
         description: "La persona verrà disconnessa da tutti i locali in cui ha un accesso (e dalla console, se è l'account DigiAlto) e al prossimo accesso dovrà attivare di nuovo il codice."
         type: boolean
@@ -82,7 +93,8 @@ jobs:
           read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
           read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }
           read_uuid_opt() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(. == "" or test("\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\z"))' "$GITHUB_EVENT_PATH"; }
-          operation=$(read_choice operation "mfa-reset set-mfa-enforcement create-tenant bootstrap") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          read_int() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[1-9][0-9]{0,5}\\z"))' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "mfa-reset set-mfa-enforcement create-tenant bootstrap notice-add") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
           echo "OPERATION=$operation" >> "$GITHUB_ENV"
           if [ "$operation" = "mfa-reset" ]; then
           user=$(read_uuid user) || { echo "::error::user: serve un uuid minuscolo / a lowercase uuid is required"; exit 1; }
@@ -110,6 +122,12 @@ jobs:
           echo "::add-mask::$auth_id"
           fi
           echo "AUTH_ID=$auth_id" >> "$GITHUB_ENV"
+          fi
+          if [ "$operation" = "notice-add" ]; then
+          notice_kind=$(read_choice notice_kind "subprocessor") || { echo "::error::notice_kind: scelta non valida / invalid choice"; exit 1; }
+          echo "NOTICE_KIND=$notice_kind" >> "$GITHUB_ENV"
+          notice_version=$(read_int notice_version) || { echo "::error::notice_version: serve un intero da 1 a 999999 / an integer from 1 to 999999 is required"; exit 1; }
+          echo "NOTICE_VERSION=$notice_version" >> "$GITHUB_ENV"
           fi
       - name: Write the summary (no environment, no secrets)
         run: |
@@ -147,6 +165,14 @@ jobs:
           echo "- Account (auth): ${AUTH_ID:0:8}"
           fi
           echo "- Dopo l'esecuzione: primo accesso alla console, poi attiva il codice nell'app."
+          ;;
+          notice-add)
+          echo "- Operazione: notice-add (nuovo avviso ai locali)"
+          case "$NOTICE_KIND" in
+          subprocessor) echo "- Tipo: subprocessor (elenco dei sub-responsabili)" ;;
+          esac
+          echo "- Versione: ${NOTICE_VERSION:0:8}"
+          echo "- Dopo l'esecuzione la console mostra l'avviso da leggere per ogni locale."
           ;;
           esac
           } >> "$GITHUB_STEP_SUMMARY"
@@ -304,3 +330,36 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
           PLATFORM_ADMIN_EMAIL: ${{ secrets.PLATFORM_ADMIN_EMAIL }}
         run: npx tsx scripts/platform-admin.ts bootstrap ${AUTH_ID:+--auth-id "$AUTH_ID"}
+
+  notice-add:
+    name: Nuovo avviso ai locali
+    needs: summary
+    if: github.ref == 'refs/heads/main' && inputs.operation == 'notice-add'
+    environment: platform-ops
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Read the inputs
+        run: |
+          set -eu
+          read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }
+          read_int() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\A[1-9][0-9]{0,5}\\z"))' "$GITHUB_EVENT_PATH"; }
+          operation=$(read_choice operation "notice-add") || { echo "::error::operation: scelta non valida / invalid choice"; exit 1; }
+          notice_kind=$(read_choice notice_kind "subprocessor") || { echo "::error::notice_kind: scelta non valida / invalid choice"; exit 1; }
+          echo "NOTICE_KIND=$notice_kind" >> "$GITHUB_ENV"
+          notice_version=$(read_int notice_version) || { echo "::error::notice_version: serve un intero da 1 a 999999 / an integer from 1 to 999999 is required"; exit 1; }
+          echo "NOTICE_VERSION=$notice_version" >> "$GITHUB_ENV"
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - name: Add the notice
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: npx tsx scripts/platform-admin.ts notice-add --kind "$NOTICE_KIND" --version "$NOTICE_VERSION"

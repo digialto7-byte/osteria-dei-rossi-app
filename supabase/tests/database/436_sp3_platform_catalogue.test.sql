@@ -74,18 +74,19 @@ select lives_ok($$ update platform.staff set is_active = true where auth_id = 'a
 
 -- 6. The named catalogue of the platform schema (§3.1.8) -------------------------------------------------------------------------------------------------------
 select is((select array_agg(c.relname::text order by c.relname) from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'v', 'm', 'f')),
-  array['audit_event', 'auth_lock', 'mfa_failure', 'organisation', 'staff'], 'the platform tables are exactly organisation, staff, audit_event, auth_lock (step 3) and mfa_failure (step 9)');
+  array['audit_event', 'auth_lock', 'mfa_failure', 'notice', 'organisation', 'staff'] /* re-pinned on purpose by SP3 (step 12; was without notice) */,
+  'the platform tables are exactly organisation, staff, audit_event, auth_lock (step 3), mfa_failure (step 9) and notice (step 12)');
 select is((select count(*)::int from pg_class c where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p') and not c.relrowsecurity), 0, 'every one has row level security on');
-select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role']) r
+select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
             where c.relnamespace = 'platform'::regnamespace and c.relkind in ('r', 'p', 'S')
               and has_table_privilege(r, c.oid, 'select,insert,update,delete,truncate,references,trigger')), 0,
-  'no table in platform has a privilege for anon, authenticated or service_role');
-select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role']) r
+  'no table in platform has a privilege for anon, authenticated, service_role or platform_staff');
+select is((select count(*)::int from pg_class c, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
             where c.relnamespace = 'platform'::regnamespace and c.relkind = 'S' and has_sequence_privilege(r, c.oid, 'usage,select,update')), 0, 'nor on a sequence (the audit id)');
-select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role']) r where has_schema_privilege(r, 'platform', 'usage')), 0, 'no API role has usage on the platform schema');
-select is((select count(*)::int from pg_proc p, unnest(array['anon', 'authenticated', 'service_role']) r
-            where p.pronamespace = 'platform'::regnamespace and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role can execute any function in the platform schema');
-select is((select count(*)::int from pg_policy where polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass)), 0, 'neither table has a policy yet (the hook policy joins at step 14)');
+select is((select count(*)::int from unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r where has_schema_privilege(r, 'platform', 'usage')), 0, 'no API role (platform_staff included) has usage on the platform schema');
+select is((select count(*)::int from pg_proc p, unnest(array['anon', 'authenticated', 'service_role', 'platform_staff' /* re-pinned on purpose by SP3 (step 10; was the three API roles) */]) r
+            where p.pronamespace = 'platform'::regnamespace and has_function_privilege(r, p.oid, 'execute')), 0, 'no API role (platform_staff included) can execute any function in the platform schema');
+select is((select count(*)::int from pg_policy where polrelid in ('platform.staff'::regclass, 'platform.audit_event'::regclass, 'platform.notice'::regclass /* re-pinned on purpose by SP3 (step 12; was the two) */)), 0, 'none of staff, audit_event and notice has a policy yet (the hook policy joins at step 14)');
 
 -- 6b. Every function of step 2 is pinned: existence, definer where intended, an empty search_path, closed to the API roles ------------------------------------------------
 select is((select count(*)::int from pg_proc p where p.pronamespace = 'platform'::regnamespace

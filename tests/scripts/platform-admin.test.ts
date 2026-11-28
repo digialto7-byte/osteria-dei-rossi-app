@@ -266,3 +266,89 @@ describe("platform-admin: a client that throws instead of answering", () => {
     expect(h.rpc).not.toHaveBeenCalled();
   });
 });
+
+// SP3 step 12 (plan 3.3.4, 3.9.1): scripts/platform-admin.ts notice-add --kind <kind> --version <n>. One writing call, platform_add_notice, which writes the notice and
+// its notice.created audit row; the script prints the notice id only (masked and cut to 8 characters under GitHub Actions).
+describe("platform-admin notice-add", () => {
+  const NOTICE = "e5000000-0000-4000-8000-000000000001";
+  const added = { rpc: { data: { noticeId: NOTICE }, error: null } };
+
+  it("validates --version as an integer >= 1 and prints the notice id only", async () => {
+    const h = harness(added);
+    expect(await h.run(["notice-add", "--kind", "subprocessor", "--version", "1"], {})).toBe(0);
+    expect(h.rpc).toHaveBeenCalledTimes(1);
+    expect(h.rpc).toHaveBeenCalledWith("platform_add_notice", {
+      p_kind: "subprocessor",
+      p_version: 1,
+    });
+    expect(h.out).toEqual([JSON.stringify({ noticeId: NOTICE })]);
+    expect(h.err).toEqual([]);
+  });
+
+  it.each([["0"], ["-1"], ["1.5"], ["01"], ["abc"], [""], ["1000000"], ["2e3"]])(
+    "refuses --version %j with exit 2 before any call",
+    async (version) => {
+      const h = harness(added);
+      expect(await h.run(["notice-add", "--kind", "subprocessor", "--version", version], {})).toBe(
+        2,
+      );
+      expect(h.make).not.toHaveBeenCalled();
+      // The value is never echoed back.
+      if (version !== "") expect(h.all()).not.toContain(version);
+    },
+  );
+
+  it.each([
+    [["notice-add", "--version", "1"]],
+    [["notice-add", "--kind", "subprocessor"]],
+    [["notice-add", "--kind", "marketing", "--version", "1"]],
+    [["notice-add", "--kind", "subprocessor", "--version", "1", "--extra", "x"]],
+    [["notice-add", "--kind", "subprocessor", "--version", "1", "positional"]],
+  ])("refuses %j with exit 2 before any call (no silent default kind)", async (argv) => {
+    const h = harness(added);
+    expect(await h.run(argv, {})).toBe(2);
+    expect(h.make).not.toHaveBeenCalled();
+  });
+
+  it("does not need PLATFORM_ADMIN_EMAIL and never reads the user list", async () => {
+    const h = harness(added);
+    expect(await h.run(["notice-add", "--kind", "subprocessor", "--version", "2"], {})).toBe(0);
+    expect(h.listUsers).not.toHaveBeenCalled();
+  });
+
+  it("under GitHub Actions masks the id first and shows its first 8 characters", async () => {
+    const h = harness(added);
+    expect(
+      await h.run(["notice-add", "--kind", "subprocessor", "--version", "1"], {
+        GITHUB_ACTIONS: "true",
+      }),
+    ).toBe(0);
+    expect(h.out[0]).toBe(`::add-mask::${NOTICE}`);
+    expect(h.out[1]).toBe(JSON.stringify({ noticeId: NOTICE.slice(0, 8) }));
+  });
+
+  it("a refusal prints its code only (a duplicate is 23505) and exits 1", async () => {
+    const h = harness({
+      rpc: {
+        data: null,
+        error: { message: "duplicate key value violates unique constraint", code: "23505" },
+      },
+    });
+    expect(await h.run(["notice-add", "--kind", "subprocessor", "--version", "1"], {})).toBe(1);
+    expect(h.err).toEqual(["Operazione rifiutata / Refused: 23505"]);
+  });
+
+  it("an unexpected answer or a thrown call exits 1 with a fixed text", async () => {
+    const odd = harness({ rpc: { data: { noticeId: "not-a-uuid" }, error: null } });
+    expect(await odd.run(["notice-add", "--kind", "subprocessor", "--version", "1"], {})).toBe(1);
+    expect(odd.err).toEqual([
+      "Risposta inattesa dal database / Unexpected answer from the database.",
+    ]);
+    const thrown = harness(added);
+    thrown.rpc.mockRejectedValueOnce(new Error("https://x.example.test/rest/v1 secret"));
+    expect(await thrown.run(["notice-add", "--kind", "subprocessor", "--version", "1"], {})).toBe(
+      1,
+    );
+    expect(thrown.err).toEqual(["Operazione rifiutata / Refused: unreachable"]);
+  });
+});

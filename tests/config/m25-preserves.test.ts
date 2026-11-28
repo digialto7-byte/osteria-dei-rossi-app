@@ -52,7 +52,10 @@ const ROOT = new URL("../../", import.meta.url);
 // SP3 step 5 (20261208100400_platform_script_audit.sql), re-pinned on purpose by SP3 (step 5; was 20261208100300_platform_bootstrap.sql): public.platform_record_script_run, the scripts' one audit writer.
 // SP3 step 9 (20261208100500_platform_mfa.sql), re-pinned on purpose by SP3 (step 9; was 20261208100400_platform_script_audit.sql): the account-level second factor of platform staff (platform.mfa_failure and three public functions).
 // SP3 step 9 (20261208100550_platform_mfa_enrol_check.sql), re-pinned on purpose by SP3 (step 9; was 20261208100500_platform_mfa.sql): public.platform_mfa_enrol_check, the account enrolment's refusal of a venue owner or admin.
-const LAST_MIGRATION = "20261208100550_platform_mfa_enrol_check.sql";
+// SP3 step 10 (20261208100600_platform_staff_role.sql), re-pinned on purpose by SP3 (step 10; was 20261208100550_platform_mfa_enrol_check.sql): the platform_staff role and app.require_console.
+// SP3 step 11 (20261208100700_platform_metadata.sql), re-pinned on purpose by SP3 (step 11; was 20261208100600_platform_staff_role.sql): the console's metadata reads.
+// SP3 step 12 (20261208100800_platform_notices.sql), re-pinned on purpose by SP3 (step 12; was 20261208100700_platform_metadata.sql): the platform notices and platform_me.
+const LAST_MIGRATION = "20261208100800_platform_notices.sql";
 // md5 of src/lib/nav/nav-model.ts: main after M25b's navigation by job (ADR-030) plus the one Prenotazioni link of the reservations (A13), then P2-1 B5's /doppia-verifica entry (on purpose), then P2-2's /tracciabilita in Cucina (on purpose); M25 itself changes no navigation.
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";
 

@@ -49,12 +49,22 @@ const SUPABASE_VARS = [
 ];
 const TENANT_VARS = ["TENANT_NAME", "TENANT_VAT_NUMBER", "OWNER_EMAIL", "OWNER_NAME"];
 const BOOTSTRAP_VARS = ["PLATFORM_ADMIN_EMAIL"];
-const SECRET_JOBS = ["mfa-reset", "set-mfa-enforcement", "create-tenant", "bootstrap"];
+// re-pinned on purpose by SP3 (step 12; was the four jobs before notice-add)
+const SECRET_JOBS = [
+  "mfa-reset",
+  "set-mfa-enforcement",
+  "create-tenant",
+  "bootstrap",
+  "notice-add",
+];
 const INPUT_NAMES = [
   "actor",
   "auth_id",
   "conferma_disconnessione",
   "mode",
+  // re-pinned on purpose by SP3 (step 12; was without the two notice inputs)
+  "notice_kind",
+  "notice_version",
   "operation",
   "tenant",
   "user",
@@ -78,7 +88,8 @@ const BOOTSTRAP_SETUP_NODE_WITH: Obj = {
 };
 /** Every `uses:` in the file names a full 40-hex commit SHA. */
 const FULL_SHA_USES = /^[a-z0-9-]+\/[a-z0-9-]+@[0-9a-f]{40}$/;
-const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID", "AUTH_ID"];
+// re-pinned on purpose by SP3 (step 12; was the four ids): NOTICE_VERSION is an integer of at most 6 digits (read_int), so its 8-character prefix is all of it.
+const PREFIX_IDS = ["USER_ID", "ACTOR_ID", "TENANT_ID", "AUTH_ID", "NOTICE_VERSION"];
 /** What each job may export through GITHUB_ENV, and the shell variable each name is paired with. Nothing else, so BASH_ENV or NODE_OPTIONS cannot be set. */
 const EXPORT_PAIRS: Record<string, string> = {
   OPERATION: "operation",
@@ -88,13 +99,28 @@ const EXPORT_PAIRS: Record<string, string> = {
   TENANT_ID: "tenant",
   MODE: "mode",
   AUTH_ID: "auth_id",
+  // re-pinned on purpose by SP3 (step 12; was without the notice pair)
+  NOTICE_KIND: "notice_kind",
+  NOTICE_VERSION: "notice_version",
 };
 const EXPORTS_BY_JOB: Record<string, string[]> = {
-  summary: ["OPERATION", "USER_ID", "ACTOR_ID", "CONFIRMED", "TENANT_ID", "MODE", "AUTH_ID"],
+  // re-pinned on purpose by SP3 (step 12; was without NOTICE_KIND and NOTICE_VERSION)
+  summary: [
+    "OPERATION",
+    "USER_ID",
+    "ACTOR_ID",
+    "CONFIRMED",
+    "TENANT_ID",
+    "MODE",
+    "AUTH_ID",
+    "NOTICE_KIND",
+    "NOTICE_VERSION",
+  ],
   "mfa-reset": ["USER_ID", "ACTOR_ID"],
   "set-mfa-enforcement": ["TENANT_ID", "ACTOR_ID", "MODE"],
   "create-tenant": [],
   bootstrap: ["AUTH_ID"],
+  "notice-add": ["NOTICE_KIND", "NOTICE_VERSION"],
 };
 const EXPECTED_SCRIPTS: Record<string, string> = {
   "mfa-reset": 'npx tsx scripts/mfa-reset.ts --user "$USER_ID" --actor "$ACTOR_ID" --yes',
@@ -102,6 +128,8 @@ const EXPECTED_SCRIPTS: Record<string, string> = {
     'npx tsx scripts/set-mfa-enforcement.ts --tenant "$TENANT_ID" --mode "$MODE" --actor "$ACTOR_ID"',
   "create-tenant": "npx tsx scripts/create-tenant.ts",
   bootstrap: 'npx tsx scripts/platform-admin.ts bootstrap ${AUTH_ID:+--auth-id "$AUTH_ID"}',
+  "notice-add":
+    'npx tsx scripts/platform-admin.ts notice-add --kind "$NOTICE_KIND" --version "$NOTICE_VERSION"',
 };
 /** The shape of each workflow_dispatch input: its attribute keys, its type, whether it is required, its default and its options (descriptions are free text). */
 const EXPECTED_INPUTS: Record<
@@ -111,7 +139,8 @@ const EXPECTED_INPUTS: Record<
   operation: {
     type: "choice",
     required: true,
-    options: ["mfa-reset", "set-mfa-enforcement", "create-tenant", "bootstrap"],
+    // re-pinned on purpose by SP3 (step 12; was without notice-add)
+    options: ["mfa-reset", "set-mfa-enforcement", "create-tenant", "bootstrap", "notice-add"],
   },
   user: { type: "string", required: false },
   actor: { type: "string", required: false },
@@ -124,6 +153,9 @@ const EXPECTED_INPUTS: Record<
     options: ["scegli", "off", "enrolled", "required"],
   },
   conferma_disconnessione: { type: "boolean", required: true, default: false },
+  // SP3 step 12: the notice-add job's two inputs (a kind from the list, an integer version).
+  notice_kind: { type: "choice", required: false, options: ["subprocessor"] },
+  notice_version: { type: "string", required: false },
 };
 
 // ---- the allowlist of what a run: line may be ----
@@ -132,6 +164,8 @@ const UUID_RE = String.raw`\\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0
 const READ_UUID_DEF = `read_uuid() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("${UUID_RE}"))' "$GITHUB_EVENT_PATH"; }`;
 const READ_CHOICE_DEF = `read_choice() { jq -er --arg k "$1" --arg allowed "$2" '(.inputs[$k] // "") as $v | $v | select(($allowed | split(" ")) | index($v))' "$GITHUB_EVENT_PATH"; }`;
 const READ_UUID_OPT_DEF = `read_uuid_opt() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(. == "" or test("${UUID_RE}"))' "$GITHUB_EVENT_PATH"; }`;
+// SP3 step 12: an integer from 1 to 999999, written plainly (the notice version).
+const READ_INT_DEF = `read_int() { jq -er --arg k "$1" '(.inputs[$k] // "") | select(test("\\\\A[1-9][0-9]{0,5}\\\\z"))' "$GITHUB_EVENT_PATH"; }`;
 const READ_BOOL_DEF = `read_bool() { jq -er --arg k "$1" '(.inputs[$k] // "false") | tostring | select(. == "true" or . == "false")' "$GITHUB_EVENT_PATH"; }`;
 const EXACT_LINES = new Set([
   "set -eu",
@@ -146,6 +180,7 @@ const EXACT_LINES = new Set([
   READ_CHOICE_DEF,
   READ_BOOL_DEF,
   READ_UUID_OPT_DEF,
+  READ_INT_DEF,
 ]);
 const FAIL = String.raw`\|\| \{ echo "::error::[^$\`"\\]*"; exit 1; \}`;
 const LITERAL = String.raw`(?!::)[^$\`"\\]*`; // a fixed text: no expansion, no quote, no backslash, and never a line that starts a workflow command (::)
@@ -161,6 +196,7 @@ const LINE_RULES: [string, RegExp][] = [
     new RegExp(String.raw`^([a-z_]+)=\$\(read_choice [a-z_]+ "[a-z -]+"\) ${FAIL}$`),
   ],
   ["a bool read", new RegExp(String.raw`^([a-z_]+)=\$\(read_bool [a-z_]+\) ${FAIL}$`)],
+  ["an int read", new RegExp(String.raw`^([a-z_]+)=\$\(read_int [a-z_]+\) ${FAIL}$`)],
   ["a mask", /^echo "::add-mask::\$([a-z_]+)"$/],
   ["an export to GITHUB_ENV", /^echo "([A-Z][A-Z0-9_]*)=\$([a-z_]+)" >> "\$GITHUB_ENV"$/],
   ["a fixed echo", new RegExp(String.raw`^(?:[a-z-]+\) )?echo "${LITERAL}"${SUMMARY}(?: ;;)?$`)],
@@ -181,7 +217,8 @@ const LINE_RULES: [string, RegExp][] = [
     "a script call",
     // The one optional-argument form: the bootstrap job's --auth-id only when an id was given (an empty AUTH_ID expands to nothing).
     new RegExp(
-      String.raw`^npx tsx scripts/[a-z-]+\.ts(?: [a-z]+)?(?: --[a-z-]+(?: "${VAR}")?)*(?: \$\{AUTH_ID:\+--auth-id "\$AUTH_ID"\})?$`,
+      // re-pinned on purpose by SP3 (step 12; was a command of letters only): a command may hold a hyphen (notice-add).
+      String.raw`^npx tsx scripts/[a-z-]+\.ts(?: [a-z][a-z-]*)?(?: --[a-z-]+(?: "${VAR}")?)*(?: \$\{AUTH_ID:\+--auth-id "\$AUTH_ID"\})?$`,
     ),
   ],
 ];
@@ -394,7 +431,7 @@ function runLines(run: string, jobName: string, fire: (rule: string) => void): v
     if (jobName !== "summary" && new RegExp(String.raw`\$\{${PREFIX_VAR}:0:8\}`).test(line))
       fire("prefix");
     let m: RegExpExecArray | null;
-    if ((m = /^([a-z_]+)=\$\(read_(uuid_opt|uuid|choice|bool) /.exec(line))) {
+    if ((m = /^([a-z_]+)=\$\(read_(uuid_opt|uuid|choice|bool|int) /.exec(line))) {
       assigned.add(m[1] ?? "");
       if (m[2] === "uuid" || m[2] === "uuid_opt") uuidVars.add(m[1] ?? "");
     }
@@ -443,9 +480,10 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
     expect(audit(doc)).toEqual([]);
   });
 
-  it("the audit is not vacuous: it reads four jobs, their steps and the inputs", () => {
+  it("the audit is not vacuous: it reads five jobs, their steps and the inputs", () => {
     expect(Object.keys(doc.jobs as Obj)).toEqual(["summary", ...SECRET_JOBS]);
     expect(stepsOfJob(doc, "bootstrap")).toHaveLength(5);
+    expect(stepsOfJob(doc, "notice-add")).toHaveLength(5);
     expect(stepsOfJob(doc, "mfa-reset")).toHaveLength(5);
     expect(stepsOfJob(doc, "summary")).toHaveLength(2);
     expect(Object.keys(((doc.on as Obj).workflow_dispatch as Obj).inputs as Obj).sort()).toEqual(
@@ -906,6 +944,7 @@ describe("platform-ops workflow: the audit passes the real file and fails every 
           "create-tenant",
           "bootstrap",
           "notice-add",
+          "other-op",
         ]),
       ["input-shape"],
     ],
@@ -1154,9 +1193,9 @@ describe("platform-ops workflow", () => {
 
   it("pins the runner image (ci-runner-image rule), a read-only token and no persisted credentials", () => {
     const runners = Object.keys(doc.jobs as Obj).map((j) => jobOf(doc, j)["runs-on"]);
-    expect(runners).toEqual(Array(5).fill("ubuntu-24.04"));
+    expect(runners).toEqual(Array(6).fill("ubuntu-24.04")); // re-pinned on purpose by SP3 (step 12; was 5)
     expect(doc.permissions).toEqual({ contents: "read" });
-    expect(workflowText.match(/persist-credentials: false/g)).toHaveLength(4);
+    expect(workflowText.match(/persist-credentials: false/g)).toHaveLength(5); // re-pinned on purpose by SP3 (step 12; was 4)
   });
 
   it("every job runs only from main", () => {
@@ -1559,15 +1598,15 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
 
   it("every uses: is pinned to a full commit SHA, with its tag in a comment", () => {
     const uses = [...workflowText.matchAll(/^\s*- uses: (\S+)(.*)$/gm)];
-    expect(uses).toHaveLength(8);
+    expect(uses).toHaveLength(10); // re-pinned on purpose by SP3 (step 12; was 8)
     for (const [, ref, rest] of uses) {
       expect(ref).toMatch(FULL_SHA_USES);
       expect(rest).toMatch(/^ # v\d+\.\d+\.\d+$/);
     }
     // No npm cache key (package-manager-cache: false is required, so match the bare key only).
     expect(workflowText).not.toMatch(/^\s*cache:/m);
-    // re-pinned on purpose by SP3 (step 7; was 3): the bootstrap job's setup-node.
-    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(4);
+    // re-pinned on purpose by SP3 (step 7; was 3): the bootstrap job's setup-node. Re-pinned on purpose by SP3 (step 12; was 4): the notice-add job's.
+    expect(workflowText.match(/^\s*package-manager-cache: false$/gm)).toHaveLength(5);
   });
 
   it("each script job installs with npm ci, runs with npx tsx (not npm run) and has a timeout", () => {
@@ -1578,4 +1617,130 @@ describe("platform-ops workflow: the inputs and the jobs", () => {
       expect(jobOf(doc, name)["timeout-minutes"]).toBeGreaterThan(0);
     }
   });
+});
+
+// SP3 step 12 (plan 3.3.4): the notice-add job. Its read step takes a kind from the list and an integer version, exports both, masks nothing (neither is an id), and
+// its script line is fixed; it holds the three Supabase secrets and nothing else.
+describe("platform-ops workflow: the notice-add job", () => {
+  it("exports a valid kind and version", () => {
+    const r = runReadStep("notice-add", {
+      operation: "notice-add",
+      notice_kind: "subprocessor",
+      notice_version: "2",
+    });
+    expect(r.status).toBe(0);
+    expect(r.env).toBe("NOTICE_KIND=subprocessor\nNOTICE_VERSION=2\n");
+  });
+
+  it("refuses another operation, an unknown kind and every version that is not an integer from 1 to 999999, exporting nothing after the refusal", () => {
+    expect(
+      runReadStep("notice-add", {
+        operation: "bootstrap",
+        notice_kind: "subprocessor",
+        notice_version: "1",
+      }).status,
+    ).not.toBe(0);
+    expect(
+      runReadStep("notice-add", {
+        operation: "notice-add",
+        notice_kind: "marketing",
+        notice_version: "1",
+      }).status,
+    ).not.toBe(0);
+    for (const notice_version of [
+      "0",
+      "01",
+      "-1",
+      "1.5",
+      "1e3",
+      "1000000",
+      "",
+      "1\nSECRET=1",
+      " 1",
+    ]) {
+      const r = runReadStep("notice-add", {
+        operation: "notice-add",
+        notice_kind: "subprocessor",
+        notice_version,
+      });
+      expect(r.status, JSON.stringify(notice_version)).not.toBe(0);
+      expect(r.env, JSON.stringify(notice_version)).not.toContain("NOTICE_VERSION");
+      expect(r.out).not.toContain("SECRET=1");
+    }
+  });
+
+  it("the summary reads the same two inputs for notice-add only", () => {
+    const ok = runReadStep("summary", {
+      operation: "notice-add",
+      notice_kind: "subprocessor",
+      notice_version: "3",
+    });
+    expect(ok.status).toBe(0);
+    expect(ok.env).toBe("OPERATION=notice-add\nNOTICE_KIND=subprocessor\nNOTICE_VERSION=3\n");
+    expect(
+      runReadStep("summary", { operation: "notice-add", notice_kind: "subprocessor" }).status,
+    ).not.toBe(0);
+    expect(runReadStep("summary", { operation: "create-tenant", notice_version: "3" }).env).toBe(
+      "OPERATION=create-tenant\n",
+    );
+  });
+
+  it("runs exactly the fixed script line with the three Supabase secrets, after the approval", () => {
+    const job = jobOf(doc, "notice-add");
+    expect(job.environment).toBe("platform-ops");
+    expect(job.needs).toBe("summary");
+    expect(job.if).toBe("github.ref == 'refs/heads/main' && inputs.operation == 'notice-add'");
+    const steps = stepsOfJob(doc, "notice-add");
+    expect(steps[4]!.run).toBe(EXPECTED_SCRIPTS["notice-add"]);
+    expect(Object.keys(steps[4]!.env as Obj).sort()).toEqual([...SUPABASE_VARS].sort());
+  });
+
+  const mutations: [string, (w: Obj) => void, string[]][] = [
+    [
+      "notice-add: the environment removed",
+      (w) => void delete jobOf(w, "notice-add").environment,
+      ["job-approval"],
+    ],
+    [
+      "notice-add: not waiting for the summary",
+      (w) => void delete jobOf(w, "notice-add").needs,
+      ["job-approval"],
+    ],
+    [
+      "notice-add: the address secret added",
+      (w) =>
+        void ((stepsOfJob(w, "notice-add")[4]!.env as Obj).PLATFORM_ADMIN_EMAIL =
+          "${{ secrets.PLATFORM_ADMIN_EMAIL }}"),
+      ["job-secrets"],
+    ],
+    [
+      "notice-add: the version read without its check",
+      (w) =>
+        void (stepsOfJob(w, "notice-add")[0]!.run = (
+          stepsOfJob(w, "notice-add")[0]!.run as string
+        ).replace(
+          /notice_version=\$\(read_int notice_version\)[^\n]*/,
+          'notice_version=$(jq -r .inputs.notice_version "$GITHUB_EVENT_PATH")',
+        )),
+      ["line", "mask-order"],
+    ],
+    [
+      "notice-add: another script line",
+      (w) =>
+        void (stepsOfJob(w, "notice-add")[4]!.run =
+          'npx tsx scripts/platform-admin.ts notice-add --kind "$NOTICE_KIND" --version "$NOTICE_KIND"'),
+      ["script"],
+    ],
+    [
+      "notice-add: the version printed whole in the job log",
+      (w) =>
+        void (stepsOfJob(w, "notice-add")[0]!.run =
+          `${stepsOfJob(w, "notice-add")[0]!.run as string}echo "v \${NOTICE_VERSION:0:8}"\n`),
+      ["prefix"],
+    ],
+  ];
+  for (const [label, change, rules] of mutations)
+    it(`fires ${rules.join(", ")} for: ${label}`, () => {
+      expect(firedBy(change)).toEqual(rules);
+    });
 });
