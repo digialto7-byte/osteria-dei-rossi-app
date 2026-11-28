@@ -255,6 +255,8 @@ const ALLOWED_NEW_MIGRATIONS = [
   "20261208100900_console_session.sql",
   // SP3 step 14 (20261208101000_hook_console_mode.sql), re-pinned on purpose by SP3 (step 14; was the list ending at 20261208100900_console_session.sql): the hook's console mode.
   "20261208101000_hook_console_mode.sql",
+  // SP3 step 22 (20261208101200_console_session_purge.sql), re-pinned on purpose by SP3 (step 22; was the list ending at 20261208101000_hook_console_mode.sql): the purge of console rows and platform code failures.
+  "20261208101200_console_session_purge.sql",
 ];
 
 function pageFiles(root: string, dir = ""): string[] {

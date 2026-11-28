@@ -238,6 +238,23 @@ const STEPS: Step[] = [
     functions: ["app.custom_access_token_hook"],
     triggers: [],
   },
+  {
+    // Step 22: the existing jobs purge old console rows and old platform code failures (both functions re-created with one more delete).
+    file: "20261208101200_console_session_purge.sql",
+    tables: [],
+    functions: ["app.purge_auth_data", "app.run_mfa_failure_retention"],
+    triggers: [],
+    deletesFrom: [
+      "public.auth_attempt",
+      "public.staff_session",
+      "public.device_enrolment",
+      "app.enrol_failure",
+      "app.session_tenant",
+      "platform.console_session",
+      "app.mfa_failure",
+      "platform.mfa_failure",
+    ],
+  },
 ];
 
 const FORBIDDEN_DEFINITIONS = [
