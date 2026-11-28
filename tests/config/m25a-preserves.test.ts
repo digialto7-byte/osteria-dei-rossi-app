@@ -60,7 +60,7 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 // SP3 step 9 (20261208100550_platform_mfa_enrol_check.sql), re-pinned on purpose by SP3 (step 9; was 20261208100500_platform_mfa.sql): public.platform_mfa_enrol_check, the account enrolment's refusal of a venue owner or admin.
 // SP3 step 10 (20261208100600_platform_staff_role.sql), re-pinned on purpose by SP3 (step 10; was 20261208100550_platform_mfa_enrol_check.sql): the platform_staff role and app.require_console.
 // SP3 step 11 (20261208100700_platform_metadata.sql), re-pinned on purpose by SP3 (step 11; was 20261208100600_platform_staff_role.sql): the console's metadata reads.
-// SP3 step 22 (20261208101200_console_session_purge.sql), re-pinned on purpose by SP3 (step 22; was 20261208101000_hook_console_mode.sql): the purge of console rows and platform code failures.
+// SP3 step 22 (20261208101200_console_session_purge.sql), re-pinned on purpose by SP3 (step 22; was 20261208101100_my_memberships_aal2.sql; step 15 landed before it in the same PR): the purge of console rows and platform code failures.
 const LAST_MIGRATION = "20261208101200_console_session_purge.sql";
 /** md5 of src/lib/nav/nav-model.ts at main 0f1df68, then M25b's navigation model (changed on purpose, plan §3.9 step 18), then the reservations' Prenotazioni link in Sala (A13, on purpose). P2-1 B5 adds the /doppia-verifica entry in Registro (owner and admin), on purpose. P2-2 adds /tracciabilita, last in Cucina for owner, admin and chef, on purpose. */
 const NAV_MODEL_MD5 = "2c9f55e8cd55ef3f1cc5a2a46c1795ff";

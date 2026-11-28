@@ -239,6 +239,13 @@ const STEPS: Step[] = [
     triggers: [],
   },
   {
+    // Step 15: my_memberships needs aal2 from the active platform admin (lead decision 2026-11-28, option A).
+    file: "20261208101100_my_memberships_aal2.sql",
+    tables: [],
+    functions: ["public.my_memberships"],
+    triggers: [],
+  },
+  {
     // Step 22: the existing jobs purge old console rows and old platform code failures (both functions re-created with one more delete).
     file: "20261208101200_console_session_purge.sql",
     tables: [],
@@ -461,8 +468,8 @@ describe("sp3-preserves: pgTAP 327's exclusion list (lead's condition)", () => {
     .map((file) => ({ file, text: readFileSync(join(PGTAP_DIR, file), "utf8") }));
   // Public functions an SP3 migration re-creates with the same signature: not new names (mfa_enrol_check is already on 327's list from P2-1; the pin hashes signatures, not bodies).
   // Their behaviour is pinned by the files that pinned it before (mfa_enrol_check: pgTAP 342 and 349) and by the SP3 file of the step that changes it.
-  // Re-pinned on purpose by SP3 (step 13; was mfa_enrol_check only): select_tenant (SP2's, pgTAP 432; changed by 444).
-  const RE_CREATED = ["mfa_enrol_check", "select_tenant"];
+  // Re-pinned on purpose by SP3 (step 13; was mfa_enrol_check only): select_tenant (SP2's, pgTAP 432; changed by 444); step 15: my_memberships (432; 446).
+  const RE_CREATED = ["mfa_enrol_check", "select_tenant", "my_memberships"];
   const publicFunctions = STEPS.flatMap((step) => step.functions)
     .filter((fn) => fn.startsWith("public."))
     .map((fn) => fn.slice("public.".length))

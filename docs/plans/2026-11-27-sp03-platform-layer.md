@@ -96,6 +96,9 @@ Steps of #138 **not built anywhere:** 10, 11, 12, 13, 14, 15, 17, 19, 22, 23, 24
 - **3.3.5:** `my_memberships` is re-created from #217's body. The caller is the active platform admin, or holds an active `admin` row, at
   `aal1` → P0001 `mfa_required`. #217's 432 must pass unchanged, and 341's `exempt_session` stays exactly two, with neither function
   reading `membership_ungated`.
+  **Lead decision 2026-11-28 (option A):** the two sentences conflicted (432's login holds an `admin` row in B and lists at `aal1`). Only the
+  active platform admin gets `mfa_required` at `aal1`; a legacy `admin` row lists as before, and 432 stays unchanged. Why: venue routes already
+  gate `admin` at `aal2` through the MFA gate, and the list is not sensitive.
 - **3.5 Host:** built (#155). `CONSOLE_HOST` unset (or blank) means no console anywhere.
 - **3.11 Pins:** replaced by §4 below.
 - **3.12 Gating:** replaced by §5 below.
